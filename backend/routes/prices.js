@@ -92,7 +92,7 @@ router.get('/history', async (req, res) => {
       timeframe,
       candles,
       count: candles.length,
-      provider: metaApiService.useSimulation ? 'simulation' : 'metaapi'
+      provider: 'metaapi'
     })
   } catch (error) {
     console.error('Error fetching historical candles:', error)

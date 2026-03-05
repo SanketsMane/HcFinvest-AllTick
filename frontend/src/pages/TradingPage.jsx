@@ -1009,7 +1009,6 @@ const TradingPage = () => {
       // Use livePrices first (real-time), fallback to instruments
       const livePrice = livePrices[trade.symbol]
       const instrument = instruments.find(i => i.symbol === trade.symbol) || selectedInstrument
-      
       const bid = livePrice?.bid || instrument.bid
       const ask = livePrice?.ask || instrument.ask
       
