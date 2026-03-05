@@ -7,7 +7,7 @@ const CORS_PROXY = "https://corsproxy.io/?";
 const ALLTICK_URL = "https://quote.alltick.io/quote-b-api/kline";
 const TOKEN = "1620b8aba97f46dec78ec599d611b958-c-app";
 
-function All_Tick_Chart({ symbol = "XAUUSD", onPriceUpdate }) {
+function All_Tick_Chart({ symbol = "XAUUSD.i", onPriceUpdate }) {
   const chartRef = useRef(null);
 
   useEffect(() => {
