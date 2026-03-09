@@ -249,7 +249,6 @@
 // }; 
 
 
-
 import { API_URL } from "../config/api";
 
 /* Event system used by TradingPage.jsx to receive live price updates */
@@ -293,108 +292,112 @@ const Datafeed = {
   },
 
   /* Load historical candles */
-getBars: async (
-  symbolInfo,
-  resolution,
-  periodParams,
-  onHistoryCallback,
-  onErrorCallback
-) => {
-
-  try {
-
-    const res = await fetch(`${API_URL}/xauusd/all`);
-    const result = await res.json();
-    const data = result.data;
-
-    if (!data || !data.length) {
-      onHistoryCallback([], { noData: true });
-      return;
-    }
-
-    const bars = data.map((c) => ({
-      time: new Date(c.time).getTime(),
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close
-    }));
-
-    bars.sort((a, b) => a.time - b.time);
-
-    // console.log("📊 Loaded candles:", bars.length);
-
-    onHistoryCallback(bars, { noData: false });
-
-  } catch (err) {
-
-    console.log("History error:", err);
-    onErrorCallback(err);
-
-  }
-
-},
-  /* Realtime updates */
-subscribeBars: (
-  symbolInfo,
-  resolution,
-  onRealtimeCallback,
-  subscriberUID
-) => {
-
-  if (Datafeed.interval) {
-    clearInterval(Datafeed.interval);
-  }
-
-  Datafeed.interval = setInterval(async () => {
+  getBars: async (
+    symbolInfo,
+    resolution,
+    periodParams,
+    onHistoryCallback,
+    onErrorCallback
+  ) => {
 
     try {
 
-      const res = await fetch(`${API_URL}/xauusd/latest`);
-      const data = await res.json();
+      const res = await fetch(`${API_URL}/xauusd/all`);
+      const result = await res.json();
+      const data = result.data;
 
-      if (!data || !data.length) return;
+      if (!data || !data.length) {
+        onHistoryCallback([], { noData: true });
+        return;
+      }
 
-      const last = data[0];
+      const bars = data.map((c) => ({
+        time: new Date(c.time).getTime(),
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close
+      }));
 
-      const bar = {
-        time: new Date(last.time).getTime(),
-        open: last.open,
-        high: last.high,
-        low: last.low,
-        close: last.close
-      };
+      bars.sort((a, b) => a.time - b.time);
 
-      // Update TradingView chart
-      onRealtimeCallback(bar);
-
-      // Send price update to TradingPage
-      const priceEvent = new CustomEvent("priceUpdate", {
-        detail: {
-          symbol: symbolInfo.name,
-          bid: bar.close,
-          ask: bar.close + 0.5,
-          time: bar.time
-        }
-      });
-
-      priceEventTarget.dispatchEvent(priceEvent);
+      onHistoryCallback(bars, { noData: false });
 
     } catch (err) {
-      console.log("Realtime error:", err);
+
+      console.log("History error:", err);
+      onErrorCallback(err);
+
     }
 
-  }, 300);
+  },
 
-},
+  /* Realtime updates */
+  subscribeBars: (
+    symbolInfo,
+    resolution,
+    onRealtimeCallback,
+    subscriberUID
+  ) => {
 
-  /* Stop realtime updates */
-  unsubscribeBars: () => {
+    // stop previous polling if exists
     if (Datafeed.interval) {
       clearInterval(Datafeed.interval);
       Datafeed.interval = null;
     }
+
+    Datafeed.interval = setInterval(async () => {
+
+      try {
+
+        const res = await fetch(`${API_URL}/xauusd/latest`);
+        const data = await res.json();
+
+        if (!data || !data.length) return;
+
+        const last = data[0];
+
+        const bar = {
+          time: new Date(last.time).getTime(),
+          open: last.open,
+          high: last.high,
+          low: last.low,
+          close: last.close
+        };
+
+        // Update TradingView chart
+        onRealtimeCallback(bar);
+
+        // Send price update to TradingPage
+        const priceEvent = new CustomEvent("priceUpdate", {
+          detail: {
+            symbol: symbolInfo.name,
+            bid: bar.close,
+            ask: bar.close + 0.5,
+            time: bar.time
+          }
+        });
+
+        priceEventTarget.dispatchEvent(priceEvent);
+
+      } catch (err) {
+        console.log("Realtime error:", err);
+      }
+
+    }, 1000); // fetch every 1 second
+
+  },
+
+  /* Stop realtime updates */
+  unsubscribeBars: () => {
+
+    if (Datafeed.interval) {
+      clearInterval(Datafeed.interval);
+      Datafeed.interval = null;
+    }
+
   }
+
 };
 
 export default Datafeed;
