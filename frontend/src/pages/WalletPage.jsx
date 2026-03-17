@@ -2,7 +2,7 @@
 
 import { API_URL } from "../config/api";
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Wallet,
   ArrowDownCircle,
@@ -26,9 +26,11 @@ import {
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
+import { Internal_Transfer } from "./Internal_Transfer";
 
 const WalletPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { isDarkMode } = useTheme();
 
@@ -39,6 +41,14 @@ const WalletPage = () => {
   const [loading, setLoading] = useState(true);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+const [showInternalTransferModal, setShowInternalTransferModal] = useState(false);
+const [transferAmount, setTransferAmount] = useState("");
+const [fromAccount, setFromAccount] = useState("");
+const [toAccount, setToAccount] = useState("");
+const [transferFee] = useState(2);
+
+
+
   const [showPaymentMethodsView, setShowPaymentMethodsView] = useState(false);
   const [showBankTransferModal, setShowBankTransferModal] = useState(false);
   const [showUPIModal, setShowUPIModal] = useState(false);
@@ -65,6 +75,18 @@ const WalletPage = () => {
   const [oxapayAmount, setOxapayAmount] = useState("");
   const [oxapayLoading, setOxapayLoading] = useState(false);
   const [oxapayPayment, setOxapayPayment] = useState(null);
+
+  useEffect(() => {
+  const action = searchParams.get("action");
+
+  if (action === "deposit") {
+    setShowPaymentMethodsView(true);
+  }
+
+  if (action === "withdraw") {
+    setShowWithdrawModal(true);
+  }
+}, []);
 
   // Crypto withdrawal state
   const [cryptoWithdrawAvailable, setCryptoWithdrawAvailable] = useState(false);
@@ -726,12 +748,10 @@ const WalletPage = () => {
                   <ArrowUpCircle size={isMobile ? 16 : 20} /> Withdraw
                 </button>
 
-                <button
-                  className={`flex items-center gap-2 bg-blue-500 text-white font-medium ${isMobile ? "px-4 py-2 text-sm" : "px-6 py-3"} rounded-lg hover:bg-blue-600 transition`}
-                >
-                  {" "}
-                  <ArrowRightLeft size={isMobile ? 16 : 20} /> Internal Transfer
-                </button>
+                <Internal_Transfer />
+
+
+
 
                 {cryptoWithdrawAvailable && (
                   <button
@@ -1258,9 +1278,9 @@ const WalletPage = () => {
               </button>
             </div>
 
-            <div className="mb-2 p-3 bg-dark-700 rounded-lg">
-              <p className="text-gray-500 text-sm">Wallet Balance</p>
-              <p className="text-gray-900 text-xl font-bold">
+            <div className="mb-2 p-3 bg-dark-700 rounded-lg bg-gray-200">
+              <p className=" text-sm">Wallet Balance</p>
+              <p className="text-gray-900 text-xl font-bold ">
                 ${wallet?.balance?.toLocaleString() || "0.00"}
               </p>
             </div>
@@ -1272,12 +1292,12 @@ const WalletPage = () => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="Enter amount"
-                className="w-full bg-dark-700 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent-green"
+                className="w-full bg-gray-200 border border-gray-200 rounded-lg px-4 py-3 text-blace placeholder-gray-700 focus:outline-none focus:border-accent-green"
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-gray-500 text-sm mb-2">
+              <label className="block text-gray-500 text-sm mb-2 ">
                 Withdrawal Method
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -1310,7 +1330,7 @@ const WalletPage = () => {
                   setSelectedPaymentMethod(null);
                   setError("");
                 }}
-                className="flex-1 bg-dark-700 text-gray-900 py-3 rounded-lg hover:bg-dark-600 transition-colors"
+                className="flex-1 bg-green-500 text-black py-3 rounded-lg hover:bg-green-600 transition-colors font-bold"
               >
                 Cancel
               </button>

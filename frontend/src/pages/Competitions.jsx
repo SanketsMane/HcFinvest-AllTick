@@ -195,9 +195,90 @@ const fetchCompetitions = async () => {
   const confirmJoinCompetition = async () => {
 
     await joinCompetition(selectedCompetition);
+    await handleCreateCompetitionDemo();
     setOpenRules(false);
-
+    
   };
+
+
+    const handleCreateCompetitionDemo = async () => {
+    try {
+      setLoading(true);
+
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (!user._id) {
+        alert("Please login first");
+        setLoading(false);
+        return;
+      }
+
+      // 1️⃣ Get existing accounts (to prevent duplicate)
+      const existingRes = await fetch(
+        `${API_URL}/trading-accounts/user/${user._id}`
+      );
+      const existingData = await existingRes.json();
+
+      const alreadyExists = existingData.accounts?.find(
+        (acc) => acc.accountName === "Competition Account"
+      );
+
+      if (alreadyExists) {
+        alert("Competition account already exists!");
+
+        // 🔥 Optional: redirect to trade page
+        navigate(`/trade/${alreadyExists._id}`);
+
+        setLoading(false);
+        return;
+      }
+
+      // 2️⃣ Fetch account types
+      const res = await fetch(`${API_URL}/account-types`);
+      const data = await res.json();
+
+      const demoType = data.accountTypes?.find((t) => t.isDemo);
+
+      if (!demoType) {
+        alert("No demo account type available");
+        setLoading(false);
+        return;
+      }
+
+      // 3️⃣ Create Competition Demo Account
+      const createRes = await fetch(`${API_URL}/trading-accounts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user._id,
+          accountTypeId: demoType._id,
+          pin: "0000",
+          accountName: "Competition Account", // ✅ Important
+        }),
+      });
+
+      const createData = await createRes.json();
+
+      if (createRes.ok) {
+        alert("Competition account created successfully!");
+
+        // 🔥 Redirect to trading page
+        navigate(`/trade/${createData.account._id}`);
+      } else {
+        alert(createData.message || "Failed to create account");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error creating competition account");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  
 
   return (
 <div style={{ display: "flex"}}>

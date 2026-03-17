@@ -60,7 +60,7 @@ const Advance_Trading_View_Chart = () => {
     return () => widget.remove();
   }, []);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "600px" }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 };
 
 export default Advance_Trading_View_Chart;

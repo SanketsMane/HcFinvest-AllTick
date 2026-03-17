@@ -15,6 +15,7 @@ import InstructionsPage from './pages/InstructionsPage'
 import AdminLogin from './pages/AdminLogin'
 import AdminOverview from './pages/AdminOverview'
 import AdminUserManagement from './pages/AdminUserManagement'
+import AdminUserDetails from './pages/AdminUserDetails'
 import AdminAccounts from './pages/AdminAccounts'
 import AdminAccountTypes from './pages/AdminAccountTypes'
 import AdminTransactions from './pages/AdminTransactions'
@@ -78,6 +79,7 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminOverview />} />
         <Route path="/admin/users" element={<AdminUserManagement />} />
+        <Route path="/admin/users/:userId" element={<AdminUserDetails />} />
         <Route path="/admin/accounts" element={<AdminAccounts />} />
         <Route path="/admin/account-types" element={<AdminAccountTypes />} />
         <Route path="/admin/transactions" element={<AdminTransactions />} />

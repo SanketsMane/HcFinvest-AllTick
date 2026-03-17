@@ -1,6 +1,8 @@
 import { API_URL } from '../config/api'
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import { useTheme } from '../context/ThemeContext'
 import { 
   Search,
   Mail,
@@ -29,6 +31,8 @@ import {
 } from 'lucide-react'
 
 const AdminUserManagement = () => {
+  const { modeColors } = useTheme()
+  const navigate = useNavigate()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -73,6 +77,8 @@ const AdminUserManagement = () => {
     password: ''
   })
   const [addUserLoading, setAddUserLoading] = useState(false)
+  const [selectedRows, setSelectedRows] = useState(new Set())
+  const [selectAll, setSelectAll] = useState(false)
 
   const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
 
@@ -633,12 +639,62 @@ const AdminUserManagement = () => {
     setAddUserLoading(false)
   }
 
+  const handleSelectRow = (userId) => {
+    const newSelectedRows = new Set(selectedRows)
+    if (newSelectedRows.has(userId)) {
+      newSelectedRows.delete(userId)
+    } else {
+      newSelectedRows.add(userId)
+    }
+    setSelectedRows(newSelectedRows)
+    setSelectAll(false)
+  }
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedRows(new Set())
+      setSelectAll(false)
+    } else {
+      const allUserIds = currentUsers.map(user => user._id)
+      setSelectedRows(new Set(allUserIds))
+      setSelectAll(true)
+    }
+  }
+
+  const handleStatusChange = async (userId, newStatus) => {
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Status updated successfully' })
+        fetchUsers()
+      } else {
+        const data = await response.json()
+        setMessage({ type: 'error', text: data.message || 'Failed to update status' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error updating status' })
+    }
+  }
+
+  const handleRowClick = (user) => {
+    navigate(`/admin/users/${user._id}`)
+  }
+
   const renderModal = () => {
     if (!showModal || !selectedUser) return null
 
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-dark-800 rounded-2xl w-full max-w-md border border-gray-700 overflow-hidden">
+        <div className="rounded-2xl w-full max-w-md border overflow-hidden"
+          style={{
+            backgroundColor: modeColors.bgCard,
+            borderColor: modeColors.border
+          }}>
           {/* Modal Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
             <div className="flex items-center gap-3">
@@ -1483,7 +1539,7 @@ const AdminUserManagement = () => {
   }
 
   return (
-    <AdminLayout title="User Management" subtitle="Manage all registered users">
+    <AdminLayout title="Clients List" subtitle="Manage all registered clients">
       {/* Tabs */}
       <div className="flex gap-2 mb-4">
         <button
@@ -1516,37 +1572,47 @@ const AdminUserManagement = () => {
       )}
 
       {activeTab === 'password-reset' ? (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-800">
+        <div className="rounded-xl border overflow-hidden"
+          style={{
+            backgroundColor: modeColors.bgCard,
+            borderColor: modeColors.border
+          }}>
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b" style={{ borderColor: modeColors.border }}>
             <div>
-              <h2 className="text-white font-semibold text-lg">Password Reset Requests</h2>
-              <p className="text-gray-500 text-sm">
+              <h2 className="font-semibold text-lg" style={{ color: modeColors.textPrimary }}>Password Reset Requests</h2>
+              <p className="text-sm" style={{ color: modeColors.textSecondary }}>
                 Pending: {resetRequestStats.pending} | Completed: {resetRequestStats.completed} | Rejected: {resetRequestStats.rejected}
               </p>
             </div>
-            <button onClick={fetchPasswordResetRequests} className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600">
-              <RefreshCw size={18} className="text-gray-400" />
+            <button onClick={fetchPasswordResetRequests} className="p-2 rounded-lg transition-colors" style={{
+              backgroundColor: modeColors.bgHover,
+              color: modeColors.textMuted
+            }}>
+              <RefreshCw size={18} style={{ color: modeColors.textMuted }} />
             </button>
           </div>
 
           <div className="p-4 space-y-3">
             {passwordResetRequests.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No password reset requests</p>
+              <p className="text-center py-8" style={{ color: modeColors.textMuted }}>No password reset requests</p>
             ) : (
               passwordResetRequests.map(request => (
-                <div key={request._id} className="p-4 bg-dark-700 rounded-xl border border-gray-700">
+                <div key={request._id} className="p-4 rounded-xl border" style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  borderColor: modeColors.border
+                }}>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
                         <User size={20} className="text-blue-500" />
                       </div>
                       <div>
-                        <p className="text-white font-medium">
+                        <p className="font-medium" style={{ color: modeColors.textPrimary }}>
                           {request.userId?.firstName} {request.userId?.lastName}
                         </p>
-                        <p className="text-gray-500 text-sm">{request.email}</p>
+                        <p className="text-sm" style={{ color: modeColors.textSecondary }}>{request.email}</p>
                         {request.newEmail && (
-                          <p className="text-yellow-500 text-xs mt-1">
+                          <p className="text-xs mt-1" style={{ color: '#F59E0B' }}>
                             Wants to change email to: {request.newEmail}
                           </p>
                         )}
@@ -1560,30 +1626,39 @@ const AdminUserManagement = () => {
                       }`}>
                         {request.status}
                       </span>
-                      <span className="text-gray-500 text-xs">
+                      <span className="text-xs" style={{ color: modeColors.textMuted }}>
                         {new Date(request.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
 
                   {request.status === 'Pending' && (
-                    <div className="mt-4 pt-4 border-t border-gray-600">
+                    <div className="mt-4 pt-4 border-t" style={{ borderColor: modeColors.border }}>
                       {selectedResetRequest === request._id ? (
                         <div className="space-y-3">
                           <div>
-                            <label className="text-gray-400 text-sm mb-1 block">New Password</label>
+                            <label className="text-sm mb-1 block" style={{ color: modeColors.textMuted }}>New Password</label>
                             <input
                               type="text"
                               value={resetPassword}
                               onChange={(e) => setResetPassword(e.target.value)}
                               placeholder="Enter new password (min 6 chars)"
-                              className="w-full bg-dark-600 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
+                              className="w-full border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
+                              style={{
+                                backgroundColor: modeColors.bgSecondary,
+                                borderColor: modeColors.border,
+                                color: modeColors.textPrimary
+                              }}
                             />
                           </div>
                           <div className="flex gap-2">
                             <button
                               onClick={() => { setSelectedResetRequest(null); setResetPassword('') }}
-                              className="px-4 py-2 bg-dark-600 text-gray-400 rounded-lg hover:bg-dark-500 text-sm"
+                              className="px-4 py-2 rounded-lg text-sm transition-colors"
+                              style={{
+                                backgroundColor: modeColors.bgSecondary,
+                                color: modeColors.textMuted
+                              }}
                             >
                               Cancel
                             </button>
@@ -1602,7 +1677,7 @@ const AdminUserManagement = () => {
                               Reject
                             </button>
                           </div>
-                          <p className="text-gray-500 text-xs">
+                          <p className="text-xs" style={{ color: modeColors.textMuted }}>
                             After resetting, send the new password to user's email manually.
                           </p>
                         </div>
@@ -1618,7 +1693,7 @@ const AdminUserManagement = () => {
                   )}
 
                   {request.status !== 'Pending' && request.adminRemarks && (
-                    <p className="mt-2 text-gray-500 text-xs">Remarks: {request.adminRemarks}</p>
+                    <p className="mt-2 text-xs" style={{ color: modeColors.textMuted }}>Remarks: {request.adminRemarks}</p>
                   )}
                 </div>
               ))
@@ -1626,37 +1701,68 @@ const AdminUserManagement = () => {
           </div>
         </div>
       ) : (
-      <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
+      <div className="rounded-xl border overflow-hidden"
+        style={{
+          backgroundColor: modeColors.bgCard,
+          borderColor: modeColors.border
+        }}>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b" style={{ borderColor: modeColors.border }}>
           <div>
-            <h2 className="text-white font-semibold text-lg">All Users</h2>
-            <p className="text-gray-500 text-sm">{users.length} total users</p>
+            <h2 className="font-semibold text-lg" style={{ color: modeColors.textPrimary }}>All Clients</h2>
+            <p className="text-sm" style={{ color: modeColors.textSecondary }}>{users.length} total clients</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: modeColors.textMuted }} />
               <input
                 type="text"
-                placeholder="Search users..."
+                placeholder="Search clients..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
+                className="w-full sm:w-64 border rounded-lg pl-10 pr-4 py-2 placeholder-gray-500 focus:outline-none"
+                style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  borderColor: modeColors.border,
+                  color: modeColors.textPrimary
+                }}
               />
             </div>
+            {/* <button className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 border"
+              style={{
+                backgroundColor: modeColors.bgSecondary,
+                color: modeColors.textSecondary,
+                borderColor: modeColors.border
+              }}>
+              <span className="text-sm">Advance Filter</span>
+            </button> */}
+            {/* <button className="px-4 py-2 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              style={{ backgroundColor: '#2563EB' }}>
+              <Plus size={18} />
+              <span className="text-sm">Add IB</span>
+            </button> */}
             <button 
               onClick={() => setShowAddUserModal(true)}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+              style={{ backgroundColor: '#059669' }}
             >
               <User size={18} />
-              <span>Add User</span>
+              <span className="text-sm">Add New Client</span>
             </button>
+            {/* <button className="px-4 py-2 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+              style={{ backgroundColor: '#7C3AED' }}>
+              <span className="text-sm">Headers</span>
+            </button> */}
             <button 
               onClick={fetchUsers}
-              className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors flex items-center justify-center gap-2"
+              className="p-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: modeColors.bgSecondary,
+                color: modeColors.textMuted
+              }}
             >
-              <RefreshCw size={18} className={`text-gray-400 ${loading ? 'animate-spin' : ''}`} />
-              <span className="sm:hidden text-gray-400 text-sm">Refresh</span>
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} style={{ color: modeColors.textMuted }} />
+              <span className="sm:hidden text-sm">Refresh</span>
             </button>
           </div>
         </div>
@@ -1665,27 +1771,31 @@ const AdminUserManagement = () => {
         <div className="block lg:hidden p-4 space-y-3">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <RefreshCw size={24} className="text-gray-500 animate-spin" />
+              <RefreshCw size={24} className="animate-spin" style={{ color: modeColors.textMuted }} />
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              {searchTerm ? 'No users found matching your search' : 'No users registered yet'}
+            <div className="text-center py-8" style={{ color: modeColors.textMuted }}>
+              {searchTerm ? 'No clients found matching your search' : 'No clients registered yet'}
             </div>
           ) : (
             currentUsers.map((user) => (
               <div 
                 key={user._id} 
-                className="bg-dark-700 rounded-xl p-4 border border-gray-700"
+                className="rounded-xl p-4 border"
+                style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  borderColor: modeColors.border
+                }}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-accent-green/20 rounded-full flex items-center justify-center">
-                      <span className="text-accent-green font-medium text-lg">
+                    <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                      <span className="text-blue-400 font-medium text-lg">
                         {user.firstName?.charAt(0)?.toUpperCase() || 'U'}
                       </span>
                     </div>
                     <div>
-                      <p className="text-white font-medium">{user.firstName || 'Unknown'}</p>
+                      <p className="font-medium" style={{ color: modeColors.textPrimary }}>{user.firstName || 'Unknown'}</p>
                       <p className={`text-xs ${user.isBanned ? 'text-red-500' : user.isBlocked ? 'text-yellow-500' : 'text-green-500'}`}>
                         {user.isBanned ? 'Banned' : user.isBlocked ? 'Blocked' : 'Active'}
                       </p>
@@ -1693,49 +1803,65 @@ const AdminUserManagement = () => {
                   </div>
                   <button 
                     onClick={() => openModal('view', user)}
-                    className="p-2 bg-dark-600 rounded-lg hover:bg-dark-500 transition-colors"
+                    className="p-2 rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: modeColors.bgHover,
+                      color: modeColors.textMuted
+                    }}
                   >
-                    <MoreHorizontal size={18} className="text-gray-400" />
+                    <MoreHorizontal size={18} />
                   </button>
                 </div>
                 
                 <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-400">
+                  <div className="flex items-center gap-2" style={{ color: modeColors.textSecondary }}>
                     <Mail size={14} />
                     <span className="truncate">{user.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-400">
+                  <div className="flex items-center gap-2" style={{ color: modeColors.textSecondary }}>
                     <Phone size={14} />
                     <span>{user.phone || 'N/A'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-400">
+                  <div className="flex items-center gap-2" style={{ color: modeColors.textSecondary }}>
                     <Calendar size={14} />
                     <span>Joined {formatDate(user.createdAt)}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-400">
+                  <div className="flex items-center gap-2" style={{ color: modeColors.textSecondary }}>
                     <Wallet size={14} />
                     <span className="text-blue-400 text-sm">Click View for balances</span>
                   </div>
                 </div>
 
-                <div className="flex gap-2 mt-4 pt-3 border-t border-gray-600">
+                <div className="flex gap-2 mt-4 pt-3 border-t" style={{ borderColor: modeColors.border }}>
                   <button 
                     onClick={() => openModal('view', user)}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm transition-colors"
+                    style={{
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      color: '#3B82F6'
+                    }}
                   >
                     <Eye size={14} />
                     View
                   </button>
                   <button 
                     onClick={() => openModal('password', user)}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 bg-purple-500/20 text-purple-500 rounded-lg text-sm hover:bg-purple-500/30 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm transition-colors"
+                    style={{
+                      backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                      color: '#9333EA'
+                    }}
                   >
                     <Lock size={14} />
                     Password
                   </button>
                   <button 
                     onClick={() => openModal('delete', user)}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 bg-red-500/20 text-red-500 rounded-lg text-sm hover:bg-red-500/30 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm transition-colors"
+                    style={{
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: '#EF4444'
+                    }}
                   >
                     <Trash2 size={14} />
                     Delete
@@ -1750,114 +1876,259 @@ const AdminUserManagement = () => {
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
-                <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Email</th>
-                <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Phone</th>
-                <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Balance</th>
-                <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Status</th>
-                <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Joined</th>
-                <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Actions</th>
+              <tr className="border-b" style={{ backgroundColor: modeColors.bgHover, borderColor: modeColors.border }}>
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    onChange={handleSelectAll}
+                    className="rounded border"
+                    style={{
+                      borderColor: modeColors.border,
+                      backgroundColor: modeColors.bgSecondary,
+                      color: modeColors.textPrimary
+                    }}
+                  />
+                </th>
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Date</th>
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Name</th>
+                {/* <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Account No</th> */}
+                {/* <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Category</th> */}
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Email</th>
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Phone</th>
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Status</th>
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Country</th>
+                {/* <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Agent</th> */}
+                {/* <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Plan Type</th> */}
+                {/* <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Referral</th> */}
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>IB</th>
+                {/* <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Source</th> */}
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>KYC</th>
+                <th className="text-left text-sm font-medium py-3 px-4" style={{ color: modeColors.textMuted }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-8">
-                    <RefreshCw size={24} className="text-gray-500 animate-spin mx-auto" />
+                  <td colSpan="16" className="text-center py-8">
+                    <RefreshCw size={24} className="animate-spin" style={{ color: modeColors.textMuted }} />
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500">
-                    {searchTerm ? 'No users found matching your search' : 'No users registered yet'}
+                  <td colSpan="16" className="text-center py-8" style={{ color: modeColors.textMuted }}>
+                    {searchTerm ? 'No clients found matching your search' : 'No clients registered yet'}
                   </td>
                 </tr>
               ) : (
                 currentUsers.map((user) => (
-                  <tr key={user._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-accent-green/20 rounded-full flex items-center justify-center">
-                          <span className="text-accent-green font-medium">
+                  <tr key={user._id} className="border-b transition-colors hover:bg-opacity-50 cursor-pointer" 
+                    style={{ 
+                      borderColor: modeColors.border,
+                    }}
+                    onClick={() => handleRowClick(user)}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = modeColors.bgHover
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent'
+                    }}>
+                    <td className="py-3 px-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(user._id)}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          handleSelectRow(user._id)
+                        }}
+                        className="rounded border"
+                        style={{
+                          borderColor: modeColors.border,
+                          backgroundColor: modeColors.bgSecondary,
+                          color: modeColors.textPrimary
+                        }}
+                      />
+                    </td>
+                    <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {formatDate(user.createdAt)}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <span className="text-blue-400 font-medium text-sm">
                             {user.firstName?.charAt(0)?.toUpperCase() || 'U'}
                           </span>
                         </div>
-                        <span className="text-white font-medium">{user.firstName || 'Unknown'}</span>
+                        <span className="text-sm font-medium" style={{ color: modeColors.textPrimary }}>{user.firstName || 'Unknown'}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Mail size={14} />
-                        <span>{user.email}</span>
-                      </div>
+                    {/* <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.accountNumber || 'N/A'}
+                    </td> */}
+                    {/* <td className="py-3 px-4">
+                      <span className="px-2 py-1 rounded text-xs" style={{
+                        backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                        color: '#9333EA'
+                      }}>
+                        {user.category || 'Standard'}
+                      </span>
+                    </td> */}
+                    <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.email}
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Phone size={14} />
-                        <span>{user.phone || 'N/A'}</span>
-                      </div>
+                    <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.phone || 'N/A'}
                     </td>
-                    <td className="py-4 px-4">
-                      <button 
-                        onClick={() => openModal('view', user)}
-                        className="text-blue-400 hover:text-blue-300 text-sm underline"
+                    <td className="py-3 px-4">
+                      <select
+                        value={user.isBanned ? 'Banned' : user.isBlocked ? 'Blocked' : 'Active'}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          handleStatusChange(user._id, e.target.value)
+                        }}
+                        className="px-2 py-1 rounded text-xs font-medium border"
+                        style={{
+                          backgroundColor: user.isBanned 
+                            ? 'rgba(239, 68, 68, 0.1)' 
+                            : user.isBlocked 
+                              ? 'rgba(245, 158, 11, 0.1)' 
+                              : 'rgba(34, 197, 94, 0.1)',
+                          color: user.isBanned 
+                            ? '#EF4444' 
+                            : user.isBlocked 
+                              ? '#F59E0B' 
+                              : '#22C55E',
+                          borderColor: user.isBanned 
+                            ? 'rgba(239, 68, 68, 0.3)' 
+                            : user.isBlocked 
+                              ? 'rgba(245, 158, 11, 0.3)' 
+                              : 'rgba(34, 197, 94, 0.3)'
+                        }}
                       >
-                        View Balances
-                      </button>
+                        <option value="Active">Active</option>
+                        <option value="Blocked">Blocked</option>
+                        <option value="Banned">Banned</option>
+                      </select>
                     </td>
-                    <td className="py-4 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        user.isBanned 
-                          ? 'bg-red-500/20 text-red-500' 
-                          : user.isBlocked 
-                            ? 'bg-yellow-500/20 text-yellow-500' 
-                            : 'bg-green-500/20 text-green-500'
-                      }`}>
-                        {user.isBanned ? 'Banned' : user.isBlocked ? 'Blocked' : 'Active'}
+                    <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.country || 'N/A'}
+                    </td>
+                    {/* <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.agent || 'N/A'}
+                    </td> */}
+                    {/* <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.planType || 'Standard'}
+                    </td> */}
+                    {/* <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.referral || 'N/A'}
+                    </td> */}
+                    <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.ib || 'N/A'}
+                    </td>
+                    {/* <td className="py-3 px-4 text-sm" style={{ color: modeColors.textSecondary }}>
+                      {user.source || 'Direct'}
+                    </td> */}
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-1 rounded text-xs font-medium" style={{
+                        backgroundColor: user.kycVerified 
+                          ? 'rgba(34, 197, 94, 0.1)' 
+                          : 'rgba(245, 158, 11, 0.1)',
+                        color: user.kycVerified 
+                          ? '#22C55E' 
+                          : '#F59E0B'
+                      }}>
+                        {user.kycVerified ? 'Verified' : 'Pending'}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-gray-400">
-                      {formatDate(user.createdAt)}
-                    </td>
-                    <td className="py-4 px-4">
+                    <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
                         <button 
-                          onClick={() => openModal('view', user)}
-                          className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openModal('view', user)
+                          }}
+                          className="p-1.5 rounded transition-colors"
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: modeColors.textMuted
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = modeColors.bgHover
+                            e.target.style.color = modeColors.textPrimary
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = 'transparent'
+                            e.target.style.color = modeColors.textMuted
+                          }}
                           title="View Details"
                         >
-                          <Eye size={16} />
+                          <Eye size={14} />
                         </button>
                         <button 
-                          onClick={() => openModal('password', user)}
-                          className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-blue-500"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openModal('password', user)
+                          }}
+                          className="p-1.5 rounded transition-colors"
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: modeColors.textMuted
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = modeColors.bgHover
+                            e.target.style.color = '#3B82F6'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = 'transparent'
+                            e.target.style.color = modeColors.textMuted
+                          }}
                           title="Change Password"
                         >
-                          <Lock size={16} />
+                          <Lock size={14} />
                         </button>
                         <button 
-                          onClick={() => openModal('deduct', user)}
-                          className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-orange-500"
-                          title="Deduct Fund"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openModal('edit', user)
+                          }}
+                          className="p-1.5 rounded transition-colors"
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: modeColors.textMuted
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = modeColors.bgHover
+                            e.target.style.color = '#059669'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = 'transparent'
+                            e.target.style.color = modeColors.textMuted
+                          }}
+                          title="Edit"
                         >
-                          <DollarSign size={16} />
+                          <Edit size={14} />
                         </button>
                         <button 
-                          onClick={() => openModal('block', user)}
-                          className={`p-2 hover:bg-dark-600 rounded-lg transition-colors ${
-                            user.isBlocked ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'
-                          }`}
-                          title={user.isBlocked ? 'Unblock User' : 'Block User'}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openModal('delete', user)
+                          }}
+                          className="p-1.5 rounded transition-colors"
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: modeColors.textMuted
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = modeColors.bgHover
+                            e.target.style.color = '#EF4444'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = 'transparent'
+                            e.target.style.color = modeColors.textMuted
+                          }}
+                          title="Delete"
                         >
-                          <Ban size={16} />
-                        </button>
-                        <button 
-                          onClick={() => openModal('delete', user)}
-                          className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-red-500"
-                          title="Delete User"
-                        >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -1870,13 +2141,18 @@ const AdminUserManagement = () => {
 
         {/* Pagination Controls */}
         {filteredUsers.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-700">
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span>Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users</span>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t" style={{ borderColor: modeColors.border }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: modeColors.textMuted }}>
+              <span>Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} clients</span>
               <select 
                 value={usersPerPage} 
                 onChange={(e) => { setUsersPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-dark-700 border border-gray-600 rounded px-2 py-1 text-white text-sm ml-2"
+                className="rounded px-2 py-1 text-sm ml-2 border"
+                style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  borderColor: modeColors.border,
+                  color: modeColors.textPrimary
+                }}
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -1889,14 +2165,22 @@ const AdminUserManagement = () => {
               <button
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 bg-dark-700 text-gray-400 rounded hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1.5 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  color: modeColors.textMuted
+                }}
               >
                 First
               </button>
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 bg-dark-700 text-gray-400 rounded hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1.5 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  color: modeColors.textMuted
+                }}
               >
                 Prev
               </button>
@@ -1916,11 +2200,15 @@ const AdminUserManagement = () => {
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`w-8 h-8 rounded text-sm ${
-                        currentPage === pageNum 
-                          ? 'bg-accent-green text-black font-medium' 
-                          : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                      }`}
+                      className="w-8 h-8 rounded text-sm"
+                      style={{
+                        backgroundColor: currentPage === pageNum 
+                          ? '#10B981' 
+                          : modeColors.bgSecondary,
+                        color: currentPage === pageNum 
+                          ? '#FFFFFF' 
+                          : modeColors.textMuted
+                      }}
                     >
                       {pageNum}
                     </button>
@@ -1930,14 +2218,22 @@ const AdminUserManagement = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1.5 bg-dark-700 text-gray-400 rounded hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1.5 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  color: modeColors.textMuted
+                }}
               >
                 Next
               </button>
               <button
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1.5 bg-dark-700 text-gray-400 rounded hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1.5 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: modeColors.bgSecondary,
+                  color: modeColors.textMuted
+                }}
               >
                 Last
               </button>

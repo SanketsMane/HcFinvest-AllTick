@@ -22,19 +22,29 @@ const darkColors = {
   textMuted: '#6B7280',
   border: '#374151',
   borderLight: '#4B5563',
+  adminSidebar: '#1F2937',
+  adminSidebarHover: '#374151',
+  adminAccent: '#3B82F6',
+  headerBg: '#1E40AF',
+  headerText: '#FFFFFF',
 }
 
 // Light mode colors
 const lightColors = {
-  bgPrimary: '#F9FAFB',
+  bgPrimary: '#FFFFFF',
   bgSecondary: '#FFFFFF',
   bgCard: '#FFFFFF',
-  bgHover: '#F3F4F6',
-  textPrimary: '#111827',
-  textSecondary: '#4B5563',
+  bgHover: '#F8FAFC',
+  textPrimary: '#1F2937',
+  textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
   border: '#E5E7EB',
   borderLight: '#D1D5DB',
+  adminSidebar: '#FFFFFF',
+  adminSidebarHover: '#F8FAFC',
+  adminAccent: '#2563EB',
+  headerBg: '#1E40AF',
+  headerText: '#FFFFFF',
 }
 
 export const ThemeProvider = ({ children }) => {
@@ -42,7 +52,7 @@ export const ThemeProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode')
-    return saved !== null ? JSON.parse(saved) : true // Default to dark mode
+    return saved !== null ? JSON.parse(saved) : false // Default to light mode
   })
 
   const fetchTheme = async () => {

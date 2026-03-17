@@ -19,6 +19,7 @@ import { MdLeaderboard } from "react-icons/md";
 
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
+import ClientDashboardBannerSlider from "../components/ClientDashboardBannerSlider";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -577,7 +578,7 @@ const Dashboard = () => {
       {/* TOP NAVBAR */}
       <div className="h-14 bg-[#0b1a3a] text-white flex items-center justify-between px-3 sm:px-6">
         <div className="font-semibold text-sm sm:text-base">
-          User Balance
+          Dashboard
         </div>
 
         <div className="flex items-center gap-4 sm:gap-5">
@@ -585,6 +586,12 @@ const Dashboard = () => {
           <UserCircle size={20} className="cursor-pointer" />
         </div>
       </div>
+
+        {/* <ClientDashboardBannerSlider /> */}
+        <div className="w-full">
+          <ClientDashboardBannerSlider />
+        </div>
+
 
       {/* DASHBOARD CONTENT */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6">

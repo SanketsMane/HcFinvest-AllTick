@@ -1,8 +1,14 @@
 import mongoose from "mongoose";
 
 const prizeSchema = new mongoose.Schema({
-  position: Number,
-  prizeAmount: String
+  rank: {
+    type: Number,
+    required: true
+  },
+  prizeAmount: {
+    type: String,
+    required: true
+  }
 });
 
 const competitionSchema = new mongoose.Schema({
@@ -12,40 +18,71 @@ const competitionSchema = new mongoose.Schema({
     required: true
   },
 
-  description: String,
+  description: {
+    type: String,
+    required: true
+  },
+
   competitionType: {
     type: String,
     default: "trading"
   },
 
-  startDate: Date,
-  endDate: Date,
-  registrationDeadline: Date,
+  startDate: {
+    type: Date,
+    required: true
+  },
 
-  maxParticipants: Number,
-  entryFee: Number,
+  endDate: {
+    type: Date,
+    required: true
+  },
 
-  totalPrizePool: String,
-  tradingPlatform: String,
+  maxParticipants: {
+    type: Number,
+    required: true
+  },
 
-  eligibleInstruments: [String],
+  entryFee: {
+    type: Number,
+    required: true
+  },
 
-  minDeposit: Number,
-  competitionRules: String,
+  totalPrizePool: {
+    type: String,
+    required: true
+  },
+
+  competitionRules: {
+    type: String,
+    required: true
+  },
+
   bannerImage: String,
 
-  isPublic: Boolean,
-  requiresKYC: Boolean,
-  allowMultipleEntries: Boolean,
+  isPublic: {
+    type: Boolean,
+    default: true
+  },
+
+  requiresKYC: {
+    type: Boolean,
+    default: false
+  },
+
+  allowMultipleEntries: {
+    type: Boolean,
+    default: false
+  },
 
   competitionStatus: {
     type: String,
-    enum: ["upcoming", "live", "completed"]
+    enum: ["upcoming", "live", "completed"],
+    default: "upcoming"
   },
 
   prizeDistribution: [prizeSchema],
 
-  /* ⭐ ADD THIS FIELD */
   participants: [
     {
       type: mongoose.Schema.Types.ObjectId,

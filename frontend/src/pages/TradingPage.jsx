@@ -1,3 +1,5 @@
+//TradingPage.js
+
 import { API_URL } from '../config/api'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -1477,115 +1479,165 @@ const TradingPage = () => {
         <div className="flex-1 flex overflow-hidden">
           {/* Instruments Panel */}
           {showInstruments && (
-            <div className={`${isMobile ? 'absolute inset-0 z-20' : 'w-[280px]'} border-r flex flex-col shrink-0 ${isDarkMode ? 'bg-[#0d0d0d] border-gray-800' : 'bg-white border-gray-200'}`}>
-              {/* Header */}
-              <div className={`px-3 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-                <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Instruments</span>
-                <button onClick={() => setShowInstruments(false)} className={isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-900'}>
-                  <X size={16} />
-                </button>
-              </div>
-              {/* Search */}
-              <div className="px-3 py-2">
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Search instruments"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full rounded pl-9 pr-3 py-2 text-sm placeholder-gray-500 focus:outline-none border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700 text-white focus:border-gray-600' : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-gray-400'}`}
-                  />
-                </div>
-              </div>
-              
-              {/* Category Tabs */}
-              <div className={`flex items-center gap-1 px-3 py-2 border-b overflow-x-auto scrollbar-hide ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <button className="text-gray-600 hover:text-yellow-500 shrink-0">
-                  <Star size={14} />
-                </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors shrink-0 ${
-                      activeCategory === cat 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+            <>
+  {/* Instruments Drawer */}
+  <div
+    className={`
+      ${isMobile ? 'fixed inset-y-0 left-0 z-30 w-[280px]' : 'w-[280px]'}
+      border-r flex flex-col shrink-0
+      transition-transform duration-300 ease-in-out
+      ${showInstruments ? 'translate-x-0' : '-translate-x-[240px]'}
+      ${isDarkMode
+        ? 'bg-[#0d0d0d] border-gray-800'
+        : 'bg-white border-gray-200'}
+      relative
+    `}
+  >
+    {/* Header */}
+    <div className={`px-3 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+        Instruments
+      </span>
+    </div>
 
-              {/* Instruments List */}
-              <div className="flex-1 overflow-y-auto px-2">
-                {loadingInstruments ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-gray-500 text-sm">Loading instruments...</div>
-                  </div>
-                ) : filteredInstruments.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-gray-500 text-sm">No instruments found</div>
-                  </div>
-                ) : (
-                  filteredInstruments.map(inst => (
-                    <button
-                      key={inst.symbol}
-                      onClick={() => handleInstrumentClick(inst)}
-                      className={`w-full px-3 py-2.5 my-1 flex items-center rounded-lg border transition-colors ${
-                        selectedInstrument.symbol === inst.symbol 
-                          ? (isDarkMode ? 'bg-[#1a1a1a] border-blue-500' : 'bg-blue-50 border-blue-500')
-                          : (isDarkMode ? 'border-gray-700 hover:border-gray-600 hover:bg-[#1a1a1a]' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50')
-                      }`}
-                    >
-                      <Star size={12} className={`shrink-0 mr-2 ${inst.starred ? 'text-yellow-500 fill-yellow-500' : 'text-gray-700'}`} />
-                      <div className="text-left min-w-[55px]">
-                        <div className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{inst.symbol}</div>
-                        <div className="text-green-500 text-[10px]">+{inst.change?.toFixed(2) || '0.00'}%</div>
-                      </div>
-                      <div className="flex-1" />
-                      <div className="text-right w-16">
-                        <div className="text-red-500 text-xs font-mono">
-                          {inst.bid > 0 ? inst.bid.toFixed(inst.bid > 100 ? 2 : 5) : '...'}
-                        </div>
-                        <div className="text-gray-600 text-[9px]">Bid</div>
-                      </div>
-                      <div className="bg-[#2a2a2a] px-1.5 py-0.5 rounded text-cyan-400 text-[10px] font-medium min-w-[28px] text-center mx-2">
-                        {/* Show admin-set spread if available, otherwise show market spread */}
-                        {adminSpreads[inst.symbol]?.spread > 0 ? (
-                          // Convert admin spread to pips for display
-                          inst.symbol.includes('JPY') ? (adminSpreads[inst.symbol].spread * 100).toFixed(1) :
-                          inst.bid > 100 ? adminSpreads[inst.symbol].spread.toFixed(2) :
-                          (adminSpreads[inst.symbol].spread * 10000).toFixed(1)
-                        ) : inst.spread > 0 ? (
-                          // Convert market spread to pips
-                          inst.symbol.includes('JPY') ? (inst.spread * 100).toFixed(1) :
-                          inst.bid > 100 ? inst.spread.toFixed(2) :
-                          (inst.spread * 10000).toFixed(1)
-                        ) : '-'}
-                      </div>
-                      <div className="text-right w-14">
-                        <div className="text-green-500 text-xs font-mono">
-                          {inst.ask > 0 ? inst.ask.toFixed(inst.ask > 100 ? 2 : 5) : '...'}
-                        </div>
-                        <div className="text-gray-600 text-[9px]">Ask</div>
-                      </div>
-                    </button>
-                  ))
-                )}
+    {/* Search */}
+    <div className="px-3 py-2">
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <input
+          type="text"
+          placeholder="Search instruments"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className={`w-full rounded pl-9 pr-3 py-2 text-sm placeholder-gray-500 focus:outline-none border ${
+            isDarkMode
+              ? 'bg-[#1a1a1a] border-gray-700 text-white focus:border-gray-600'
+              : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-gray-400'
+          }`}
+        />
+      </div>
+    </div>
+
+    {/* Category Tabs */}
+    <div className={`flex items-center gap-1 px-3 py-2 border-b overflow-x-auto scrollbar-hide ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <button className="text-gray-600 hover:text-yellow-500 shrink-0">
+        <Star size={14} />
+      </button>
+      {categories.map((cat) => (
+        <button
+          key={cat}
+          onClick={() => setActiveCategory(cat)}
+          className={`px-2 py-1 rounded text-xs font-medium transition-colors shrink-0 ${
+            activeCategory === cat
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+
+    {/* Instruments List */}
+    <div className="flex-1 overflow-y-auto px-2">
+      {loadingInstruments ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-gray-500 text-sm">Loading instruments...</div>
+        </div>
+      ) : filteredInstruments.length === 0 ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-gray-500 text-sm">No instruments found</div>
+        </div>
+      ) : (
+        filteredInstruments.map((inst) => (
+          <button
+            key={inst.symbol}
+            onClick={() => handleInstrumentClick(inst)}
+            className={`w-full px-3 py-2.5 my-1 flex items-center rounded-lg border transition-colors ${
+              selectedInstrument.symbol === inst.symbol
+                ? isDarkMode
+                  ? 'bg-[#1a1a1a] border-blue-500'
+                  : 'bg-blue-50 border-blue-500'
+                : isDarkMode
+                ? 'border-gray-700 hover:border-gray-600 hover:bg-[#1a1a1a]'
+                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <Star
+              size={12}
+              className={`shrink-0 mr-2 ${
+                inst.starred ? 'text-yellow-500 fill-yellow-500' : 'text-gray-700'
+              }`}
+            />
+            <div className="text-left min-w-[55px]">
+              <div className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {inst.symbol}
               </div>
-              
-              {/* Footer */}
-              <div className="px-3 py-2 border-t border-gray-800 flex items-center justify-between shrink-0">
-                <span className="text-gray-500 text-xs">{filteredInstruments.length} instruments</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-green-500 text-xs">Live</span>
-                </div>
+              <div className="text-green-500 text-[10px]">
+                +{inst.change?.toFixed(2) || '0.00'}%
               </div>
             </div>
+
+            <div className="flex-1" />
+
+            {/* Bid */}
+            <div className="text-right w-16">
+              <div className="text-red-500 text-xs font-mono">
+                {inst.bid > 0 ? inst.bid.toFixed(inst.bid > 100 ? 2 : 5) : '...'}
+              </div>
+              <div className="text-gray-600 text-[9px]">Bid</div>
+            </div>
+
+            {/* Spread */}
+            <div className="bg-[#2a2a2a] px-1.5 py-0.5 rounded text-cyan-400 text-[10px] min-w-[28px] text-center mx-2">
+              {inst.spread > 0
+                ? inst.symbol.includes('JPY')
+                  ? (inst.spread * 100).toFixed(1)
+                  : inst.bid > 100
+                  ? inst.spread.toFixed(2)
+                  : (inst.spread * 10000).toFixed(1)
+                : '-'}
+            </div>
+
+            {/* Ask */}
+            <div className="text-right w-14">
+              <div className="text-green-500 text-xs font-mono">
+                {inst.ask > 0 ? inst.ask.toFixed(inst.ask > 100 ? 2 : 5) : '...'}
+              </div>
+              <div className="text-gray-600 text-[9px]">Ask</div>
+            </div>
+          </button>
+        ))
+      )}
+    </div>
+
+    {/* Footer */}
+    <div className="px-3 py-2 border-t border-gray-800 flex items-center justify-between shrink-0">
+      <span className="text-gray-500 text-xs">{filteredInstruments.length} instruments</span>
+      <div className="flex items-center gap-1">
+        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+        <span className="text-green-500 text-xs">Live</span>
+      </div>
+    </div>
+
+    {/* ✅ SLIDER BUTTON (ALWAYS VISIBLE) */}
+    <button
+      onClick={() => setShowInstruments(!showInstruments)}
+      className={`
+        absolute top-1/2 -translate-y-1/2 -right-3 z-40
+        
+        w-6 h-12 flex items-center justify-center
+        rounded-r-md shadow-md border
+        
+        ${isDarkMode
+          ? 'bg-[#1a1a1a] text-white border-gray-700 hover:bg-[#2a2a2a]'
+          : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-100'}
+      `}
+    >
+      {showInstruments ? '◀' : '▶'}
+    </button>
+  </div>
+</>
           )}
 
         {/* Center - Chart Area */}
@@ -1635,9 +1687,9 @@ const TradingPage = () => {
             {/* Live Price Status Indicator */}
             <div className="flex items-center justify-between px-2 py-1 text-xs">
               <div className="flex items-center gaps-2">
-                <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
+                {/* <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div> */}
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                  {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'}
+                  {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
                 </span>
               </div>
               {livePrices[selectedInstrument.symbol] && (
@@ -3039,4 +3091,4 @@ const TradingPage = () => {
   )
 }
 
-export default TradingPage
+export default TradingPage;

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useTheme } from '../context/ThemeContext'
 import { 
   LayoutDashboard, 
   Users,
@@ -27,11 +26,11 @@ import {
   Image,
   Images
 } from 'lucide-react'
+import { MdLeaderboard } from "react-icons/md";
 
 const AdminLayout = ({ children, title, subtitle }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { modeColors } = useTheme()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedSections, setExpandedSections] = useState({})
@@ -50,13 +49,14 @@ const AdminLayout = ({ children, title, subtitle }) => {
     { name: 'Account Types', icon: CreditCard, path: '/admin/account-types' },
     { name: 'Theme Settings', icon: Palette, path: '/admin/theme' },
     { name: 'Banner Management', icon: Image, path: '/admin/banners' },
-    { name: 'Carousel Management', icon: Images, path: '/admin/carousel' },
+    // { name: 'Carousel Management', icon: Images, path: '/admin/carousel' },
+    { name: 'Competitions', icon: MdLeaderboard, path: '/admin/competition' },
     { name: 'Email Management', icon: Mail, path: '/admin/email' },
     { name: 'Oxapay Gateway', icon: Bitcoin, path: '/admin/oxapay' },
     { name: 'Admin Management', icon: Shield, path: '/admin/admin-management' },
     { name: 'KYC Verification', icon: FileCheck, path: '/admin/kyc' },
     { name: 'Support Tickets', icon: HeadphonesIcon, path: '/admin/support' },
-    { name: 'Competitions', icon: HeadphonesIcon, path: '/admin/competition' },
+  
   ]
 
   useEffect(() => {
@@ -82,11 +82,11 @@ const AdminLayout = ({ children, title, subtitle }) => {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: modeColors.bgPrimary }}>
+    <div className="min-h-screen bg-light-900 flex">
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-white/50 z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -97,16 +97,12 @@ const AdminLayout = ({ children, title, subtitle }) => {
           fixed lg:static inset-y-0 left-0 z-50
           ${sidebarExpanded ? 'w-64' : 'w-16'} 
           ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          flex flex-col 
-          transition-all duration-300 ease-in-out border-r
+          bg-light-900 border-r border-gray-800 flex flex-col 
+          transition-all duration-300 ease-in-out
         `}
-        style={{ 
-          backgroundColor: modeColors.adminSidebar,
-          borderColor: modeColors.border
-        }}
       >
         {/* Logo */}
-        <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: modeColors.border }}>
+        <div className="p-4 flex items-center justify-between border-b border-gray-800">
           <div className="flex items-center gap-2 min-w-0">
             <img 
               src="/hcfinvest_orange_logo.png" 
@@ -120,26 +116,24 @@ const AdminLayout = ({ children, title, subtitle }) => {
             <div className="w-8 h-8 bg-orange-500 rounded items-center justify-center flex-shrink-0 hidden">
               <span className="text-white font-bold text-sm">HCF</span>
             </div>
-            {sidebarExpanded && <span className="font-semibold whitespace-nowrap truncate" style={{ color: modeColors.textPrimary }}>hcfinvest Admin</span>}
+            {sidebarExpanded && <span className="text-white font-semibold whitespace-nowrap truncate">hcfinvest Admin</span>}
           </div>
           <button 
             onClick={() => setSidebarExpanded(!sidebarExpanded)}
-            className="hidden lg:block p-1 hover:bg-gray-700 rounded transition-colors"
-            style={{ color: modeColors.textMuted }}
+            className="hidden lg:block p-1 hover:bg-light-700 rounded transition-colors"
           >
-            <Menu size={18} />
+            <Menu size={18} className="text-gray-400" />
           </button>
           <button 
             onClick={() => setMobileMenuOpen(false)}
-            className="lg:hidden p-1 hover:bg-gray-700 rounded transition-colors"
-            style={{ color: modeColors.textMuted }}
+            className="lg:hidden p-1 hover:bg-light-700 rounded transition-colors"
           >
-            <X size={18} />
+            <X size={18} className="text-gray-400" />
           </button>
         </div>
 
         {/* Menu */}
-        <nav className="flex-1 px-2 py-4 overflow-y-auto scrollbar-thin">
+        <nav className="flex-1 px-2 py-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
           {menuItems.map((item) => (
             <button
               key={item.name}
@@ -149,25 +143,9 @@ const AdminLayout = ({ children, title, subtitle }) => {
               }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
                 isActive(item.path)
-                  ? '' 
-                  : ''
+                  ? 'bg-red-500 text-white' 
+                  : 'text-gray-400 hover:text-white hover:bg-light-700'
               }`}
-              style={{
-                backgroundColor: isActive(item.path) ? modeColors.adminAccent : 'transparent',
-                color: isActive(item.path) ? '#FFFFFF' : modeColors.textMuted
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive(item.path)) {
-                  e.target.style.backgroundColor = modeColors.adminSidebarHover
-                  e.target.style.color = modeColors.textPrimary
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive(item.path)) {
-                  e.target.style.backgroundColor = 'transparent'
-                  e.target.style.color = modeColors.textMuted
-                }
-              }}
               title={!sidebarExpanded ? item.name : ''}
             >
               <item.icon size={18} className="flex-shrink-0" />
@@ -179,19 +157,10 @@ const AdminLayout = ({ children, title, subtitle }) => {
         </nav>
 
         {/* Logout */}
-        <div className="p-2 border-t" style={{ borderColor: modeColors.border }}>
+        <div className="p-2 border-t border-gray-800">
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors rounded-lg"
-            style={{ color: modeColors.textMuted }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = modeColors.adminSidebarHover
-              e.target.style.color = modeColors.textPrimary
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent'
-              e.target.style.color = modeColors.textMuted
-            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-light-700 transition-colors rounded-lg"
             title={!sidebarExpanded ? 'Log Out' : ''}
           >
             <LogOut size={18} className="flex-shrink-0" />
@@ -203,34 +172,27 @@ const AdminLayout = ({ children, title, subtitle }) => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto min-w-0">
         {/* Header */}
-        <header className="sticky top-0 z-30 backdrop-blur-sm flex items-center justify-between px-4 sm:px-6 py-4 border-b" style={{ 
-          backgroundColor: modeColors.bgCard,
-          borderColor: modeColors.border
-        }}>
+        <header className="sticky top-0 z-30 bg-light-900/95 backdrop-blur-sm flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-800">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              style={{ color: modeColors.textMuted }}
+              className="lg:hidden p-2 hover:bg-light-700 rounded-lg transition-colors"
             >
-              <Menu size={20} />
+              <Menu size={20} className="text-gray-400" />
             </button>
             <div>
-              <h1 className="text-lg sm:text-xl font-semibold" style={{ color: modeColors.textPrimary }}>{title || 'Admin Dashboard'}</h1>
-              {subtitle && <p className="text-sm hidden sm:block" style={{ color: modeColors.textSecondary }}>{subtitle}</p>}
+              <h1 className="text-lg sm:text-xl font-semibold text-white">{title || 'Admin Dashboard'}</h1>
+              {subtitle && <p className="text-gray-500 text-sm hidden sm:block">{subtitle}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full text-xs sm:text-sm" style={{ 
-            backgroundColor: modeColors.adminError + '20',
-            color: modeColors.adminError
-          }}>
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: modeColors.adminError }}></span>
+          <div className="flex items-center gap-2 px-3 py-1 bg-red-500/20 text-red-500 rounded-full text-xs sm:text-sm">
+            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
             <span className="hidden sm:inline">Admin Mode</span>
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="p-4 sm:p-6" style={{ backgroundColor: modeColors.bgSecondary }}>
+        <div className="p-4 sm:p-6">
           {children}
         </div>
       </main>

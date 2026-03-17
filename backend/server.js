@@ -37,6 +37,8 @@ import marketRoutes from "./routes/market.js";
 import xauusd_Routes from "./routes/xauusd_Routes.js";
 import streamer from "./services/xauusdStreamer.cjs";
 import competitionRoutes from "./routes/competitionRoutes.js";
+import adminUserRoutes from "./routes/adminUserRoutes.js";
+import internalTransferRoutes from "./routes/internalTransfer.js";
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -212,6 +214,8 @@ app.use("/api/xauusd", xauusd_Routes)
 app.use('/api/banners', bannerRoutes)
 app.use('/api/carousel', carouselRoutes)
 app.use("/api/binance", binanceRoutes);
+app.use("/api/admin", adminUserRoutes);
+app.use("/api/transfer", internalTransferRoutes);
 
 // Historical API route
 // app.use("/api/history", historyRoute);
