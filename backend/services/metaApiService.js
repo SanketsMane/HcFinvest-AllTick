@@ -800,7 +800,6 @@ class MetaApiService {
     if (!requestedSymbol) return null
 
     const requestedKey = toKey(requestedSymbol)
-    console.error(`[MetaAPI] DEBUG_LEVEL_MAX resolution: requested=${requestedSymbol}, key=${requestedKey}, symbolsInAccount=${this.accountSymbols.size}`)
     
     // 1. Check if the requested symbol is already what the broker uses (direct match)
     if (this.accountSymbols.has(requestedSymbol)) {
@@ -815,7 +814,6 @@ class MetaApiService {
     // 3. Try key-based matching against account symbols
     for (const actual of this.accountSymbols) {
       if (toKey(actual) === requestedKey) {
-        console.error(`[MetaAPI] SUCCESS: Matched ${requestedSymbol} -> ${actual} via key ${requestedKey}`)
         return actual
       }
     }
