@@ -1377,7 +1377,7 @@ class MetaApiService {
     const token = METAAPI_TOKEN()
     
     // Resolve the actual symbol if we have a mapping
-    const resolvedSymbol = this.requestToActualMap?.get(symbol) || symbol;
+    const resolvedSymbol = this.requestToActualMap.get(symbol) || this.resolveSymbolForAccount(symbol) || symbol;
     
     // Map timeframe to MetaAPI format
     const timeframeMap = {
