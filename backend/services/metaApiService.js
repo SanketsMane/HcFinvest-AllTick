@@ -814,6 +814,14 @@ class MetaApiService {
     // 3. Try key-based matching against account symbols
     for (const actual of this.accountSymbols) {
       if (toKey(actual) === requestedKey) {
+        // PERMANENTLY MAP THIS FOR WEBSOCKETS and FUTURE REQUESTS
+        this.requestToActualMap.set(requestedSymbol, actual)
+        if (!this.actualToRequestsMap.has(actual)) {
+          this.actualToRequestsMap.set(actual, new Set())
+        }
+        this.actualToRequestsMap.get(actual).add(requestedSymbol)
+        
+        console.error(`[MetaAPI] Mapped ${requestedSymbol} -> ${actual} via key ${requestedKey}`)
         return actual
       }
     }
