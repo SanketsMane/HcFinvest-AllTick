@@ -763,10 +763,9 @@ const REQUESTED_TO_ACCOUNT_FALLBACKS = {
 
 const toKey = (symbol = '') => {
   if (!symbol) return '';
-  // Strip common broker suffixes like .i, .f, .m, .crp
-  return symbol.toUpperCase()
-    .replace(/\.[A-Z0-9]+$/i, '') 
-    .replace(/[^A-Z0-9]/g, '');
+  // Super-permissive key: just alphanumerics, ignore trailing .i/etc.
+  const k = symbol.toUpperCase().split('.')[0].replace(/[^A-Z0-9]/g, '');
+  return k;
 };
 const stripDotI = (symbol = '') => symbol.replace(/\.i$/i, '')
 
@@ -801,23 +800,22 @@ class MetaApiService {
     if (!requestedSymbol) return null
 
     const requestedKey = toKey(requestedSymbol)
-    console.log(`[MetaAPI] resolveSymbolForAccount: requested=${requestedSymbol}, key=${requestedKey}, symbolsCount=${this.accountSymbols.size}`)
-    if (this.accountSymbols.size > 0) {
-      console.log(`[MetaAPI] Current Account Symbols: ${Array.from(this.accountSymbols).join(', ')}`)
-    }
-    if (this.requestToActualMap.has(requestedSymbol)) {
-      return this.requestToActualMap.get(requestedSymbol)
-    }
-
-    // 2. Check if the symbol itself exists in the account
+    console.error(`[MetaAPI] DEBUG_LEVEL_MAX resolution: requested=${requestedSymbol}, key=${requestedKey}, symbolsInAccount=${this.accountSymbols.size}`)
+    
+    // 1. Check if the requested symbol is already what the broker uses (direct match)
     if (this.accountSymbols.has(requestedSymbol)) {
       return requestedSymbol
     }
 
+    // 2. Hardcoded Common Fixes
+    if (requestedSymbol === 'XAUUSD.i') return 'XAUUSD';
+    if (requestedSymbol === 'BTCUSD.i') return 'BTCUSD';
+    if (requestedSymbol === 'ETHUSD.i') return 'ETHUSD';
+
     // 3. Try key-based matching against account symbols
     for (const actual of this.accountSymbols) {
       if (toKey(actual) === requestedKey) {
-        console.log(`[MetaAPI] Matched ${requestedSymbol} to ${actual} via key ${requestedKey}`)
+        console.error(`[MetaAPI] SUCCESS: Matched ${requestedSymbol} -> ${actual} via key ${requestedKey}`)
         return actual
       }
     }
