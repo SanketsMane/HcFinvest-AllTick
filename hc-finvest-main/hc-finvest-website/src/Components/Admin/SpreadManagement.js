@@ -29,7 +29,7 @@ const fetchPairs = async (market, account) => {
 
   try {
     const res = await axios.get(
-      "https://hcfinvest.onrender.com/api/spreads/get-pairs",
+      "https://api.hcfinvest.com/api/spreads/get-pairs",
       { params: { marketType: market, accountType: account } }
     );
 
@@ -80,7 +80,7 @@ const fetchPairs = async (market, account) => {
 
     try {
       const res = await axios.put(
-        "https://hcfinvest.onrender.com/api/spreads/update",
+        "https://api.hcfinvest.com/api/spreads/update",
         payload
       );
       alert(res.data.message);

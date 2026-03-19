@@ -38,7 +38,7 @@ const ContactUsData = () => {
   // ⭐ Fetch Contacts — SAME PATTERN AS YOUR BLOG API
   const fetchContacts = async () => {
     try {
-      const res = await axios.get("https://hcfinvest.onrender.com/api/contact");
+      const res = await axios.get("https://api.hcfinvest.com/api/contact");
       setRows(res.data); // backend returns array
       console.log(res.data);
     } catch (error) {

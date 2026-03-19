@@ -40,7 +40,7 @@ const EnquiryData = () => {
   const fetchRegistrations = async () => {
     try {
       const res = await axios.get(
-        "https://hcfinvest.onrender.com/api/register"
+        "https://api.hcfinvest.com/api/register"
       );
 
       console.log("API RESPONSE:", res.data);

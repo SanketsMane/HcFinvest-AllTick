@@ -69,7 +69,7 @@ const BlogManagement = () => {
     blogData.append("sections", JSON.stringify(sections));
 
     try {
-      await axios.post("https://hcfinvest.onrender.com/api/blogs", blogData, {
+      await axios.post("https://api.hcfinvest.com/api/blogs", blogData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -96,7 +96,7 @@ const BlogManagement = () => {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`https://hcfinvest.onrender.com/api/blogs/${blogId}`);
+      await axios.delete(`https://api.hcfinvest.com/api/blogs/${blogId}`);
       alert("Blog deleted successfully!");
       fetchBlogs();
     } catch (error) {
@@ -108,7 +108,7 @@ const BlogManagement = () => {
   const fetchBlogs = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("https://hcfinvest.onrender.com/api/blogs");
+      const res = await axios.get("https://api.hcfinvest.com/api/blogs");
       setBlogs(res.data);
     } catch (error) {
       console.error("Error fetching blogs:", error);

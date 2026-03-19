@@ -33,7 +33,7 @@ const AddSwap = () => {
     };
 
     try {
-      await axios.post("https://hcfinvest.onrender.com/api/swaps", data);
+      await axios.post("https://api.hcfinvest.com/api/swaps", data);
       alert("✅ Swap added successfully!");
 
       // Reset fields

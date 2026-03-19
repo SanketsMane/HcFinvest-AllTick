@@ -66,7 +66,7 @@ const RegPopupBox = ({ onClose }) => {
     try {
       console.log(formData);
       const res = await axios.post(
-        "https://hcfinvest.onrender.com/api/register",
+        "https://api.hcfinvest.com/api/register",
         formData
       );
 

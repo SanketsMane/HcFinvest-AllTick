@@ -44,7 +44,7 @@ const AddSpread = () => {
     };
 
     try {
-      await axios.post("https://hcfinvest.onrender.com/api/spreads/add", data);
+      await axios.post("https://api.hcfinvest.com/api/spreads/add", data);
       alert("✅ Spread added successfully!");
 
       setMarketType("");

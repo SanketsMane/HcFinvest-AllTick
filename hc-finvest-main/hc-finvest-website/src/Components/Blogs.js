@@ -22,7 +22,7 @@ const Blogs = () => {
       try {
         setLoading(true);
         const response = await axios.get(
-          "https://hcfinvest.onrender.com/api/blogs"
+          "https://api.hcfinvest.com/api/blogs"
         );
         setBlogs(response.data);
       } catch (error) {

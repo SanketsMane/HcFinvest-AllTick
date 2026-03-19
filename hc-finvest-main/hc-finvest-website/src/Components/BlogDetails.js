@@ -13,7 +13,7 @@ const BlogDetails = () => {
     const fetchBlog = async () => {
       try {
         const response = await axios.get(
-          `https://hcfinvest.onrender.com/api/blogs/${id}`
+          `https://api.hcfinvest.com/api/blogs/${id}`
         );
         setBlog(response.data);
       } catch (error) {

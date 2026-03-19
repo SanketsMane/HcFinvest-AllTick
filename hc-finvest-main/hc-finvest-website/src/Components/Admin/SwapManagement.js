@@ -32,7 +32,7 @@ const SwapManagement = () => {
 
     try {
       const res = await axios.get(
-        `https://hcfinvest.onrender.com/api/swaps/currencyPairs/${selectedMarket}`
+        `https://api.hcfinvest.com/api/swaps/currencyPairs/${selectedMarket}`
       );
 
       const formattedPairs = res.data.map((pair) => ({
@@ -60,7 +60,7 @@ const SwapManagement = () => {
 
     try {
       const res = await axios.put(
-        "https://hcfinvest.onrender.com/api/swaps/update",
+        "https://api.hcfinvest.com/api/swaps/update",
         payload
       );
       alert(res.data.message);
