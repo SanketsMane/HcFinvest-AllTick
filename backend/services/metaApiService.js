@@ -768,7 +768,9 @@ Object.entries(SYMBOL_CATEGORIES).forEach(([category, data]) => {
 // Symbols that actually work on this MetaAPI account
 // Complete list of 377 available symbols
 const WORKING_SYMBOLS = [
-  'AAL', 'AALB', 'ABDN', 'ABF', 'ABN', 'AC', 'ACA', 'ADAUSD.i', 'ADPR', 'ADS', 'ADYEN', 'AENA', 'AFX', 'AGN', 'AI', 'AIR', 'AKZA', 'ALGUSD.i', 'ALV', 'AMS', 'AMUN', 'ANA', 'ANTO', 'ASM', 'ASML', 'ASRNL', 'ATMUSD.i', 'ATOS', 'AUDCAD.i', 'AUDCHF.i', 'AUDJPY.i', 'AUDNZD.i', 'AUDUSD', 'AUDUSD.i', 'AUS200.i', 'AUTO', 'AVAUSD.i', 'AVIVA', 'AZN', 'BAE', 'BARC', 'BAS', 'BATS', 'BATUSD.i', 'BAYN', 'BBVA', 'BEI', 'BKG', 'BLND', 'BMW', 'BN', 'BNBUSD.i', 'BNP', 'BNR', 'BNZL', 'BP', 'BRBY', 'BT.A', 'BTCEUR.i', 'BTCUSD.crp', 'BTCUSD.i', 'BTCXBN.i', 'BTCXET.i', 'BTCXLC.i', 'BVSPX.i', 'CA', 'CABK', 'CADCHF.i', 'CADJPY.i', 'CAP', 'CBK', 'CCH', 'CCL', 'CDI', 'CHFJPY.i', 'CHINA50.i', 'CL-OIL.i', 'CLNX', 'CNA', 'CON', 'CPG', 'CRDA', 'CRH', 'CRVUSD.i', 'CS', 'Cocoa.i', 'Coffee.i', 'DAST', 'DB1', 'DBK', 'DCC', 'DG', 'DHER', 'DHL', 'DIAGEO', 'DIM', 'DJ30ft.i', 'DOGUSD.i', 'DOTUSD.i', 'DWNI', 'DWS', 'EL', 'ELE', 'EN', 'ENGI', 'ENT', 'EOAN', 'ESP35.i', 'ETCUSD.i', 'EUB10Y.i', 'EUB2Y.i', 'EUB30Y.i', 'EUB5Y.i', 'EURAUD.i', 'EURCAD.i', 'EURCHF.i', 'EURGBP.i', 'EURHUF.i', 'EURIBOR3M.i', 'EURJPY.i', 'EURMXN.i', 'EURNOK.i', 'EURNZD.i', 'EURSEK.i', 'EURSGD.i', 'EURTRY.i', 'EURUSD', 'EURUSD.i', 'EURZAR.i', 'EUSTX50.i', 'EXPN', 'EZJ', 'FIE', 'FILUSD.i', 'FLTR', 'FME', 'FP', 'FRA', 'FRA40.i', 'FRAS', 'FRE', 'FRES', 'G24', 'GALP', 'GAUUSD.i', 'GBPAUD.i', 'GBPCAD.i', 'GBPCHF.i', 'GBPJPY.i', 'GBPNOK.i', 'GBPNZD.i', 'GBPUSD', 'GBPUSD.i', 'GBXUSD', 'GER40.i', 'GER40ft.i', 'GLE', 'GLEN', 'GLPG', 'GOLDft.i', 'GRTUSD.i', 'GSK', 'HEI', 'HEIA', 'HEN3', 'HIK', 'HK50ft.i', 'HKG33.i', 'HLAG', 'HLMA', 'HNR1', 'HOT', 'HRMS', 'HSBA', 'HSX', 'IBE', 'IFX', 'IHG', 'III', 'IMB', 'IMCD', 'INCUSD.i', 'INF', 'INGA', 'IOTUSD.i', 'ITRK', 'ITV', 'ITX', 'JDI', 'JMAT', 'JPN225.i', 'JPN225ft.i', 'KAUUSD.i', 'KBX', 'KER', 'KGF', 'KGX', 'KRN', 'LAND', 'LEG', 'LGEN', 'LLOY', 'LNKUSD.i', 'LR', 'LRCUSD.i', 'LSEG', 'LVMH', 'LongGilt.i', 'MAP', 'MBG', 'ML', 'MNDI', 'MNG', 'MRCK', 'MT', 'MTX', 'MUV2', 'NAS100.i', 'NAS100ft.i', 'NEMD', 'NEOUSD.i', 'NERUSD.i', 'NG.i', 'NGRID', 'NN', 'NWG', 'NXT', 'NZDCAD.i', 'NZDCHF.i', 'NZDJPY.i', 'NZDUSD', 'NZDUSD.i', 'OCDO', 'ONEUSD.i', 'OR', 'PHIA', 'PRU', 'PRX', 'PSH', 'PSN', 'PSON', 'PUBP', 'PUM', 'RAA', 'RAND', 'RB', 'RELX', 'REP', 'RI', 'RIO', 'RMV', 'RNO', 'RR', 'RRTL', 'RTO', 'RWE', 'SAB', 'SAF', 'SANTANDER', 'SANUSD.i', 'SAP', 'SBRY', 'SDR', 'SGE', 'SGO', 'SGRO', 'SHBUSD.i', 'SHELL', 'SHL', 'SIE', 'SILVERft.i', 'SMIN', 'SMT', 'SN', 'SOLUSD.i', 'SON', 'SP500ft.i', 'SPX', 'SPX500.i', 'SRT3', 'SSE', 'STAN', 'STJ', 'STM', 'SU', 'SUSUSD.i', 'SVT', 'SW', 'SWR', 'SY1', 'TCFP', 'TEF', 'TESCO', 'TLX', 'TRST', 'TRXUSD.i', 'TW', 'UK100.i', 'UK100ft.i', 'UKOUSD.i', 'UKOUSDft.i', 'ULVR', 'UNA', 'UNIUSD.i', 'URW', 'US2000.i', 'US30.i', 'USDBRL.i', 'USDCAD.i', 'USDCHF-EXC', 'USDCHF-EXC.i', 'USDCHF.i', 'USDCLP.i', 'USDCNH.i', 'USDCOP.i', 'USDHKD', 'USDHKD.i', 'USDHUF.i', 'USDIDR.i', 'USDINR.i', 'USDJPY', 'USDJPY.i', 'USDKRW.i', 'USDMXN.i', 'USDNGN', 'USDNGN.i', 'USDNOK.i', 'USDRUB.i', 'USDSEK.i', 'USDSGD', 'USDSGD.i', 'USDTHB.i', 'USDTRY.i', 'USDTWD.i', 'USDX.i', 'USDZAR', 'USDZAR.i', 'USNote10Y.i', 'USOUSD.i', 'UTDI', 'UU', 'VIE', 'VIS', 'VIV', 'VIX.i', 'VNA', 'VOD', 'VOW', 'VPK', 'WKL', 'WPP', 'WTB', 'Wheat.i', 'XAGUSD.i', 'XAUAUD.i', 'XAUCHF.i', 'XAUEUR.i', 'XAUGBP.i', 'XAUJPY.i', 'XAUUSD.crp', 'XAUUSD.i', 'XBNUSD.crp', 'XBNUSD.i', 'XETEUR.i', 'XETUSD.crp', 'XETUSD.i', 'XETXBN.i', 'XETXLC.i', 'XLCUSD.crp', 'XLCUSD.i', 'XLMUSD.i', 'XPDUSD.i', 'XPTUSD.i', 'XRPUSD.i', 'XTZUSD.i', 'ZAL', 'ZECUSD.i'
+  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'NZDUSD', 'USDCAD',
+  'XAUUSD.i', 'XAGUSD.i', 'BTCUSD.i', 'ETHUSD.i',
+  'US30.i', 'US500.i', 'US100.i', 'UK100.i', 'GER40.i', 'JP225.i'
 ]
 
 const FRONTEND_FOREX_SYMBOLS = [
@@ -1131,22 +1133,47 @@ class MetaApiService {
    * Fetch price for a single symbol
    */
   async fetchSymbolPrice(accountId, symbol) {
-    try {
-      const response = await fetch(
-        `${METAAPI_BASE_URL()}/users/current/accounts/${accountId}/symbols/${symbol}/current-price`,
-        { headers: this.getHeaders() }
-      )
+    const tryFetch = async (sym) => {
+      try {
+        const response = await fetch(
+          `${METAAPI_BASE_URL()}/users/current/accounts/${accountId}/symbols/${sym}/current-price`,
+          { headers: this.getHeaders() }
+        );
+        if (response.ok) return await response.json();
+        return null;
+      } catch (e) { return null; }
+    }
 
-      if (response.ok) {
-        const price = await response.json()
-        this.updatePrice(price)
-        this.rateLimitHits = 0 // Reset on success
-      } else if (response.status === 429) {
-        // Rate limited - log warning
-        this.rateLimitHits = (this.rateLimitHits || 0) + 1
-        if (this.rateLimitHits === 1 || this.rateLimitHits % 10 === 0) {
-          console.warn(`[MetaAPI] Rate limited (429) - ${this.rateLimitHits} consecutive hits for ${symbol}`)
+    try {
+      // 1. Try original symbol
+      let price = await tryFetch(symbol);
+      
+      // 2. Try fallback if 404 and has .i
+      if (!price && symbol.endsWith('.i')) {
+        const base = symbol.replace('.i', '');
+        price = await tryFetch(base);
+        if (price) {
+          // If base works, map it for future requests
+          this.requestToActualMap.set(symbol, base);
+          if (!this.actualToRequestsMap.has(base)) this.actualToRequestsMap.set(base, new Set());
+          this.actualToRequestsMap.get(base).add(symbol);
         }
+      }
+
+      // 3. Try .i if 404 and doesn't have it
+      if (!price && !symbol.endsWith('.i')) {
+        const suffixed = symbol + '.i';
+        price = await tryFetch(suffixed);
+        if (price) {
+          this.requestToActualMap.set(symbol, suffixed);
+          if (!this.actualToRequestsMap.has(suffixed)) this.actualToRequestsMap.set(suffixed, new Set());
+          this.actualToRequestsMap.get(suffixed).add(symbol);
+        }
+      }
+
+      if (price) {
+        this.updatePrice({ ...price, requestedSymbol: symbol });
+        this.rateLimitHits = 0;
       }
     } catch (e) {
       // Skip failed symbols silently
@@ -1363,23 +1390,25 @@ class MetaApiService {
   async getHistoricalCandles(symbol, timeframe = '1m', startTime, endTime, limit = 500) {
     const accountId = METAAPI_ACCOUNT_ID()
     const token = METAAPI_TOKEN()
-    const requestedSymbol = symbol
-    const resolvedSymbol = this.requestToActualMap.get(symbol) || this.resolveSymbolForAccount(symbol) || symbol
-
+    
+    // Resolve the actual symbol if we have a mapping
+    const resolvedSymbol = this.requestToActualMap?.get(symbol) || symbol;
+    
     // Map timeframe to MetaAPI format
     const timeframeMap = {
       '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m',
       '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w', '1M': '1mn'
     }
     const metaTimeframe = timeframeMap[timeframe] || '1m'
-
-    // If no credentials, return empty (no simulation)
+    
+    // If no credentials, return empty
     if (!accountId || !token) {
       return []
     }
-
+    
     try {
-      const baseUrl = `${METAAPI_MARKET_DATA_URL()}/users/current/accounts/${accountId}/historical-market-data/symbols/${resolvedSymbol}/timeframes/${metaTimeframe}/candles`
+      // Build URL with query params
+      const baseUrl = `${METAAPI_BASE_URL()}/users/current/accounts/${accountId}/historical-market-data/symbols/${resolvedSymbol}/timeframes/${metaTimeframe}/candles`
 
       const timeframeSecondsMap = {
         '1m': 60,
