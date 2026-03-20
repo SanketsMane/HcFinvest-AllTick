@@ -1408,7 +1408,7 @@ class MetaApiService {
     try {
       // Build URL with query params
       const baseUrl = `${METAAPI_BASE_URL()}/users/current/accounts/${accountId}/historical-market-data/symbols/${resolvedSymbol}/timeframes/${metaTimeframe}/candles`
-
+      
       const timeframeSecondsMap = {
         '1m': 60,
         '5m': 5 * 60,
