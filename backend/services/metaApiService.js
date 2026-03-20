@@ -1391,7 +1391,6 @@ class MetaApiService {
     const token = METAAPI_TOKEN()
     
     // Resolve the actual symbol
-    const resolvedSymbol = this.resolveSymbolForAccount(symbol) || symbol;
     
     // Map timeframe to MetaAPI format
     const timeframeMap = {
@@ -1404,12 +1403,23 @@ class MetaApiService {
     if (!accountId || !token) {
       return []
     }
-    
+       // [Hardcore Fix] Absolute resolution for common symbols
+    let resolvedSymbol = symbol;
+    if (symbol === 'XAUUSD.i' || symbol === 'GOLD.i') resolvedSymbol = 'XAUUSD';
+    else if (symbol === 'BTCUSD.i') resolvedSymbol = 'BTCUSD';
+    else if (symbol === 'ETHUSD.i') resolvedSymbol = 'ETHUSD';
+    else {
+      resolvedSymbol = this.resolveSymbolForAccount(symbol) || symbol;
+    }
+
+    console.error(`[MetaAPI] RESOLUTION_FINAL: ${symbol} -> ${resolvedSymbol}`)
+
     try {
       // Build URL with query params
       const baseUrl = METAAPI_BASE_URL()
       const url = `${baseUrl}/users/current/accounts/${accountId}/historical-market-data/symbols/${encodeURIComponent(resolvedSymbol)}/timeframes/${metaTimeframe}/candles?${startTime ? `startTime=${startTime}&` : ''}${endTime ? `endTime=${endTime}&` : ''}limit=${limit}`
-      console.error(`[MetaAPI] DEBUG REQUEST: ${url}`)
+      
+      console.error(`[MetaAPI] FETCHING_URL: ${url}`)
       
       const timeframeSecondsMap = {
         '1m': 60,
