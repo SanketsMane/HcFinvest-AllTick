@@ -1,7 +1,6 @@
 /**
  * Market Data API Service
  * Provides price data from backend (powered by AllTick API)
- * This is a compatibility layer that maintains the same interface as the old MetaAPI service
  */
 import { API_BASE_URL } from '../config/api'
 

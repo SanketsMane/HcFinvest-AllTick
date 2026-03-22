@@ -28,9 +28,10 @@ import emailRoutes from './routes/email.js'
 import oxapayRoutes from './routes/oxapay.js'
 import bannerRoutes from './routes/banner.js'
 import carouselRoutes from './routes/carousel.js'
+import warmupService from './services/warmupService.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import metaApiService from './services/metaApiService.js'
+import alltickApiService from './services/alltickApiService.js'
 import binanceRoutes from "./routes/binance.js";
 import marketRoutes from "./routes/market.js";
 import storageService from './services/storageService.js' // //sanket - Import storage service
@@ -40,6 +41,7 @@ import storageService from './services/storageService.js' // //sanket - Import s
 import competitionRoutes from "./routes/competitionRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
 import internalTransferRoutes from "./routes/internalTransfer.js";
+import redisClient from './services/redisClient.js';
 
 
 
@@ -74,77 +76,107 @@ let isShuttingDown = false
 let broadcastInterval = null
 let syncInterval = null
 
-const refreshPrioritySymbols = () => {
-  const mergedSymbols = [...new Set(
-    [...socketPrioritySymbols.values()].flatMap(symbols => symbols || [])
-  )]
-  metaApiService.setPrioritySymbols(mergedSymbols)
-}
+function refreshPrioritySymbols() {
+    const activeChartSymbols = [...io.sockets.adapter.rooms.get('chartUpdates') || []]
+    console.log(`[Server] Refreshing priority symbols for ${activeChartSymbols.length} active charts`)
+    if (activeChartSymbols.length > 0) {
+      alltickApiService.setPrioritySymbols(activeChartSymbols)
+    }
+  }
 
 const ENABLE_LIVE_PERSIST = (process.env.ENABLE_LIVE_PERSIST || 'true').toLowerCase() !== 'false'
 const ENABLE_PERIODIC_HISTORY_SYNC = (process.env.ENABLE_PERIODIC_HISTORY_SYNC || 'true').toLowerCase() !== 'false'
+// Initialize market data connections
+console.log('[Server] Initializing AllTick market data service...')
+alltickApiService.connect()
 
-// Initialize MetaAPI market data connection
-console.log('[Server] Initializing MetaAPI market data service...')
-metaApiService.connect()
+// ✅ Elite Performance: Start Redis cache warmup for top symbols
+// This ensures popular charts load instantly from the moment the server is live
+warmupService.run().catch(err => console.error('[Server] Warmup failed:', err.message));
+
+// ✅ Backend Candle Authority: Bridge StorageService updates to Socket.io
+if (ENABLE_LIVE_PERSIST) {
+  storageService.on('candleUpdate', (data) => {
+    if (isShuttingDown) return;
+    // Broadcast authoritative candle to resolution-specific room
+    // User watches candles:SYMBOL room in frontend
+    io.to(`candles:${data.originalSymbol}`).emit('candleUpdate', {
+      symbol: data.originalSymbol,
+      timeframe: data.timeframe,
+      candle: data.candle
+    });
+  });
+}
 console.log(`[Server] Feature flags -> ENABLE_LIVE_PERSIST=${ENABLE_LIVE_PERSIST}, ENABLE_PERIODIC_HISTORY_SYNC=${ENABLE_PERIODIC_HISTORY_SYNC}`)
 
 // Track last emit times to prevent flooding
 const lastEmitTimes = new Map();
 const TICK_THROTTLE_MS = 500; // Sidebar symbols updated twice per second
 
-// Stream incremental price updates and persist live candles from each incoming tick.
-metaApiService.addSubscriber((symbol, priceData) => {
-  if (isShuttingDown) return
-  if (!symbol || !priceData) return
+// Stream incremental price updates from Redis (Decoupled Pub/Sub)
+const redisSubscriber = redisClient.duplicate();
 
-  const now = Date.now();
-  
-  // Get currently active chart symbols across all connected clients
-  const activeChartSymbols = new Set(
-    [...socketPrioritySymbols.values()].flatMap(syms => syms || [])
-  );
-  
-  // ✅ WATCHER FILTER: Only emit real-time tickUpdate if someone is actually watching this symbol on a chart.
-  // This reduces WebSocket traffic by 95% while keeping the active chart perfectly smooth.
-  const isBeingWatched = activeChartSymbols.has(symbol);
-  
-  if (isBeingWatched && priceSubscribers.size > 0) {
-    const payload = {
-      symbol,
-      bid: priceData.bid,
-      ask: priceData.ask,
-      time: priceData.time || now
+redisSubscriber.subscribe('price_updates', (err, count) => {
+  if (err) console.error('[Redis Pub/Sub] Subscription failed:', err.message);
+  else console.log(`[Redis Pub/Sub] Subscribed to ${count} channels.`);
+});
+
+redisSubscriber.on('message', (channel, message) => {
+  if (channel === 'price_updates') {
+    try {
+      const priceData = JSON.parse(message);
+      const symbol = priceData.symbol;
+
+      if (isShuttingDown) return;
+      if (!symbol || !priceData) return;
+
+      const now = Date.now();
+      
+      const activeChartSymbols = new Set(
+        [...socketPrioritySymbols.values()].flatMap(syms => syms || [])
+      );
+      
+      const isBeingWatched = activeChartSymbols.has(symbol);
+      
+      if (isBeingWatched && priceSubscribers.size > 0) {
+        const payload = {
+          symbol,
+          bid: priceData.bid,
+          ask: priceData.ask,
+          time: priceData.time || now,
+          provider: priceData.provider || 'alltick'
+        }
+
+        io.to('prices').emit('tickUpdate', payload);
+      }
+
+      if (ENABLE_LIVE_PERSIST && !priceData.mappedFrom) {
+        storageService.ingestTick(symbol, priceData).catch(err => {
+          console.error(`[StorageService] Live tick persist error for ${symbol}:`, err.message)
+        });
+      }
+    } catch (err) {
+      console.error('[Redis Pub/Sub] Message parse error:', err.message);
     }
-
-    // Emit to 'prices' room (frontend will filter it based on its active chart)
-    io.to('prices').emit('tickUpdate', payload)
   }
+});
 
-  // Persist only canonical updates to avoid duplicate writes for mapped aliases.
-  // We STILL persist background ticks even if no one is watching them.
-  if (ENABLE_LIVE_PERSIST && !priceData.mappedFrom) {
-    storageService.ingestTick(symbol, priceData).catch(err => {
-      console.error(`[StorageService] Live tick persist error for ${symbol}:`, err.message)
-    })
-  }
-})
-
-// Broadcast prices to connected clients every 1000ms (Reduced frequency for general data)
-// and specifically when prices change for active symbols (handled in metaApiService)
-broadcastInterval = setInterval(() => {
+// Broadcast prices to connected clients every 1000ms
+broadcastInterval = setInterval(async () => {
   if (priceSubscribers.size === 0) return
   
   const now = Date.now()
-  const allPrices = metaApiService.getAllPrices()
-  const pricesByCategory = metaApiService.getPricesByCategory()
+  const [allPrices, pricesByCategory] = await Promise.all([
+    alltickApiService.getAllPrices(),
+    alltickApiService.getPricesByCategory()
+  ]);
   
-  // //sanket - Broadcast prices by category and all prices
+  // Broadcast prices by category and all prices
   io.to('prices').emit('priceStream', {
     prices: allPrices,
     categories: pricesByCategory,
     timestamp: now,
-    provider: 'metaapi'
+    provider: 'alltick'
   })
 }, 1000)
 
@@ -158,14 +190,12 @@ const gracefulShutdown = async (signal) => {
     if (broadcastInterval) clearInterval(broadcastInterval)
     if (syncInterval) clearInterval(syncInterval)
 
-    metaApiService.disconnect()
-
     if (ENABLE_LIVE_PERSIST) {
       const finalStats = await storageService.shutdown()
       console.log('[Server] Storage flush complete:', {
-        pendingLiveBarOps: finalStats.pendingLiveBarOps,
-        livePersistedWrites: finalStats.livePersistedWrites,
-        livePersistErrors: finalStats.livePersistErrors
+        writes: finalStats.livePersistedWrites,
+        errors: finalStats.livePersistErrors,
+        pending: finalStats.pendingLiveBarOps
       })
     }
 
@@ -193,12 +223,16 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id)
 
   // Subscribe to real-time price stream
-  socket.on('subscribePrices', () => {
+  socket.on('subscribePrices', async () => {
     socket.join('prices')
     priceSubscribers.add(socket.id)
     // Send current prices immediately
+    
+    // Await Redis prices
+    const initialPrices = await alltickApiService.getAllPrices();
+    
     socket.emit('priceStream', {
-      prices: metaApiService.getAllPrices(),
+      prices: initialPrices,
       updated: {},
       timestamp: Date.now()
     })
@@ -208,7 +242,7 @@ io.on('connection', (socket) => {
   socket.on('setPrioritySymbols', (data) => {
     const symbols = Array.isArray(data?.symbols) ? data.symbols : []
     socketPrioritySymbols.set(socket.id, symbols)
-    const appliedSymbols = metaApiService.setPrioritySymbols([...new Set(
+    const appliedSymbols = alltickApiService.setPrioritySymbols([...new Set(
       [...socketPrioritySymbols.values()].flatMap(items => items || [])
     )])
     if (appliedSymbols.length > 0) {
@@ -233,6 +267,22 @@ io.on('connection', (socket) => {
       console.log(`Socket ${socket.id} subscribed to account ${tradingAccountId}`)
     }
   })
+
+  // ✅ Backend Candle Authority: Join resolution-agnostic symbol room
+  socket.on('subscribeBars', (data) => {
+    const { symbol } = data;
+    if (symbol) {
+      socket.join(`candles:${symbol}`);
+      console.log(`Socket ${socket.id} joined candle room for ${symbol}`);
+    }
+  });
+
+  socket.on('unsubscribeBars', (data) => {
+    const { symbol } = data;
+    if (symbol) {
+      socket.leave(`candles:${symbol}`);
+    }
+  });
 
   // Unsubscribe from account updates
   socket.on('unsubscribe', (data) => {
@@ -349,7 +399,7 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server running on port ${PORT}`);
 
   // Start XAUUSD streamer
-  streamer.startXAUUSDStreamer().catch(err => console.error('[Streamer] Error:', err.message));
+  // streamer.startXAUUSDStreamer().catch(err => console.error('[Streamer] Error:', err.message));
   
   // Start background sync WITHOUT BLOCKING - fire and forget
   if (ENABLE_PERIODIC_HISTORY_SYNC) {
