@@ -559,11 +559,17 @@ export class TradeLineManager {
 
     const entryPrice = Number(trade?.openPrice ?? trade?.price);
 
-    // ✅ Phase 32: HEAVY DIAGNOSTICS
+    // ✅ Phase 32: HEAVY DIAGNOSTICS (Fixed ReferenceError)
     const statusPoints = status && typeof status === 'object' ? status.points : null;
     const shapePoints = shape.getPoints?.() || null;
     
-    // Stringify status keys for easier reading in console
+    // Robustly extract the statusKey and statusKeys for logging
+    let rawStatus = '';
+    if (typeof status === 'string') rawStatus = status;
+    else if (status && typeof status === 'object') {
+      rawStatus = (status.status || status.state || status.type || status.value || 'points_changed');
+    }
+    const statusKey = String(rawStatus).toLowerCase();
     const statusKeys = status && typeof status === 'object' ? Object.keys(status).join(',') : 'n/a';
 
     this._log('handleEntryDrag DIAGNOSTICS:', {
