@@ -563,6 +563,10 @@ export class TradeLineManager {
     // ✅ Phase 32: HEAVY DIAGNOSTICS (Fixed ReferenceError)
     const statusPoints = status && typeof status === 'object' ? status.points : null;
     const shapePoints = shape.getPoints?.() || null;
+
+    // ✅ Phase 34: Crosshair Precision - Check if we can get the actual chart crosshair price
+    // This is the ultimate source of truth for where the user is looking.
+    const crosshairPrice = this.widget?.chart?.().crosshairPrice() || null;
     
     // Robustly extract the statusKey and statusKeys for logging
     let rawStatus = '';
@@ -573,16 +577,19 @@ export class TradeLineManager {
     const statusKey = String(rawStatus).toLowerCase();
     const statusKeys = status && typeof status === 'object' ? Object.keys(status).join(',') : 'n/a';
 
+    // ✅ Phase 34: Priority - Crosshair > live status > shape history
+    const mousePrice = Number(crosshairPrice ?? statusPoints?.[0]?.price ?? shapePoints?.[0]?.price);
+
     this._log('handleEntryDrag DIAGNOSTICS:', {
       tvId,
       statusKey,
       statusKeys,
-      statusPoint0: statusPoints?.[0]?.price,
-      shapePoint0: shapePoints?.[0]?.price,
+      p0_status: statusPoints?.[0]?.price,
+      p0_shape: shapePoints?.[0]?.price,
+      p_crosshair: crosshairPrice,
+      p_final: mousePrice,
       entryPrice
     });
-
-    const mousePrice = Number(statusPoints?.[0]?.price ?? shapePoints?.[0]?.price);
     const isFinished = this._isStopStatus(status);
 
     // 🛡️ Guard: Precision-aware price comparison to avoid infinite setPoints loops
@@ -663,6 +670,12 @@ export class TradeLineManager {
     if (targetType === 'sl') {
       const updatedTrade = { ...trade, stopLoss: mousePrice, sl: mousePrice };
       const slShape = await this.createSLLine(updatedTrade);
+      
+      // ✅ Phase 34: Extend Sync-Lock to the SL shape during entry-line interaction
+      if (slShape?.tvId) {
+        this.syncLockTimes[slShape.tvId] = Date.now();
+      }
+
       if (isFinished && slShape?.tvId) {
         this._log('handleEntryDrag: finished drag for SL', tradeId);
         await this.handleSLDrag(slShape.tvId);
@@ -670,6 +683,12 @@ export class TradeLineManager {
     } else {
       const updatedTrade = { ...trade, takeProfit: mousePrice, tp: mousePrice };
       const tpShape = await this.createTPLine(updatedTrade);
+
+      // ✅ Phase 34: Extend Sync-Lock to the TP shape during entry-line interaction
+      if (tpShape?.tvId) {
+        this.syncLockTimes[tpShape.tvId] = Date.now();
+      }
+
       if (isFinished && tpShape?.tvId) {
         this._log('handleEntryDrag: finished drag for TP', tradeId);
         await this.handleTPDrag(tpShape.tvId);
