@@ -1,6 +1,6 @@
 import { API_URL } from '../config/api';
 
-const DEBUG_TRADE_LINES = false; // 🏁 Final Production Mode: Debugging disabled
+const DEBUG_TRADE_LINES = true; // 🏁 Diagnostics Activated for Phase 32
 
 const normalizeAuthToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -559,10 +559,19 @@ export class TradeLineManager {
 
     const entryPrice = Number(trade?.openPrice ?? trade?.price);
 
-    // ✅ Phase 30: Prioritize points from the 'status' object (live event data)
-    // over shape.getPoints(), as getPoints can be lagged or inaccurate during whole-body drags.
+    // ✅ Phase 32: HEAVY DIAGNOSTICS
     const statusPoints = status && typeof status === 'object' ? status.points : null;
-    const mousePrice = Number(statusPoints?.[0]?.price ?? shape.getPoints?.()?.[0]?.price);
+    const shapePoints = shape.getPoints?.() || null;
+    
+    this._log('handleEntryDrag DIAGNOSTICS:', {
+      tvId,
+      statusKey: status && typeof status === 'object' ? (status.status || status.state) : status,
+      statusPoint0: statusPoints?.[0]?.price,
+      shapePoint0: shapePoints?.[0]?.price,
+      entryPrice
+    });
+
+    const mousePrice = Number(statusPoints?.[0]?.price ?? shapePoints?.[0]?.price);
     const isFinished = this._isStopStatus(status);
 
     // 🛡️ Guard: Precision-aware price comparison to avoid infinite setPoints loops
