@@ -41,6 +41,7 @@ export class TradeLineManager {
     this.modifyInFlight = {}; // { tradeId: bool }
     this.pendingModification = {}; // { tradeId: payload }
     this._drawingEventHandler = null;
+    this.isInternalUpdate = false; // 🛡️ Safety: Recursion guard
   }
 
   //Sanket v2.0 - Small debug logger (off by default) for quick runtime checks.
@@ -350,9 +351,9 @@ export class TradeLineManager {
       // 🛡️ Safety: use a slightly older time (30s ago) to ensure it's within TradingView's loaded range
       const time = Math.floor((Date.now() - 30000) / 1000);
       
-      // ✅ Phase 30: Use 'horizontal_ray' for entry lines. 
-      // Rays have a fixed origin point which is much more stable for dragging than 'horizontal_line'.
-      const shapeType = (type === 'entry') ? 'horizontal_ray' : 'horizontal_line';
+      // ✅ Phase 31: Reverting to 'horizontal_line' for full-width visibility.
+      // We previously tried rays, but the user prefers the global line.
+      const shapeType = 'horizontal_line';
 
       const tvId = String(await chart.createShape(
         { time, price },
@@ -567,30 +568,24 @@ export class TradeLineManager {
     // 🛡️ Guard: Precision-aware price comparison to avoid infinite setPoints loops
     const isAtEntry = Math.abs(mousePrice - entryPrice) < 0.0000001;
 
-    // ✅ Elastic Snapback: Always keep the entry line fixed at its execution price
-    // ONLY snap back if the price is different and the user has finished the move
-    if (isFinished && !isAtEntry) {
+    // ✅ Phase 31: Continuous Snapback
+    // Always keep the entry line fixed at its execution price during EVERY move event.
+    // This makes the entry line appear stationary while the new SL/TP follows the cursor.
+    if (!isAtEntry) {
       this._log('handleEntryDrag: snapping back to entry', entryPrice);
       try {
-        // Use a temporary lock to prevent re-entering this handler during setPoints
-        const prevDragging = this.draggingTvId;
-        this.draggingTvId = tvId; 
-        
-        shape.setPoints([{ 
-          price: entryPrice, 
-          time: Math.floor(Date.now() / 1000) - 30000 
-        }]);
-
-        this.draggingTvId = prevDragging;
+        this.isInternalUpdate = true;
+        shape.setPoints([{ price: entryPrice }]);
+        this.isInternalUpdate = false;
       } catch (e) {
         this._error('handleEntryDrag: snapback failed', e);
+        this.isInternalUpdate = false;
       }
     }
-
+ 
     // 🛡️ Guard: No need to process further if we're already at entry 
-    // This happens during the 'snapback' we just triggered above
+    // This happens because we just triggered a snapback or the cursor hasn't moved yet.
     if (isAtEntry) {
-      this._log('handleEntryDrag: already at entry, skipping logic');
       return;
     }
 
@@ -633,6 +628,9 @@ export class TradeLineManager {
     if (!widget) return;
 
     this._drawingEventHandler = async (id, status) => {
+      // 🛡️ Phase 31: Recursion Guard
+      if (this.isInternalUpdate) return;
+
       const tvId = String(id || '');
       if (!tvId) return;
 
