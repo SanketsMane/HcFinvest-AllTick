@@ -54,7 +54,7 @@ import Switch_Account from "./pages/Switch_Account";
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<Signup />} />
          <Route path="/switch-account" element={<Switch_Account />} />

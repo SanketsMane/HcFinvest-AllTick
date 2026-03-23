@@ -1,215 +1,11 @@
-// import express from 'express'
-// import metaApiService from '../services/metaApiService.js'
-
-// const router = express.Router()
-
-// // GET /api/prices/status - Get market data service status
-// router.get('/status', async (req, res) => {
-//   try {
-//     const status = metaApiService.getStatus()
-//     res.json({ success: true, status })
-//   } catch (error) {
-//     console.error('Error fetching status:', error)
-//     res.status(500).json({ success: false, message: error.message })
-//   }
-// })
-
-// // GET /api/prices/symbols - Get all supported symbols
-// router.get('/symbols', async (req, res) => {
-//   try {
-//     const symbols = metaApiService.getSupportedSymbols()
-//     res.json({ success: true, symbols })
-//   } catch (error) {
-//     console.error('Error fetching symbols:', error)
-//     res.status(500).json({ success: false, message: error.message })
-//   }
-// })
-
-// // GET /api/prices/categories - Get all categories with symbols and prices
-// router.get('/categories', async (req, res) => {
-//   try {
-//     const categories = metaApiService.getPricesByCategory()
-//     res.json({ 
-//       success: true, 
-//       categories,
-//       provider: 'metaapi'
-//     })
-//   } catch (error) {
-//     console.error('Error fetching categories:', error)
-//     res.status(500).json({ success: false, message: error.message })
-//   }
-// })
-
-// // GET /api/prices/history - Get historical OHLC candles
-// // NOTE: This must be defined BEFORE /:symbol route to avoid matching 'history' as a symbol
-// router.get('/history', async (req, res) => {
-//   try {
-//     const { symbol, resolution, from, to, limit } = req.query
-    
-//     if (!symbol) {
-//       return res.status(400).json({ success: false, message: 'symbol is required' })
-//     }
-    
-//     // Check if symbol is supported
-//     if (!metaApiService.isSymbolSupported(symbol)) {
-//       return res.status(404).json({ 
-//         success: false, 
-//         message: `Symbol ${symbol} is not supported` 
-//       })
-//     }
-    
-//     // Map resolution to timeframe (support various formats)
-//     const resolutionMap = {
-//       '1': '1m', '1m': '1m', '1min': '1m',
-//       '5': '5m', '5m': '5m', '5min': '5m',
-//       '15': '15m', '15m': '15m', '15min': '15m',
-//       '30': '30m', '30m': '30m', '30min': '30m',
-//       '60': '1h', '1h': '1h', '1H': '1h', '1hour': '1h',
-//       '240': '4h', '4h': '4h', '4H': '4h',
-//       'D': '1d', '1d': '1d', '1D': '1d', 'day': '1d',
-//       'W': '1w', '1w': '1w', '1W': '1w', 'week': '1w',
-//       'M': '1M', '1M': '1M', 'month': '1M'
-//     }
-//     const timeframe = resolutionMap[resolution] || '1m'
-    
-//     // Parse timestamps (expect seconds)
-//     const startTime = from ? parseInt(from) : undefined
-//     const endTime = to ? parseInt(to) : undefined
-//     const candleLimit = limit ? parseInt(limit) : 500
-    
-//     // Fetch candles from MetaAPI service
-//     const candles = await metaApiService.getHistoricalCandles(
-//       symbol, 
-//       timeframe, 
-//       startTime, 
-//       endTime, 
-//       candleLimit
-//     )
-    
-//     res.json({
-//       success: true,
-//       symbol,
-//       timeframe,
-//       candles,
-//       count: candles.length,
-//       provider: 'metaapi'
-//     })
-//   } catch (error) {
-//     console.error('Error fetching historical candles:', error)
-//     res.status(500).json({ success: false, message: error.message })
-//   }
-// })
-
-// // GET /api/prices/:symbol - Get single symbol price
-// router.get('/:symbol', async (req, res) => {
-//   try {
-//     const { symbol } = req.params
-    
-//     // Check if symbol is supported
-//     if (!metaApiService.isSymbolSupported(symbol)) {
-//       return res.status(404).json({ 
-//         success: false, 
-//         message: `Symbol ${symbol} is not supported` 
-//       })
-//     }
-    
-//     // Get price from MetaAPI market data service
-//     const price = metaApiService.getPrice(symbol)
-//     const symbolInfo = metaApiService.getSymbolInfo(symbol)
-    
-//     if (price && price.bid) {
-//       res.json({ 
-//         success: true, 
-//         price: {
-//           bid: price.bid,
-//           ask: price.ask,
-//           spread: price.spread,
-//           time: price.time,
-//           ...symbolInfo
-//         },
-//         provider: 'metaapi'
-//       })
-//     } else {
-//       res.status(404).json({ 
-//         success: false, 
-//         message: 'Price not available yet. Market data is streaming.' 
-//       })
-//     }
-//   } catch (error) {
-//     console.error('Error fetching price:', error)
-//     res.status(500).json({ success: false, message: error.message })
-//   }
-// })
-
-// // POST /api/prices/batch - Get multiple symbol prices
-// router.post('/batch', async (req, res) => {
-//   try {
-//     const { symbols } = req.body
-//     if (!symbols || !Array.isArray(symbols)) {
-//       return res.status(400).json({ success: false, message: 'symbols array required' })
-//     }
-    
-//     const prices = {}
-    
-//     // Get all prices from MetaAPI market data service
-//     for (const symbol of symbols) {
-//       if (metaApiService.isSymbolSupported(symbol)) {
-//         const price = metaApiService.getPrice(symbol)
-//         const symbolInfo = metaApiService.getSymbolInfo(symbol)
-//         if (price && price.bid) {
-//           prices[symbol] = {
-//             bid: price.bid,
-//             ask: price.ask,
-//             spread: price.spread,
-//             time: price.time,
-//             ...symbolInfo
-//           }
-//         }
-//       }
-//     }
-    
-//     res.json({ 
-//       success: true, 
-//       prices,
-//       provider: 'metaapi',
-//       count: Object.keys(prices).length
-//     })
-//   } catch (error) {
-//     console.error('Error fetching batch prices:', error)
-//     res.status(500).json({ success: false, message: error.message })
-//   }
-// })
-
-// // GET /api/prices/all - Get all current prices
-// router.get('/', async (req, res) => {
-//   try {
-//     const prices = metaApiService.getAllPrices()
-//     const categories = metaApiService.getPricesByCategory()
-//     res.json({ 
-//       success: true, 
-//       prices,
-//       categories,
-//       provider: 'metaapi',
-//       count: Object.keys(prices).length
-//     })
-//   } catch (error) {
-//     console.error('Error fetching all prices:', error)
-//     res.status(500).json({ success: false, message: error.message })
-//   }
-// })
-
-// export default router
-
-
-
-// ----------------------------------------------------------------------------------------------------------------------------------
-
 import express from 'express'
-import metaApiService from '../services/metaApiService.js'
-import storageService from '../services/storageService.js' // //sanket - Import storage service
+import alltickApiService from '../services/alltickApiService.js'
+import storageService from '../services/storageService.js'
 import { requireOpsAuth } from '../middleware/opsAuth.js'
 import { opsRateLimit, getOpsRateLimitStats } from '../middleware/opsRateLimit.js'
 import OpsActionLog from '../models/OpsActionLog.js'
+import redisClient from '../services/redisClient.js'
+import { aggregateToTimeframe, fillGaps, validateContinuity } from '../utils/candleAggregator.js'
 
 const router = express.Router()
 
@@ -244,7 +40,7 @@ const writeOpsAudit = async (req, action, status, payload = null, reason = '') =
 // GET /api/prices/status - Get market data service status
 router.get('/status', async (req, res) => {
   try {
-    const status = metaApiService.getStatus()
+    const status = { connected: alltickApiService.isConnected, provider: 'alltick' }
     const livePersistence = storageService.getLivePersistenceStats()
     const syncStats = storageService.getSyncStats()
     const lockStatus = await storageService.getLockStatus()
@@ -332,7 +128,7 @@ router.post('/backfill', requireOpsAuth, opsRateLimit, async (req, res) => {
       return res.status(400).json({ success: false, message: 'days cannot exceed 365' })
     }
 
-    if (!metaApiService.isSymbolSupported(symbol)) {
+    if (!alltickApiService.isSymbolSupported(symbol)) {
       return res.status(404).json({ success: false, message: `Symbol ${symbol} is not supported` });
     }
     
@@ -367,7 +163,7 @@ router.get('/gaps', async (req, res) => {
   try {
     const { symbol, resolution, hours } = req.query
     if (!symbol) return res.status(400).json({ success: false, message: 'symbol is required' })
-    if (!metaApiService.isSymbolSupported(symbol)) {
+    if (!alltickApiService.isSymbolSupported(symbol)) {
       return res.status(404).json({ success: false, message: `Symbol ${symbol} is not supported` })
     }
     const timeframe = resolution || '1h'
@@ -387,7 +183,7 @@ router.post('/gaps/repair', requireOpsAuth, opsRateLimit, async (req, res) => {
     if (!symbol || !gapStart || !gapEnd) {
       return res.status(400).json({ success: false, message: 'symbol, gapStart and gapEnd are required' })
     }
-    if (!metaApiService.isSymbolSupported(symbol)) {
+    if (!alltickApiService.isSymbolSupported(symbol)) {
       return res.status(404).json({ success: false, message: `Symbol ${symbol} is not supported` })
     }
     const timeframe = resolution || '1h'
@@ -410,7 +206,7 @@ router.post('/gaps/repair', requireOpsAuth, opsRateLimit, async (req, res) => {
 // GET /api/prices/symbols - Get all supported symbols
 router.get('/symbols', async (req, res) => {
   try {
-    const symbols = metaApiService.getSupportedSymbols()
+    const symbols = alltickApiService.getSupportedSymbols()
     res.json({ success: true, symbols })
   } catch (error) {
     console.error('Error fetching symbols:', error)
@@ -421,11 +217,11 @@ router.get('/symbols', async (req, res) => {
 // GET /api/prices/categories - Get all categories with symbols and prices
 router.get('/categories', async (req, res) => {
   try {
-    const categories = metaApiService.getPricesByCategory()
+    const categories = alltickApiService.getPricesByCategory()
     res.json({ 
       success: true, 
       categories,
-      provider: 'metaapi'
+      provider: 'alltick'
     })
   } catch (error) {
     console.error('Error fetching categories:', error)
@@ -435,84 +231,115 @@ router.get('/categories', async (req, res) => {
 
 // GET /api/prices/history - Get historical OHLC candles
 // NOTE: This must be defined BEFORE /:symbol route to avoid matching 'history' as a symbol
+// GET /api/prices/history - Get historical OHLC candles
+// NOTE: This must be defined BEFORE /:symbol route to avoid matching 'history' as a symbol
 router.get('/history', async (req, res) => {
-  try {
-    const { symbol, resolution, from, to, limit, preferLive } = req.query
-    
-    if (!symbol) {
-      return res.status(400).json({ success: false, message: 'symbol is required' })
-    }
-    
-    // Check if symbol is supported
-    if (!metaApiService.isSymbolSupported(symbol)) {
-      return res.status(404).json({ 
-        success: false, 
-        message: `Symbol ${symbol} is not supported` 
-      })
-    }
-    
-    // Map resolution to timeframe (support various formats)
-    const resolutionMap = {
-      '1': '1m', '1m': '1m', '1min': '1m',
-      '5': '5m', '5m': '5m', '5min': '5m',
-      '15': '15m', '15m': '15m', '15min': '15m',
-      '30': '30m', '30m': '30m', '30min': '30m',
-      '60': '1h', '1h': '1h', '1H': '1h', '1hour': '1h',
-      '240': '4h', '4h': '4h', '4H': '4h',
-      'D': '1d', '1d': '1d', '1D': '1d', 'day': '1d',
-      'W': '1w', '1w': '1w', '1W': '1w', 'week': '1w',
-      'M': '1M', '1M': '1M', 'month': '1M'
-    }
-    const timeframe = resolutionMap[resolution] || '1m'
-    
-    // Parse timestamps (expect seconds)
-    let startTime = from ? parseInt(from) : undefined
-    const endTime = to ? parseInt(to) : undefined
-    const candleLimit = limit ? parseInt(limit) : 500
-    
-    // [sanket] - If it's an initial load or large request with a very tight/recent window,
-    // ignore startTime to ensure a full chart is returned from either storage or API.
-    if (startTime && candleLimit >= 300) {
-      const now = Math.floor(Date.now() / 1000);
-      const isVeryRecent = (now - startTime) < 14400; // Less than 4 hours of history requested
-      if (isVeryRecent) {
-        // console.log(`[PricesAPI] Ignoring recent startTime for ${symbol} to ensure full chart filling`);
-        startTime = undefined;
-      }
-    }
-    
-    // Ensure minimum 300 candles for proper chart display
-    const minLimit = 300;
-    const requestLimit = candleLimit || minLimit;
-    const finalLimit = Math.max(requestLimit, minLimit);
+  const { symbol, resolution, from, to, limit, preferLive } = req.query;
+  
+  if (!symbol) {
+    return res.status(400).json({ success: false, message: 'symbol is required' });
+  }
 
-    // [sanket] - Fetch candles from StorageService (local cache with automatic API fallback/refill)
-    let candles = await storageService.getCandles(symbol, timeframe, startTime, endTime, requestLimit)
-    
-    // [sanket] - Improved fallback: If storage has sparse data (< 100) but we requested more,
-    // definitively call MetaAPI to get the full history and fill the chart.
-    if (!candles || candles.length < 100) {
-      const apiCandles = await metaApiService.getHistoricalCandles(symbol, timeframe, startTime, endTime, requestLimit)
-      if (apiCandles && apiCandles.length > (candles ? candles.length : 0)) {
-        candles = apiCandles;
-      }
+  // 🎯 Map resolution to AllTick native timeframes
+  const resolutionMap = {
+    '1': '1m', '1m': '1m', '5': '5m', '5m': '5m', '15': '15m', '15m': '15m',
+    '30': '30m', '30m': '30m', '60': '1h', '1h': '1h', '240': '4h', '4h': '4h',
+    'D': '1d', '1D': '1d', 'W': '1w', '1W': '1w', 'M': '1M', '1M': '1M'
+  };
+  
+  const resolutionToMinutes = {
+    '1': 1, '1m': 1, '5': 5, '5m': 5, '15': 15, '15m': 15,
+    '30': 30, '30m': 30, '60': 60, '1h': 60, '120': 120, '240': 240, '4h': 240,
+    'D': 1440, '1D': 1440, '1d': 1440, 
+    'W': 10080, '1W': 10080, '1w': 10080, 
+    'M': 43200, '1M': 43200, '1m': 1
+  };
+
+  const timeframe = resolutionMap[resolution] || '1m';
+  const targetMinutes = resolutionToMinutes[resolution] || parseInt(resolution) || 1;
+  const isPreferLive = preferLive === '1' || preferLive === 'true';
+  const requestLimit = limit ? Math.min(parseInt(limit), 2000) : 1000;
+  
+  // 🛡️ ELITE: Always use Server Time Authority for "current" requests
+  const serverNow = Math.floor(Date.now() / 1000);
+  const startTime = from ? parseInt(from) : undefined;
+  const endTime = to ? parseInt(to) : (isPreferLive ? serverNow : undefined);
+
+  console.log(`[History] Elite Request: ${symbol} (${resolution} → ${timeframe}) from=${from} to=${endTime} limit=${requestLimit}`);
+
+  if (!alltickApiService.isSymbolSupported(symbol)) {
+    return res.status(404).json({ success: false, message: `Symbol ${symbol} is not supported` });
+  }
+
+  // 🛡️ ELITE: Caching Key optimized for timeframe and range
+  // Always use 'latest' for the end if not specified, to match live tier-sync
+  const cacheSuffix = isPreferLive ? 'live' : 'std';
+  const effectiveEnd = (isPreferLive && !to) ? 'latest' : (endTime || 'latest');
+  const cacheKey = `hist:${symbol}:${timeframe}:start:${effectiveEnd}:1000:${cacheSuffix}`;
+  
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      const candles = JSON.parse(cached);
+      console.log(`[History] ⚡ Served ${candles.length} candles from Redis Cache`);
+      return res.json({ success: true, symbol, timeframe, candles, count: candles.length, provider: 'alltick (cached)' });
     }
+  } catch (e) {}
+
+  try {
+    // 🚀 STEP 1: Direct Native Fetch (Fast & Accurate)
+    // We fetch the requested resolution directly from AllTick instead of aggregating 1m candles manually.
+    const result = await alltickApiService.getHistoricalCandles(symbol, timeframe, startTime, endTime, requestLimit, isPreferLive);
     
-    console.log(`[PricesAPI] History: ${symbol} ${timeframe} returned ${candles.length} candles (requested: ${finalLimit})`);
+    if (!result.success || !result.candles || result.candles.length === 0) {
+      console.warn(`[History] ⚠️ No native data found for ${symbol} @ ${timeframe}. Faking empty response.`);
+      return res.json({ success: true, symbol, timeframe, candles: [], count: 0, provider: 'alltick' });
+    }
+
+    let finalCandles = result.candles;
+
+    // 🚀 ELITE PIPELINE: Clean -> Fill -> Validate
     
+    // 1. Sort (Clean)
+    finalCandles.sort((a, b) => a.time - b.time);
+
+    // 2. Fill Gaps (PRO Tier Continuity)
+    if (finalCandles.length > 5 && targetMinutes <= 1440) {
+       const prevCount = finalCandles.length;
+       finalCandles = fillGaps(finalCandles, targetMinutes);
+       if (finalCandles.length > prevCount) {
+         console.log(`[History] 🔗 Continuity Fix: Filled ${finalCandles.length - prevCount} gaps in ${timeframe} data`);
+       }
+    }
+
+    // 3. Validate Continuity
+    validateContinuity(finalCandles, targetMinutes);
+
+    // 4. Density Check
+    if (finalCandles.length < 200) {
+      console.warn(`[History] ⚠️ Low density data for ${symbol} @ ${timeframe}: only ${finalCandles.length} candles`);
+    }
+
+    // 🏆 STEP 3: Return & Cache
+    // We cache for 5 minutes (standard for historical requests)
+    if (finalCandles.length > 0) {
+      await redisClient.set(cacheKey, JSON.stringify(finalCandles), 'EX', 300);
+    }
+
     res.json({
       success: true,
       symbol,
       timeframe,
-      candles,
-      count: candles.length,
-      provider: 'metaapi'
-    })
+      candles: finalCandles,
+      count: finalCandles.length,
+      provider: 'alltick (production+)'
+    });
+
   } catch (error) {
-    console.error('Error fetching historical candles:', error)
-    res.status(500).json({ success: false, message: error.message })
+    console.error(`[PricesAPI] Error in history route:`, error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
-})
+});
 
 // GET /api/prices/:symbol - Get single symbol price
 router.get('/:symbol', async (req, res) => {
@@ -520,16 +347,16 @@ router.get('/:symbol', async (req, res) => {
     const { symbol } = req.params
     
     // Check if symbol is supported
-    if (!metaApiService.isSymbolSupported(symbol)) {
+    if (!alltickApiService.isSymbolSupported(symbol)) {
       return res.status(404).json({ 
         success: false, 
         message: `Symbol ${symbol} is not supported` 
       })
     }
     
-    // Get price from MetaAPI market data service
-    const price = metaApiService.getPrice(symbol)
-    const symbolInfo = metaApiService.getSymbolInfo(symbol)
+    // Get price from AllTick api service
+    const price = alltickApiService.getPrice(symbol)
+    const symbolInfo = alltickApiService.getSymbolInfo(symbol)
     
     if (price && price.bid) {
       res.json({ 
@@ -541,7 +368,7 @@ router.get('/:symbol', async (req, res) => {
           time: price.time,
           ...symbolInfo
         },
-        provider: 'metaapi'
+        provider: 'alltick'
       })
     } else {
       res.status(404).json({ 
@@ -565,11 +392,11 @@ router.post('/batch', async (req, res) => {
     
     const prices = {}
     
-    // Get all prices from MetaAPI market data service
+    // Get all prices from AllTick api service
     for (const symbol of symbols) {
-      if (metaApiService.isSymbolSupported(symbol)) {
-        const price = metaApiService.getPrice(symbol)
-        const symbolInfo = metaApiService.getSymbolInfo(symbol)
+      if (alltickApiService.isSymbolSupported(symbol)) {
+        const price = alltickApiService.getPrice(symbol)
+        const symbolInfo = alltickApiService.getSymbolInfo(symbol)
         if (price && price.bid) {
           prices[symbol] = {
             bid: price.bid,
@@ -597,14 +424,15 @@ router.post('/batch', async (req, res) => {
 // GET /api/prices/all - Get all current prices
 router.get('/', async (req, res) => {
   try {
-    const prices = metaApiService.getAllPrices()
-    const categories = metaApiService.getPricesByCategory()
+    const [prices, categories] = await Promise.all([
+      alltickApiService.getAllPrices(),
+      alltickApiService.getPricesByCategory()
+    ]);
     res.json({ 
       success: true, 
       prices,
       categories,
-      provider: 'metaapi',
-      count: Object.keys(prices).length
+      timestamp: Date.now()
     })
   } catch (error) {
     console.error('Error fetching all prices:', error)

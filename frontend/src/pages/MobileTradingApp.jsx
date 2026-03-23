@@ -8,8 +8,8 @@ import {
   Plus, Minus, Settings, RefreshCw, ChevronDown, Bell, User,
   ArrowDownCircle, ArrowUpCircle, Check, Pencil, Trash2
 } from 'lucide-react'
-import metaApiService from '../services/metaApi'
-import priceStreamService from '../services/priceStream'
+import priceStreamService, { getPriceEvents } from '../services/priceStream'
+import marketDataApiService from '../services/marketDataApi'
 
 const MobileTradingApp = () => {
   const navigate = useNavigate()
@@ -28,7 +28,7 @@ const MobileTradingApp = () => {
   const [instruments, setInstruments] = useState([])
   const [livePrices, setLivePrices] = useState({})
   const [priceUpdateTick, setPriceUpdateTick] = useState(0) // Force re-render on price updates
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Don't block UI on background price load
   const [searchTerm, setSearchTerm] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [tradeTab, setTradeTab] = useState('positions')
@@ -130,9 +130,11 @@ const MobileTradingApp = () => {
     
     // Initial price fetch
     fetchLivePrices()
+    // Fetch all supported symbols from backend
+    fetchSymbolsFromBackend()
 
     return () => {
-      metaApiService.disconnect()
+      marketDataApiService.disconnect()
     }
   }, [])
 
@@ -205,10 +207,12 @@ const MobileTradingApp = () => {
   // Fetch live prices using metaApiService (same as TradingPage)
   const fetchLivePrices = async () => {
     try {
-      const allPrices = await metaApiService.getAllPrices(allSymbols)
+      const allPrices = await marketDataApiService.getAllPrices(allSymbols)
+      
+      // Stop loading state regardless of results to show basic UI
+      setLoading(false)
       
       if (Object.keys(allPrices).length > 0) {
-        setLoading(false)
         setLivePrices(allPrices)
         
         // Update instruments with live prices
@@ -228,6 +232,37 @@ const MobileTradingApp = () => {
       }
     } catch (e) {
       console.error('Live prices error:', e)
+      setLoading(false)
+    }
+  }
+
+  // Fetch all supported symbols from backend
+  const fetchSymbolsFromBackend = async () => {
+    try {
+      const res = await fetch(`${API_URL}/prices/symbols`)
+      const data = await res.json()
+      if (data.success && data.symbols) {
+        setInstruments(prev => {
+          const existing = new Set(prev.map(i => i.symbol))
+          const newInstruments = [...prev]
+          data.symbols.forEach(symbol => {
+            if (!existing.has(symbol)) {
+              newInstruments.push({
+                symbol,
+                name: symbol,
+                bid: 0,
+                ask: 0,
+                spread: 0,
+                category: isMetalSymbol(symbol) ? 'Metals' : (isCryptoSymbol(symbol) ? 'Crypto' : 'Forex'),
+                starred: false
+              })
+            }
+          })
+          return newInstruments
+        })
+      }
+    } catch (e) {
+      console.error('Error fetching instruments:', e)
     }
   }
   

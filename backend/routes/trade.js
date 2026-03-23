@@ -8,6 +8,7 @@ import propTradingEngine from '../services/propTradingEngine.js'
 import copyTradingEngine from '../services/copyTradingEngine.js'
 import ibEngine from '../services/ibEngineNew.js'
 import MasterTrader from '../models/MasterTrader.js'
+import redisClient from '../services/redisClient.js'
 
 const router = express.Router()
 
@@ -156,6 +157,11 @@ router.post('/open', async (req, res) => {
       }
     }
 
+    const io = req.app.get('io');
+    if (io && trade && trade.tradingAccountId) {
+      io.to(`account:${trade.tradingAccountId}`).emit('tradeUpdated', trade);
+    }
+
     res.json({
       success: true,
       message: 'Trade opened successfully',
@@ -223,6 +229,12 @@ router.post('/close', async (req, res) => {
       // Update challenge account
       await propTradingEngine.onTradeClosed(challengeAccount._id, tradeToClose, pnl)
       
+      // Emit WebSocket event
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`account:${challengeAccount._id}`).emit('tradeClosed', tradeToClose);
+      }
+
       return res.json({
         success: true,
         message: 'Challenge trade closed successfully',
@@ -243,6 +255,12 @@ router.post('/close', async (req, res) => {
     // Note: Copy trading close is now handled inside tradeEngine.closeTrade()
     // This ensures SL/TP triggered closes also propagate to followers
     // Note: IB commission is also processed inside tradeEngine.closeTrade() - no need to call again here
+
+    // Emit WebSocket event
+    const io = req.app.get('io');
+    if (io && result.trade && result.trade.tradingAccountId) {
+      io.to(`account:${result.trade.tradingAccountId}`).emit('tradeClosed', result.trade);
+    }
 
     res.json({
       success: true,
@@ -272,51 +290,73 @@ router.put('/modify', async (req, res) => {
       })
     }
 
-    // First check if trade exists
-    const existingTrade = await Trade.findById(tradeId)
-    if (!existingTrade) {
-      console.log('Trade not found:', tradeId)
-      return res.status(404).json({ 
+    // 1. Acquire Redis Lock (prevents concurrent modifications of the same trade)
+    const lockKey = `lock:modify_trade:${tradeId}`;
+    const isLocked = await redisClient.set(lockKey, 'LOCKED', 'NX', 'EX', 1); // 1-second fallback lock
+    if (!isLocked) {
+      console.warn(`[Trade Route] Concurrent modification blocked for Trade: ${tradeId}`);
+      return res.status(429).json({ 
         success: false, 
-        message: 'Trade not found' 
-      })
+        message: 'Trade is currently being modified, please wait.' 
+      });
     }
-    console.log('Found trade:', existingTrade.tradeId, existingTrade.status)
 
-    // Parse values and handle NaN
-    const parsedSl = sl !== undefined && sl !== null && sl !== '' ? parseFloat(sl) : null
-    const parsedTp = tp !== undefined && tp !== null && tp !== '' ? parseFloat(tp) : null
-    
-    const trade = await tradeEngine.modifyTrade(
-      tradeId,
-      parsedSl !== null && !isNaN(parsedSl) ? parsedSl : null,
-      parsedTp !== null && !isNaN(parsedTp) ? parsedTp : null
-    )
-
-    // Mirror SL/TP modification to follower trades
-    const master = await MasterTrader.findOne({ 
-      tradingAccountId: trade.tradingAccountId, 
-      status: 'ACTIVE' 
-    })
-    
-    if (master) {
-      try {
-        await copyTradingEngine.mirrorSlTpModification(
-          tradeId,
-          parsedSl,
-          parsedTp
-        )
-        console.log(`Mirrored SL/TP modification to follower trades for ${tradeId}`)
-      } catch (copyError) {
-        console.error('Error mirroring SL/TP:', copyError)
+    try {
+      // First check if trade exists
+      const existingTrade = await Trade.findById(tradeId)
+      if (!existingTrade) {
+        console.log('Trade not found:', tradeId)
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Trade not found' 
+        })
       }
-    }
+      console.log('Found trade:', existingTrade.tradeId, existingTrade.status)
 
-    res.json({
-      success: true,
-      message: 'Trade modified successfully',
-      trade
-    })
+      // Parse values and handle NaN
+      const parsedSl = sl !== undefined && sl !== null && sl !== '' ? parseFloat(sl) : null
+      const parsedTp = tp !== undefined && tp !== null && tp !== '' ? parseFloat(tp) : null
+      
+      const trade = await tradeEngine.modifyTrade(
+        tradeId,
+        parsedSl !== null && !isNaN(parsedSl) ? parsedSl : null,
+        parsedTp !== null && !isNaN(parsedTp) ? parsedTp : null
+      )
+
+      // Mirror SL/TP modification to follower trades
+      const master = await MasterTrader.findOne({ 
+        tradingAccountId: trade.tradingAccountId, 
+        status: 'ACTIVE' 
+      })
+      
+      // Emit WebSocket event to live clients immediately
+      const io = req.app.get('io');
+      if (io && trade && trade.tradingAccountId) {
+        io.to(`account:${trade.tradingAccountId}`).emit('tradeUpdated', trade);
+      }
+      
+      if (master) {
+        try {
+          await copyTradingEngine.mirrorSlTpModification(
+            tradeId,
+            parsedSl,
+            parsedTp
+          )
+          console.log(`Mirrored SL/TP modification to follower trades for ${tradeId}`)
+        } catch (copyError) {
+          console.error('Error mirroring SL/TP:', copyError)
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Trade modified successfully',
+        trade
+      })
+    } finally {
+      // ✅ Explicitly release the lock once the modification is done
+      await redisClient.del(lockKey);
+    }
   } catch (error) {
     console.error('Error modifying trade:', error)
     res.status(400).json({ 
