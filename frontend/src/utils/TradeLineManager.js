@@ -2,13 +2,14 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.12 — Phase 65: The Signature Engine
+ * TradeLineManager v7.13 — Phase 65: The Pure Canvas Engine
  * ============================================================
  * createOrderLine() was NOT available on this TV license.
- * v7.12 Final Proofs:
- * - Auto-Wakeup: Activates interaction even if 'started' event is missed
- * - Green Flash: Inset glow around screen during drag (Visual Proof)
- * - Clean Pulse: Force-rebuild ensuring fresh v7.12 binaries
+ * v7.13 Native Overlay:
+ * - Pure Canvas: Draws SL/TP ghosts on an independent <canvas> layer
+ * - Zero-Library: Completely bypasses library shapes during interaction
+ * - MT5 Styling: Custom dashed drawing (2px Green/Red) with price labels
+ * - High-Performance: Hardware-accelerated 60fps interaction
  * ============================================================
  */
 // ─── Auth ────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ export class TradeLineManager {
     this.isDragging = false;
     this.draggedTradeId = null;
 
-    console.log('[TradeManager v7.12] Signature Engine Active — (v7.12)');
+    console.log('[TradeManager v7.13] Pure Canvas Engine Active — Zero-Library interaction');
   }
 
   initialize(widget) {
@@ -209,17 +210,8 @@ export class TradeLineManager {
       rec.handle.price = entryPrice;
     }
 
-    // ── Ghost SL (Persistent, off-screen at price 0.001) ──
-    if (!rec.ghostSL) {
-      rec.ghostSL = await this._createShape(tradeId, 'ghost', 0.001, {
-        color: '#f44336', 
-        width: 2,         // Increased thickness for v7.6 visibility
-        style: 1,         // Dotted
-        text: '',
-        lock: true,
-        disableSelection: true,
-      });
-    }
+    // 🛡️ v7.13 GHOSTS MOVED TO OVERLAY CANVAS
+    // (Library shapes no longer used for interaction ghosts)
 
     // ── SL (draggable, red, dotted) ──
     if (Number.isFinite(slPrice) && slPrice > 0) {
@@ -429,76 +421,76 @@ export class TradeLineManager {
   // ─── v7.9 GLASS-FLOOR ENGINE ────────────────────────────────
   
   _createGlassFloor() {
-    if (document.getElementById('tm-glass-floor')) return;
+    if (document.getElementById('tm-interaction-layer')) return;
     
-    // Create the interaction overlay
-    const floor = document.createElement('div');
-    floor.id = 'tm-glass-floor';
-    floor.style.position = 'fixed';
-    floor.style.top = '0'; floor.style.left = '0';
-    floor.style.width = '100vw'; floor.style.height = '100vh';
-    floor.style.zIndex = '999999';
-    floor.style.cursor = 'ns-resize';
-    floor.style.backgroundColor = 'transparent';
-    floor.style.boxShadow = 'inset 0 0 100px rgba(76, 175, 80, 0.4)'; // 🟢 v7.12 Visual Signature
-    floor.style.transition = 'box-shadow 0.2s';
+    const container = document.querySelector('iframe[id^="tradingview_"]') || document.querySelector('[class*="chart-container"]');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
 
-    // 🛡️ v7.11 THE IMMORTAL CSS GHOST
-    const ghost = document.createElement('div');
-    ghost.id = 'tm-css-ghost';
-    ghost.style.position = 'absolute';
-    ghost.style.left = '0';
-    ghost.style.width = '100%';
-    ghost.style.height = '1px';
-    ghost.style.borderTop = '2px dashed #f44336'; // Initial SL Red
-    ghost.style.pointerEvents = 'none';
-    ghost.style.display = 'none';
+    // 🛡️ v7.13 THE PURE CANVAS OVERLAY
+    const canvas = document.createElement('canvas');
+    canvas.id = 'tm-interaction-layer';
+    canvas.style.position = 'fixed';
+    canvas.style.top = `${rect.top}px`;
+    canvas.style.left = `${rect.left}px`;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    canvas.style.zIndex = '999999';
+    canvas.style.pointerEvents = 'auto'; // Capture the mouse
+    canvas.style.cursor = 'ns-resize';
     
-    // Label for the ghost
-    const label = document.createElement('div');
-    label.id = 'tm-css-label';
-    label.style.position = 'absolute';
-    label.style.right = '50px';
-    label.style.top = '-10px';
-    label.style.background = '#f44336';
-    label.style.color = '#fff';
-    label.style.padding = '2px 8px';
-    label.style.fontSize = '12px';
-    label.style.borderRadius = '4px';
-    label.style.fontWeight = 'bold';
-    ghost.appendChild(label);
-    
-    document.body.appendChild(floor);
-    document.body.appendChild(ghost);
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
 
-    floor.onmousemove = (e) => {
-        if (!this.dragState.isDragging || !this.dragState.activeTradeId) return;
+    const draw = (y, price) => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        const container = document.querySelector('iframe[id^="tradingview_"]') || document.querySelector('[class*="chart-container"]');
-        if (!container) return;
+        const isTP = this.dragState.ghostType === 'tp';
+        const color = isTP ? '#4caf50' : '#f44336';
         
-        const chart = this.widget.activeChart();
-        const rect = container.getBoundingClientRect();
+        // 1. Draw Dashed Horizontal Line (MT5 Style)
+        ctx.beginPath();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
         
-        // Track visual position instantly
-        ghost.style.display = 'block';
-        ghost.style.top = `${e.clientY}px`;
+        // 2. Draw Price Label
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        const labelText = `PLACE ${this.dragState.ghostType.toUpperCase()} @ ${price.toFixed(2)}`;
+        ctx.font = 'bold 12px Arial';
+        const metrics = ctx.measureText(labelText);
+        const labelW = metrics.width + 16;
+        const labelH = 20;
         
-        // Calculate price for label
+        ctx.fillRect(canvas.width - labelW - 50, y - labelH/2, labelW, labelH);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(labelText, canvas.width - labelW - 42, y + 5);
+    };
+
+    canvas.onmousemove = (e) => {
+        if (!this.dragState.isDragging) return;
+        
         const localY = e.clientY - rect.top;
+        const chart = this.widget.activeChart();
         const price = chart.coordinateToPrice(localY);
         
         if (price && Number.isFinite(price)) {
-            const isTP = this.dragState.ghostType === 'tp';
-            const color = isTP ? '#4caf50' : '#f44336';
-            ghost.style.borderTopColor = color;
-            label.style.background = color;
-            label.innerText = `PLACE ${this.dragState.ghostType.toUpperCase()} @ ${price.toFixed(2)}`;
             this.dragState.currentPrice = price;
+            draw(localY, price); // Instant 60fps render
         }
     };
     
-    floor.onmouseup = () => this._removeGlassFloor();
+    canvas.onmouseup = () => {
+        this._removeGlassFloor();
+    };
+
+    console.log('[TradeManager] Canvas Layer deployed');
   }
 
   _removeGlassFloor() {
