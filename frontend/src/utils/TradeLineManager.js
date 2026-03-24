@@ -2,17 +2,17 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.20 — Phase 66: THE NATIVE DRAWING ENGINE
+ * TradeLineManager v7.21 — Phase 66: THE MT5-SPAWN ENGINE
  * ============================================================
- * v7.20 Native Bypass:
- * - Uses createShape (Charting API) to bypass Trading Platform blocks
- * - Professional MT5 Drag-to-Spawn logic built into Native Shapes
- * - Proportional Sync & 0ms responsiveness
+ * v7.21 MT5-Spawn:
+ * - Drag-to-Spawn SL/TP directly from Entry
+ * - Native Drawing Bypass (createShape) for all charting licenses
+ * - Proportional Sync & 0ms native responsiveness
  * ============================================================
  */
 // ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.20-NATIVE-FIX';
-console.log('%c [TradeManager v7.20] NATIVE DRAWING ENGINE ACTIVE ', 'background: #222; color: #ff9800; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.21-MT5-SPAWN';
+console.log('%c [TradeManager v7.21] MT5-SPAWN ENGINE ACTIVE ', 'background: #222; color: #ffeb3b; font-size: 20px;');
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -114,11 +114,55 @@ export class TradeLineManager {
     const price = shape?.getPoints?.()?.[0]?.price;
     if (!price) return;
 
-    // Direct label update for 0ms lag
+    // ─── Label Update ──────────────────────────────────────────
     const labelText = `${meta.type.toUpperCase()}  ${fmt(price)}`;
     shape.setProperties({ overrides: { text: labelText } });
 
-    // 🛡️ MT5 Ghosting logic could go here (will add if requested)
+    // ─── MT5 Ghosting (Spawn Logic) ─────────────────────────────
+    if (meta.type === 'entry') {
+        const trade = this.getTradeById(meta.tradeId);
+        if (!trade) return;
+
+        const side = String(trade.side || trade.type || '').toLowerCase();
+        const isBuy = side.includes('buy') || side.includes('long');
+        const entry = Number(trade.openPrice || trade.price);
+        
+        // Determine if we are spawning SL or TP based on direction
+        let ghostType = '';
+        if (isBuy) {
+            ghostType = price > entry ? 'tp' : 'sl';
+        } else {
+            ghostType = price > entry ? 'sl' : 'tp';
+        }
+
+        this._updateSpawnGhost(meta.tradeId, ghostType, price);
+    }
+  }
+
+  async _updateSpawnGhost(tradeId, type, price) {
+    const tid = String(tradeId);
+    if (!this.lines[tid]) return;
+    const set = this.lines[tid];
+
+    // Destroy existing ghost if type changed
+    if (set.ghost && set.ghost.type !== type) {
+        this._destroyShape(set.ghost.tvId);
+        set.ghost = null;
+    }
+
+    if (!set.ghost) {
+        const color = type === 'tp' ? '#4caf50' : '#f44336';
+        const ghostId = await this._createShape(tradeId, `ghost-${type}`, price, {
+            color,
+            style: 2, // Dotted
+            width: 1,
+            text: `NEW ${type.toUpperCase()}`
+        });
+        set.ghost = { tvId: ghostId.tvId, type, price };
+    } else {
+        set.ghost.price = price;
+        this._updateShape(set.ghost.tvId, price, `NEW ${type.toUpperCase()}  ${fmt(price)}`);
+    }
   }
 
   async _onNativeStop(tvId, meta) {
@@ -131,17 +175,29 @@ export class TradeLineManager {
     this.activeDragId = null;
 
     if (meta.type === 'entry') {
-      // Logic for spawning SL/TP on drag could go here
-      // But for now, just reset entry to its real price (don't allow move)
       const trade = this.getTradeById(meta.tradeId);
+      const tid = String(meta.tradeId);
+      
+      // If a ghost was spawned, commit it!
+      const ghost = this.lines[tid]?.ghost;
+      if (ghost) {
+          console.log(`[TradeManager] Confirming SPWAN: ${ghost.type} -> ${ghost.price}`);
+          await this._commitTrade(tid, ghost.type, ghost.price);
+          this._destroyShape(ghost.tvId);
+          this.lines[tid].ghost = null;
+      }
+
+      // Snap ENTRY back to real price
       const realEntry = Number(trade?.openPrice || trade?.price);
       shape.setPoints([{ price: realEntry }]);
       shape.setProperties({ overrides: { text: `ENTRY  ${fmt(realEntry)}` } });
       return;
     }
 
-    // Commit SL or TP change
-    await this._commitTrade(meta.tradeId, meta.type, price);
+    // Regular Move (SL or TP)
+    if (meta.type === 'sl' || meta.type === 'tp') {
+        await this._commitTrade(meta.tradeId, meta.type, price);
+    }
   }
 
   async syncTrades(trades, symbol = null) {
