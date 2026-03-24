@@ -4,9 +4,11 @@
  * and stores them in MongoDB for fast retrieval and to prevent API rate limits.
  */
 
-import metaApiService from './metaApiService.js';
+import { EventEmitter } from 'events';
+import alltickApiService from './alltickApiService.js';
 import Candle from '../models/Candle.js'; // //sanket - Generic model handles all symbols
 import leaderLock from './leaderLock.js'; // Distributed leader lock for multi-instance safety
+import redisClient from './redisClient.js';
 
 // //sanket - All symbols use the generic Candle model for simplicity and consistency
 // The Candle model has proper indexes for fast queries across all symbols
@@ -14,8 +16,9 @@ const getModelForSymbol = (symbol) => {
   return Candle;
 };
 
-class StorageService {
+class StorageService extends EventEmitter {
   constructor() {
+    super();
     this.syncInterval = null;
     this.isSyncing = false;
     this.inflightSyncTasks = new Map();
@@ -39,8 +42,67 @@ class StorageService {
     this.maxPendingLiveBarOps = parseInt(process.env.LIVE_PERSIST_MAX_PENDING_OPS || '20000', 10);
     this.liveFlushTimer = null;
     this.livePersistDroppedOps = 0;
+    
+    // Production Backfill Queue
+    this.backfillQueue = [];
+    this.isProcessingBackfill = false;
 
     this.startLiveFlushWorker();
+  }
+
+  /**
+   * ✅ Elite Performance: Push a candle to the Redis rolling buffer (ZSET)
+   */
+  async pushToRedisRolling(symbol, timeframe, candle) {
+    const key = `candles:${symbol}:${timeframe}`;
+    const score = Math.floor(candle.timeMs / 1000); // Unix timestamp in seconds
+    const value = JSON.stringify({
+      t: candle.timeMs,
+      o: candle.open,
+      h: candle.high,
+      l: candle.low,
+      c: candle.close,
+      v: candle.volume
+    });
+
+    try {
+      // Add to sorted set with timestamp as score (ZADD replaces if score/member matches)
+      // Since we stringify with exact data, we first REMOVE any existing bar at this EXACT score 
+      // to handle candle UPDATES (not just increments)
+      const multi = redisClient.multi();
+      multi.zremrangebyscore(key, score, score);
+      multi.zadd(key, score, value);
+      multi.zremrangebyrank(key, 0, -2001); // Capacity limit: 2000 bars
+      await multi.exec();
+    } catch (err) {
+      // log suppressed to avoid flooding
+    }
+  }
+
+  /**
+   * ✅ Elite Performance: Get fast candles from Redis
+   */
+  async getCandlesFromRedis(symbol, timeframe, from, to, limit) {
+    const key = `candles:${symbol}:${timeframe}`;
+    const min = from ? parseInt(from) : '-inf';
+    const max = to ? parseInt(to) : '+inf';
+
+    try {
+      const rawBars = await redisClient.zrangebyscore(key, min, max, 'LIMIT', 0, limit || 2000);
+      return rawBars.map(b => {
+        const p = JSON.parse(b);
+        return {
+          time: new Date(p.t),
+          open: p.o,
+          high: p.h,
+          low: p.l,
+          close: p.c,
+          volume: p.v
+        };
+      });
+    } catch (err) {
+      return [];
+    }
   }
 
   startLiveFlushWorker() {
@@ -215,8 +277,11 @@ class StorageService {
    * and automatically repair them. Runs silently — errors are logged but not thrown.
    */
   async autoRepairGaps() {
-    const symbols = metaApiService.getSupportedSymbols().slice(0, 20); // cap to avoid overload
+    const symbols = alltickApiService.isConnected 
+      ? alltickApiService.prioritySymbols.slice(0, 20)
+      : []; 
     const timeframes = ['1m', '5m', '15m', '30m'];
+    
     let totalGaps = 0;
     let repairedGaps = 0;
 
@@ -248,11 +313,10 @@ class StorageService {
 
   resolveStorageSymbol(symbol) {
     if (!symbol) return symbol;
-    if (metaApiService.requestToActualMap?.has(symbol)) {
-      return metaApiService.requestToActualMap.get(symbol);
-    }
-    if (typeof metaApiService.resolveSymbolForAccount === 'function') {
-      return metaApiService.resolveSymbolForAccount(symbol) || symbol;
+    
+    // Use AllTick resolution
+    if (typeof alltickApiService.resolveSymbolForAccount === 'function') {
+      return alltickApiService.resolveSymbolForAccount(symbol) || symbol;
     }
     return symbol;
   }
@@ -293,17 +357,20 @@ class StorageService {
   }
 
   async fetchAndCacheCandles(symbol, timeframe, from, to, limit) {
+    if (Date.now() < alltickApiService.restCooldownUntil) {
+       return [];
+    }
+
     const taskKey = this.getTaskKey(symbol, timeframe, from, to, limit);
     if (this.inflightHistoryRequests.has(taskKey)) {
       return this.inflightHistoryRequests.get(taskKey);
     }
 
     const task = (async () => {
-      const candles = await metaApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
-      if (candles && candles.length > 0) {
-        await this.storeCandles(symbol, timeframe, candles);
-      }
-      return candles || [];
+      return new Promise((resolve) => {
+        this.backfillQueue.push({ symbol, timeframe, from, to, limit, resolve });
+        this.processBackfillQueue();
+      });
     })();
 
     this.inflightHistoryRequests.set(taskKey, task);
@@ -311,6 +378,41 @@ class StorageService {
       return await task;
     } finally {
       this.inflightHistoryRequests.delete(taskKey);
+    }
+  }
+
+  async processBackfillQueue() {
+    if (this.isProcessingBackfill || this.backfillQueue.length === 0) return;
+    this.isProcessingBackfill = true;
+
+    try {
+      while (this.backfillQueue.length > 0) {
+        if (Date.now() < alltickApiService.restCooldownUntil) {
+          const item = this.backfillQueue.shift();
+          if (item) item.resolve([]);
+          continue;
+        }
+
+        const item = this.backfillQueue.shift();
+        if (!item) break;
+
+        const { symbol, timeframe, from, to, limit, resolve } = item;
+        try {
+          const candles = await alltickApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
+          if (candles && candles.length > 0) {
+            await this.storeCandles(symbol, timeframe, candles);
+          }
+          resolve(candles || []);
+        } catch (err) {
+          console.error(`[StorageService] Queue fetch failed for ${symbol}:`, err.message);
+          resolve([]);
+        }
+
+        // Wait 600ms between any AllTick REST calls in production (safe balance)
+        await new Promise(r => setTimeout(r, 600));
+      }
+    } finally {
+      this.isProcessingBackfill = false;
     }
   }
 
@@ -444,6 +546,24 @@ class StorageService {
       }
 
       this.liveBars.set(barKey, bar);
+
+      // ✅ Elite Performance: Push to Redis rolling buffer for pre-aggregation
+      this.pushToRedisRolling(symbol, timeframe, bar);
+
+      // ✅ Emit authoritative candle update for listeners (e.g., Socket.io bridge)
+      this.emit('candleUpdate', {
+        symbol: resolvedSymbol,
+        originalSymbol: symbol,
+        timeframe,
+        candle: {
+          time: bar.timeMs,
+          open: bar.open,
+          high: bar.high,
+          low: bar.low,
+          close: bar.close,
+          volume: bar.volume
+        }
+      });
 
       const opKey = `${resolvedSymbol}|${timeframe}|${bar.timeMs}`;
       const hasExisting = this.pendingLiveBarOps.has(opKey);
@@ -593,57 +713,33 @@ class StorageService {
    */
   async syncAllSymbols() {
     if (this.isSyncing) return;
-
-    // Acquire cross-instance leader lock (fail-safe: open on DB error).
-    const acquired = await leaderLock.tryAcquire(StorageService.SYNC_LOCK_KEY, StorageService.SYNC_LOCK_TTL_MS);
-    if (!acquired) {
-      const info = await leaderLock.inspect(StorageService.SYNC_LOCK_KEY);
-      console.log(`[StorageService] ⏭  History sync skipped — lock held by ${info?.holder ?? 'unknown'} until ${info?.expiresAt ?? '?'}`);
-      return;
-    }
-
     this.isSyncing = true;
-
-    // Periodically renew the lock so a long sync doesn't expire mid-flight.
-    const renewTimer = setInterval(async () => {
-      const renewed = await leaderLock.renew(StorageService.SYNC_LOCK_KEY, StorageService.SYNC_LOCK_TTL_MS);
-      if (!renewed) {
-        console.warn('[StorageService] ⚠️  Failed to renew history-sync lock — another instance may take over.');
-      }
-    }, StorageService.SYNC_LOCK_RENEW_MS);
-    if (typeof renewTimer.unref === 'function') renewTimer.unref();
-
-    // //sanket - Sync ALL available symbols from MetaAPI service
-    // This ensures every symbol available in the chart has historical data in MongoDB
-    const allSymbols = metaApiService.getSupportedSymbols();
-    const symbols = allSymbols;
-    const timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w'];
-
-    console.log(`[StorageService] 🔄 Syncing ${symbols.length} symbols across ${timeframes.length} timeframes (${symbols.length * timeframes.length} sync tasks)...`);
-    console.log(`[StorageService] Symbols: ${symbols.slice(0, 10).join(', ')} ... and ${symbols.length - 10} more`);
-
+    
+    console.log('[StorageService] 🔄 Starting slow sync for all symbols...');
+    
     try {
+      const symbols = alltickApiService.getSupportedSymbols();
+      const timeframes = ['1m', '5m', '15m', '1h', '1d'];
+      
       for (const symbol of symbols) {
-        for (const timeframe of timeframes) {
-          try {
-            await this.syncCandles(symbol, timeframe);
-            // Small delay to prevent rate limiting
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } catch (error) {
-            console.error(`[StorageService] Failed to sync ${symbol} ${timeframe}:`, error.message);
+        for (const tf of timeframes) {
+          // Check if we hit cooldown during sync
+          if (Date.now() < alltickApiService.restCooldownUntil) {
+            console.warn('[StorageService] ❄️ Sync paused due to Cooldown');
+            await new Promise(r => setTimeout(r, 10000));
+            continue;
           }
+          
+          await this.syncCandles(symbol, tf);
+          // Wait 5s between symbols in background sync to prioritize chart requests
+          await new Promise(r => setTimeout(r, 5000));
         }
       }
-
-      // After a full sync, quietly repair candle gaps in recent data.
-      this.autoRepairGaps().catch(err =>
-        console.warn('[StorageService] autoRepairGaps error:', err.message)
-      );
+      console.log('[StorageService] ✅ Slow sync cycle completed.');
+    } catch (err) {
+      console.error('[StorageService] Sync Error:', err.message);
     } finally {
-      clearInterval(renewTimer);
       this.isSyncing = false;
-      await leaderLock.release(StorageService.SYNC_LOCK_KEY);
-      console.log('[StorageService] Sync cycle completed.');
     }
   }
 
@@ -663,15 +759,57 @@ class StorageService {
 
     const task = (async () => {
       try {
-        const candles = await metaApiService.getHistoricalCandles(symbol, timeframe, null, null, 300);
+        const resolvedSymbol = this.resolveStorageSymbol(symbol);
+        
+        // Elite Performance: Find the last known candle in DB
+        const lastCandle = await Model.findOne({ symbol: resolvedSymbol, timeframe })
+          .sort({ time: -1 })
+          .lean();
+
+        let from = null;
+        let to = Math.floor(Date.now() / 1000);
+        let limit = 300;
+
+        if (lastCandle && lastCandle.time) {
+          // Sync from the last candle time + 1 second
+          from = Math.floor(lastCandle.time.getTime() / 1000) + 1;
+          
+          // If we are already caught up (within 1 minute), skip the sync to save API
+          if (to - from < 60) {
+            return;
+          }
+          
+          // Request up to 1000 missing candles
+          limit = 1000;
+          console.log(`[StorageService] 🔄 Incremental sync for ${symbol} ${timeframe} (from: ${new Date(from * 1000).toISOString()})`);
+        } else {
+          console.log(`[StorageService] 🆕 Initial sync for ${symbol} ${timeframe}`);
+        }
+
+        // Use AllTick for history sync
+        const candles = await alltickApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
         
         if (!candles || candles.length === 0) {
-          console.warn(`[StorageService] ⚠️  No candles fetched for ${symbol} ${timeframe}`);
           return;
         }
 
         await this.storeCandles(symbol, timeframe, candles);
-        console.log(`[StorageService] ✅ ${symbol} ${timeframe}: stored ${candles.length} candles`);
+        
+        // ✅ Feed the Redis rolling buffer with the new discovery
+        if (candles.length < 500) {
+          for (const c of candles) {
+            this.pushToRedisRolling(symbol, timeframe, {
+              timeMs: Math.floor(new Date(c.time).getTime() / 1000) * 1000,
+              open: c.open,
+              high: c.high,
+              low: c.low,
+              close: c.close,
+              volume: c.volume
+            });
+          }
+        }
+
+        console.log(`[StorageService] ✅ ${symbol} ${timeframe}: stored ${candles.length} candles (Incremental)`);
       } catch (err) {
         console.error(`[StorageService] ❌ Error syncing ${symbol} ${timeframe}:`, err.message);
       }
@@ -689,15 +827,30 @@ class StorageService {
    * //sanket - Fetch candles from local database with fallback to API
    */
   async getCandles(symbol, timeframe, from, to, limit) {
-    const Model = getModelForSymbol(symbol);
-    if (!Model) {
-      return await metaApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
-    }
+    console.log(`[StorageService] getCandles: ${symbol} ${timeframe} from=${from} to=${to} limit=${limit}`);
+    try {
+      // ✅ Elite Performance: Try Redis Rolling Buffer FIRST
+      // This is the "Sub-Millisecond" path for live chart data
+      const redisCandles = await this.getCandlesFromRedis(symbol, timeframe, from, to, limit);
+      if (redisCandles.length > 0) {
+        // If we found enough candles to satisfy a "recent" request, return them
+        const requestedLimit = limit || 500;
+        // Logic: If we found > 20% of requested limit OR it's a small recent request, serve it.
+        if (redisCandles.length >= Math.min(requestedLimit, 100)) {
+           console.log(`[StorageService] ⚡ Redis Fast-Path: Returning ${redisCandles.length} candles for ${symbol}`);
+           return redisCandles;
+        }
+      }
 
-    const resolvedSymbol = this.resolveStorageSymbol(symbol);
+      const Model = getModelForSymbol(symbol);
+      if (!Model) {
+        return await alltickApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
+      }
 
-    // Try DB first
-    let dbCandles = await this.queryCandles(Model, resolvedSymbol, timeframe, from, to, limit);
+      const resolvedSymbol = this.resolveStorageSymbol(symbol);
+
+      // Try DB if Redis was insufficient
+      let dbCandles = await this.queryCandles(Model, resolvedSymbol, timeframe, from, to, limit);
 
     const requestedLimit = limit || 500;
     //Sanket - "Treat request as bounded window only when both from and to are valid and ordered."
@@ -722,11 +875,9 @@ class StorageService {
         dbCandles.length < sparseWindowThreshold
       ) {
         const refillLimit = Math.max(requestedLimit, expectedWindowCandles || 0, 500);
-        await this.fetchAndCacheCandles(resolvedSymbol, timeframe, from, to, refillLimit);
-        const refreshed = await this.queryCandles(Model, resolvedSymbol, timeframe, from, to, refillLimit);
-        if (refreshed.length > dbCandles.length) {
-          dbCandles = refreshed;
-        }
+        // Do NOT await here - background the refill so chart loads immediately
+        this.fetchAndCacheCandles(resolvedSymbol, timeframe, from, to, refillLimit).catch(() => {});
+        // Proceed with current dbCandles
       }
 
       //Sanket - "Reject low-quality bounded windows by coverage, continuity, and volume; then refill from provider."
@@ -754,11 +905,8 @@ class StorageService {
 
         if (lowQualityIntraday || poorCoverage || poorContinuity) {
           const refillLimit = Math.max(requestedLimit, expectedWindowCandles || 0, 500);
-          await this.fetchAndCacheCandles(resolvedSymbol, timeframe, from, to, refillLimit);
-          const refreshed = await this.queryCandles(Model, resolvedSymbol, timeframe, from, to, refillLimit);
-          if (refreshed.length >= dbCandles.length) {
-            dbCandles = refreshed;
-          }
+          // Background refill
+          this.fetchAndCacheCandles(resolvedSymbol, timeframe, from, to, refillLimit).catch(() => {});
         }
       }
 
@@ -817,6 +965,10 @@ class StorageService {
     }
 
     return [];
+    } catch (error) {
+      console.error(`[StorageService] Error in getCandles for ${symbol}:`, error);
+      throw error;
+    }
   }
 
   /**

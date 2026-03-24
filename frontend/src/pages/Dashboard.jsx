@@ -573,9 +573,9 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen flex bg-[#f4f6fb] text-gray-800">
       {/* SIDEBAR */}
-      <div className="hidden md:block">
+      {/* <div className="hidden md:block">  */}
         <Sidebar activeMenu="Dashboard" />
-      </div>
+      {/* </div> */}
 
       {/* MAIN */}
       <div className="flex-1 flex flex-col">

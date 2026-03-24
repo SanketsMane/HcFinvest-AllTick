@@ -1,59 +1,3 @@
-// //TradingPage.js
-
-// import { API_URL } from '../config/api'
-// import { useState, useEffect, useRef, useCallback } from 'react'
-// import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-// import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon, Clock, ChevronDown, Check } from 'lucide-react'
-// import metaApiService from '../services/metaApi'
-// import binanceApiService from '../services/binanceApi'
-// import priceStreamService from '../services/priceStream'
-// import { useTheme } from '../context/ThemeContext'
-// import TradingChart from '../components/TradingChart'
-// import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
-// import All_Tick_Chart from '../components/All_Tick_Chart.jsx'
-// import WebSocketTest from '../components/WebSocketTest.jsx'
-// import { getMetaApiPriceEvents } from '../services/datafeed'
-
-// const TradingPage = () => {
-//   const navigate = useNavigate()
-//   const { accountId } = useParams()
-//   const [searchParams] = useSearchParams()
-//   const accountType = searchParams.get('type') // 'challenge' or null for regular
-//   const { isDarkMode, toggleDarkMode } = useTheme()
-  
-//   const [account, setAccount] = useState(null)
-//   const [challengeAccount, setChallengeAccount] = useState(null)
-//   const [challengeRules, setChallengeRules] = useState(null)
-//   const [loading, setLoading] = useState(true)
-//   const [chartLoading, setChartLoading] = useState(false)
-//   const [selectedInstrument, setSelectedInstrument] = useState({ symbol: 'XAUUSD', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 })
-//   const [showInstruments, setShowInstruments] = useState(window.innerWidth >= 768)
-//   const [showOrderPanel, setShowOrderPanel] = useState(window.innerWidth >= 768)
-//   const [orderTab, setOrderTab] = useState('Market')
-//   const [volume, setVolume] = useState('0.01')
-//   const [leverage, setLeverage] = useState('1:100')
-//   const [searchTerm, setSearchTerm] = useState('')
-//   const [activeCategory, setActiveCategory] = useState('All')
-//   const [activePositionTab, setActivePositionTab] = useState('Positions')
-//   const [oneClickTrading, setOneClickTrading] = useState(false)
-//   const [selectedSide, setSelectedSide] = useState('BUY') // BUY or SELL
-//   const [openTabs, setOpenTabs] = useState([{ symbol: 'XAUUSD', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }])
-//   const [activeTab, setActiveTab] = useState('XAUUSD')
-//   const [showTakeProfit, setShowTakeProfit] = useState(false)
-//   const [showStopLoss, setShowStopLoss] = useState(false)
-//   const [takeProfit, setTakeProfit] = useState('')
-//   const [stopLoss, setStopLoss] = useState('')
-//   const [pendingOrderType, setPendingOrderType] = useState('BUY LIMIT')
-//   const [entryPrice, setEntryPrice] = useState('')
-//   // Initialize with default instruments immediately - no loading state
-//   const [instruments, setInstruments] = useState([
-//     // ============ FOREX PAIRS ============
-//     { symbol: 'EURUSD', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: true },
-//     { symbol: 'GBPUSD', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: true },
-//     { symbol: 'USDJPY', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: false },
-//     { symbol: 'USDCHF', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: false },
-//     { symbol: 'AUDUSD', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: false },
-//     { symbol: 'NZDUSD', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: false },
 //     { symbol: 'USDCAD', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: false },
 //     { symbol: 'EURGBP', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: false },
 //     { symbol: 'EURJPY', bid: 0, ask: 0, spread: 0, change: 0, category: 'Forex', starred: false },
@@ -742,10 +686,10 @@
 
 //   // Listen to MetaAPI price events from TradingView chart
 //   useEffect(() => {
-//     const priceEventTarget = getMetaApiPriceEvents()
+//     const priceEvents = getPriceEvents()
     
-//     const handleMetaApiPriceUpdate = (event) => {
-//       const { symbol, bid, ask, time } = event.detail
+//     const handlePriceUpdate = (e) => {
+//       const { symbol, bid, ask, time } = e.detail
       
 //       // Update MetaAPI prices state
 //       setMetaApiPrices(prev => ({
@@ -790,10 +734,10 @@
 //       }
 //     }
     
-//     priceEventTarget.addEventListener('priceUpdate', handleMetaApiPriceUpdate)
+//     priceEvents.addEventListener('priceUpdate', handlePriceUpdate)
     
 //     return () => {
-//       priceEventTarget.removeEventListener('priceUpdate', handleMetaApiPriceUpdate)
+//       priceEvents.removeEventListener('priceUpdate', handlePriceUpdate)
 //     }
 //   }, [selectedInstrument?.symbol])
 
@@ -2388,21 +2332,21 @@
 //                   <div className="flex gap-2 mb-3">
 //                     <button 
 //                       onClick={() => setSelectedSide('SELL')}
-//                       className={`flex-1 rounded py-1.5 text-center text-xs transition-colors ${
+//                       className="flex-1 rounded py-1.5 text-center text-xs transition-colors ${
 //                         selectedSide === 'SELL' 
 //                           ? 'bg-red-500/20 border border-red-500 text-red-400' 
 //                           : isDarkMode ? 'bg-[#1a1a1a] border border-gray-600 text-gray-400 hover:border-red-500/50' : 'bg-gray-50 border border-gray-300 text-gray-600 hover:border-red-500/50'
-//                       }`}
+//                       }"
 //                     >
 //                       Sell Side
 //                     </button>
 //                     <button 
 //                       onClick={() => setSelectedSide('BUY')}
-//                       className={`flex-1 rounded py-1.5 text-center text-xs transition-colors ${
+//                       className="flex-1 rounded py-1.5 text-center text-xs transition-colors ${
 //                         selectedSide === 'BUY' 
 //                           ? 'bg-blue-500/20 border border-blue-500 text-blue-400' 
 //                           : isDarkMode ? 'bg-[#1a1a1a] border border-gray-600 text-gray-400 hover:border-blue-500/50' : 'bg-gray-50 border border-gray-300 text-gray-600 hover:border-blue-500/50'
-//                       }`}
+//                       }"
 //                     >
 //                       Buy Side
 //                     </button>
@@ -2410,18 +2354,18 @@
 
 //                   {/* Volume */}
 //                   <div className="mb-3">
-//                     <label className={`text-xs mb-1 block ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Volume</label>
-//                     <div className={`flex items-center rounded border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
-//                       <button onClick={() => setVolume((Math.max(0.01, parseFloat(volume) - 0.01)).toFixed(2))} className={`px-3 py-2 border-r ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}`}>
+//                     <label className="text-xs mb-1 block ${isDarkMode ? 'text-white' : 'text-gray-900'}">Volume</label>
+//                     <div className="flex items-center rounded border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}">
+//                       <button onClick={() => setVolume((Math.max(0.01, parseFloat(volume) - 0.01)).toFixed(2))} className="px-3 py-2 border-r ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}">
 //                         <Minus size={14} />
 //                       </button>
 //                       <input
 //                         type="text"
 //                         value={volume}
 //                         onChange={(e) => setVolume(e.target.value)}
-//                         className={`flex-1 bg-transparent text-center text-sm font-medium focus:outline-none py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+//                         className="flex-1 bg-transparent text-center text-sm font-medium focus:outline-none py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}"
 //                       />
-//                       <button onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))} className={`px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}`}>
+//                       <button onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))} className="px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}">
 //                         <Plus size={14} />
 //                       </button>
 //                     </div>
@@ -2435,7 +2379,7 @@
 //                       <select 
 //                         value={leverage}
 //                         onChange={(e) => setLeverage(e.target.value)}
-//                         className={`flex-1 rounded px-3 py-2 text-sm focus:outline-none border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
+//                         className="flex-1 rounded px-3 py-2 text-sm focus:outline-none border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}"
 //                       >
 //                         {(() => {
 //                           const maxLev = parseInt((account?.leverage || '1:100').replace('1:', '')) || 100
@@ -2446,7 +2390,7 @@
 //                           ))
 //                         })()}
 //                       </select>
-//                       <div className={`rounded px-3 py-2 text-green-500 text-sm font-medium border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
+//                       <div className="rounded px-3 py-2 text-green-500 text-sm font-medium border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}">
 //                         ${(() => {
 //                           const leverageNum = parseInt(leverage.replace('1:', '')) || 100
 //                           const contractSize = ['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD'].includes(selectedInstrument.symbol) ? 1 
@@ -2476,7 +2420,7 @@
 //                       className="flex items-center justify-between w-full py-2"
 //                     >
 //                       <span className="text-green-500 text-sm">Take profit</span>
-//                       <Plus size={16} className={`text-green-500 transition-transform ${showTakeProfit ? 'rotate-45' : ''}`} />
+//                       <Plus size={16} className="text-green-500 transition-transform ${showTakeProfit ? 'rotate-45' : ''}" />
 //                     </button>
 //                     {showTakeProfit && (
 //                       <div className="flex gap-2 mt-1">
@@ -2503,7 +2447,7 @@
 //                       className="flex items-center justify-between w-full py-2"
 //                     >
 //                       <span className="text-red-500 text-sm">Stop loss</span>
-//                       <Plus size={16} className={`text-red-500 transition-transform ${showStopLoss ? 'rotate-45' : ''}`} />
+//                       <Plus size={16} className="text-red-500 transition-transform ${showStopLoss ? 'rotate-45' : ''}" />
 //                     </button>
 //                     {showStopLoss && (
 //                       <div className="flex gap-2 mt-1">
@@ -2524,21 +2468,21 @@
 //                   </div>
 
 //                   {/* Trading Charges */}
-//                   <div className={`rounded p-3 mb-3 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-gray-50 border border-gray-200'}`}>
-//                     <div className={`text-xs font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Trading Charges</div>
+//                   <div className="rounded p-3 mb-3 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-gray-50 border border-gray-200'}">
+//                     <div className="text-xs font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}">Trading Charges</div>
 //                     <div className="flex justify-between text-xs mb-1">
 //                       <span className="text-gray-400">Spread</span>
-//                       <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>10 pips</span>
+//                       <span className="${isDarkMode ? 'text-white' : 'text-gray-900'}">10 pips</span>
 //                     </div>
 //                     <div className="flex justify-between text-xs">
 //                       <span className="text-gray-400">Commission</span>
-//                       <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>$0.10 ($10/lot)</span>
+//                       <span className="${isDarkMode ? 'text-white' : 'text-gray-900'}">$0.10 ($10/lot)</span>
 //                     </div>
 //                   </div>
 
 //                   <div className="flex justify-between items-center mb-2">
 //                     <span className="text-gray-400 text-xs">Margin Required</span>
-//                     <span className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${calculateMargin()}</span>
+//                     <span className="text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}">${calculateMargin()}</span>
 //                   </div>
 //                 </div>
 
@@ -2554,15 +2498,15 @@
 //                   </div>
 //                 )}
 
-//                 <div className={`p-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+//                 <div className="p-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}">
 //                   <button 
 //                     onClick={() => executeMarketOrder(selectedSide)}
 //                     disabled={isExecutingTrade}
-//                     className={`w-full py-3 rounded font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+//                     className="w-full py-3 rounded font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
 //                       selectedSide === 'BUY' 
 //                         ? 'bg-blue-600/20 border border-blue-600 hover:bg-blue-600/30 text-blue-400'
 //                         : 'bg-red-600/20 border border-red-600 hover:bg-red-600/30 text-red-400'
-//                     }`}
+//                     }"
 //                   >
 //                     {isExecutingTrade ? 'Executing...' : `Open ${selectedSide} Order`}
 //                   </button>
@@ -2582,7 +2526,7 @@
 //                         <button
 //                           key={type}
 //                           onClick={() => setPendingOrderType(type)}
-//                           className={`py-2 rounded text-xs font-medium transition-colors ${
+//                           className="py-2 rounded text-xs font-medium transition-colors ${
 //                             pendingOrderType === type
 //                               ? type.includes('BUY') 
 //                                 ? 'bg-blue-600 text-white' 
@@ -2590,7 +2534,7 @@
 //                               : type.includes('BUY')
 //                                 ? isDarkMode ? 'bg-[#1a1a1a] border border-blue-500/30 text-blue-400 hover:bg-blue-500/10' : 'bg-gray-50 border border-blue-500/30 text-blue-600 hover:bg-blue-500/10'
 //                                 : isDarkMode ? 'bg-[#1a1a1a] border border-red-500/30 text-red-400 hover:bg-red-500/10' : 'bg-gray-50 border border-red-500/30 text-red-600 hover:bg-red-500/10'
-//                           }`}
+//                           }"
 //                         >
 //                           {type}
 //                         </button>
@@ -2606,24 +2550,24 @@
 //                       value={entryPrice}
 //                       onChange={(e) => setEntryPrice(e.target.value)}
 //                       placeholder="Enter price"
-//                       className={`w-full rounded px-3 py-2.5 text-sm focus:outline-none border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700 text-white focus:border-gray-600' : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-gray-400'}`}
+//                       className="w-full rounded px-3 py-2.5 text-sm focus:outline-none border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700 text-white focus:border-gray-600' : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-gray-400'}"
 //                     />
 //                   </div>
 
 //                   {/* Order Volume */}
 //                   <div className="mb-3">
 //                     <div className="text-gray-400 text-xs mb-1">Order volume</div>
-//                     <div className={`flex items-center rounded border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
+//                     <div className="flex items-center rounded border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}">
 //                       <input
 //                         type="text"
 //                         value={volume}
 //                         onChange={(e) => setVolume(e.target.value)}
-//                         className={`flex-1 bg-transparent text-center text-sm font-medium focus:outline-none py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+//                         className="flex-1 bg-transparent text-center text-sm font-medium focus:outline-none py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}"
 //                       />
-//                       <button onClick={() => setVolume((Math.max(0.01, parseFloat(volume) - 0.01)).toFixed(2))} className={`px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}`}>
+//                       <button onClick={() => setVolume((Math.max(0.01, parseFloat(volume) - 0.01)).toFixed(2))} className="px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}">
 //                         <Minus size={14} />
 //                       </button>
-//                       <button onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))} className={`px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}`}>
+//                       <button onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))} className="px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'}">
 //                         <Plus size={14} />
 //                       </button>
 //                     </div>
@@ -2636,7 +2580,7 @@
 //                       <select 
 //                         value={leverage}
 //                         onChange={(e) => setLeverage(e.target.value)}
-//                         className={`flex-1 rounded px-3 py-2 text-sm focus:outline-none border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
+//                         className="flex-1 rounded px-3 py-2 text-sm focus:outline-none border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}"
 //                       >
 //                         {(() => {
 //                           const maxLev = parseInt((account?.leverage || '1:100').replace('1:', '')) || 100
@@ -2647,7 +2591,7 @@
 //                           ))
 //                         })()}
 //                       </select>
-//                       <div className={`rounded px-3 py-2 text-green-500 text-sm border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}`}>$0</div>
+//                       <div className="rounded px-3 py-2 text-green-500 text-sm border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}">$0</div>
 //                     </div>
 //                     <div className="text-gray-500 text-[10px] mt-1">Trading power: $0.00 × 100 = $0</div>
 //                   </div>
@@ -2659,7 +2603,7 @@
 //                       className="flex items-center justify-between w-full py-2"
 //                     >
 //                       <span className="text-green-500 text-sm">Take profit</span>
-//                       <Plus size={16} className={`text-green-500 transition-transform ${showTakeProfit ? 'rotate-45' : ''}`} />
+//                       <Plus size={16} className="text-green-500 transition-transform ${showTakeProfit ? 'rotate-45' : ''}" />
 //                     </button>
 //                     {showTakeProfit && (
 //                       <div className="flex gap-2 mt-1">
@@ -2668,7 +2612,7 @@
 //                           value={takeProfit}
 //                           onChange={(e) => setTakeProfit(e.target.value)}
 //                           placeholder="Price"
-//                           className={`flex-1 rounded px-3 py-2 text-sm focus:outline-none border border-green-500/50 focus:border-green-500 ${isDarkMode ? 'bg-[#1a1a1a] text-white' : 'bg-gray-50 text-gray-900'}`}
+//                           className="flex-1 rounded px-3 py-2 text-sm focus:outline-none border border-green-500/50 focus:border-green-500 ${isDarkMode ? 'bg-[#1a1a1a] text-white' : 'bg-gray-50 text-gray-900'}"
 //                         />
 //                       </div>
 //                     )}
@@ -2681,7 +2625,7 @@
 //                       className="flex items-center justify-between w-full py-2"
 //                     >
 //                       <span className="text-red-500 text-sm">Stop loss</span>
-//                       <Plus size={16} className={`text-red-500 transition-transform ${showStopLoss ? 'rotate-45' : ''}`} />
+//                       <Plus size={16} className="text-red-500 transition-transform ${showStopLoss ? 'rotate-45' : ''}" />
 //                     </button>
 //                     {showStopLoss && (
 //                       <div className="flex gap-2 mt-1">
@@ -2690,22 +2634,22 @@
 //                           value={stopLoss}
 //                           onChange={(e) => setStopLoss(e.target.value)}
 //                           placeholder="Price"
-//                           className={`flex-1 rounded px-3 py-2 text-sm focus:outline-none border border-red-500/50 focus:border-red-500 ${isDarkMode ? 'bg-[#1a1a1a] text-white' : 'bg-gray-50 text-gray-900'}`}
+//                           className="flex-1 rounded px-3 py-2 text-sm focus:outline-none border border-red-500/50 focus:border-red-500 ${isDarkMode ? 'bg-[#1a1a1a] text-white' : 'bg-gray-50 text-gray-900'}"
 //                         />
 //                       </div>
 //                     )}
 //                   </div>
 
 //                   {/* Trading Charges */}
-//                   <div className={`rounded p-3 mb-3 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-gray-50 border border-gray-200'}`}>
-//                     <div className={`text-xs font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Trading Charges</div>
+//                   <div className="rounded p-3 mb-3 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-gray-50 border border-gray-200'}">
+//                     <div className="text-xs font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}">Trading Charges</div>
 //                     <div className="flex justify-between text-xs mb-1">
 //                       <span className="text-gray-400">Spread</span>
-//                       <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>10 pips</span>
+//                       <span className="${isDarkMode ? 'text-white' : 'text-gray-900'}">10 pips</span>
 //                     </div>
 //                     <div className="flex justify-between text-xs">
 //                       <span className="text-gray-400">Commission</span>
-//                       <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>$0.10 ($10/lot)</span>
+//                       <span className="${isDarkMode ? 'text-white' : 'text-gray-900'}">$0.10 ($10/lot)</span>
 //                     </div>
 //                   </div>
 //                 </div>
@@ -2722,7 +2666,7 @@
 //                   </div>
 //                 )}
 
-//                 <div className={`p-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+//                 <div className="p-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}">
 //                   <button 
 //                     onClick={executePendingOrder}
 //                     disabled={isExecutingTrade}
@@ -2741,15 +2685,15 @@
 //         </div>
 
 //         {/* Bottom Status Bar */}
-//         <footer className={`h-6 border-t flex items-center px-2 sm:px-3 text-[10px] sm:text-xs shrink-0 overflow-x-auto ${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'}`}>
-//           <span className={`font-medium shrink-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedInstrument.symbol}</span>
-//           <span className="text-gray-500 ml-2 sm:ml-4 shrink-0">Bal: <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
+//         <footer className="h-6 border-t flex items-center px-2 sm:px-3 text-[10px] sm:text-xs shrink-0 overflow-x-auto ${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'}">
+//           <span className="font-medium shrink-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}">{selectedInstrument.symbol}</span>
+//           <span className="text-gray-500 ml-2 sm:ml-4 shrink-0">Bal: <span className="${isDarkMode ? 'text-white' : 'text-gray-900'}">${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
 //           {!isMobile && (
 //             <>
 //               <span className="text-gray-500 ml-4 shrink-0">Credit: <span className="text-purple-400">${accountSummary.credit?.toFixed(2) || '0.00'}</span></span>
-//               <span className="text-gray-500 ml-4 shrink-0">Eq: <span className={accountSummary.floatingPnl >= 0 ? 'text-green-500' : 'text-red-500'}>${accountSummary.equity?.toFixed(2) || '0.00'}</span></span>
+//               <span className="text-gray-500 ml-4 shrink-0">Eq: <span className="${accountSummary.floatingPnl >= 0 ? 'text-green-500' : 'text-red-500'}">${accountSummary.equity?.toFixed(2) || '0.00'}</span></span>
 //               <span className="text-gray-500 ml-4 shrink-0">Margin: <span className="text-yellow-500">${accountSummary.usedMargin?.toFixed(2) || '0.00'}</span></span>
-//               <span className="text-gray-500 ml-4 shrink-0">Free: <span className={accountSummary.freeMargin >= 0 ? 'text-blue-400' : 'text-red-500'}>${accountSummary.freeMargin?.toFixed(2) || '0.00'}</span></span>
+//               <span className="text-gray-500 ml-4 shrink-0">Free: <span className="${accountSummary.freeMargin >= 0 ? 'text-blue-400' : 'text-red-500'}">${accountSummary.freeMargin?.toFixed(2) || '0.00'}</span></span>
 //             </>
 //           )}
 //           <div className="flex-1" />
@@ -2927,9 +2871,9 @@
 //             <div className="border-t border-gray-700/50">
 //               <button
 //                 onClick={confirmCloseAll}
-//                 className={`w-full py-4 font-semibold text-lg hover:bg-[#2c2c2e] transition-colors ${
+//                 className="w-full py-4 font-semibold text-lg hover:bg-[#2c2c2e] transition-colors ${
 //                   closeAllType === 'profit' ? 'text-green-500' : closeAllType === 'loss' ? 'text-red-500' : 'text-orange-500'
-//                 }`}
+//                 }"
 //               >
 //                 {closeAllType === 'all' && 'Close All'}
 //                 {closeAllType === 'profit' && 'Close Winners'}
@@ -3103,15 +3047,13 @@ import { API_URL } from '../config/api'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon, Clock, ChevronDown, Check } from 'lucide-react'
-import metaApiService from '../services/metaApi'
-import binanceApiService from '../services/binanceApi'
-import priceStreamService from '../services/priceStream'
+import marketDataApiService from '../services/marketDataApi'
+import priceStreamService, { getPriceEvents } from '../services/priceStream'
 import { useTheme } from '../context/ThemeContext'
 import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
 import All_Tick_Chart from '../components/All_Tick_Chart.jsx'
 import WebSocketTest from '../components/WebSocketTest.jsx'
-import { getMetaApiPriceEvents } from '../services/datafeed'
 
 const TradingPage = () => {
   const navigate = useNavigate()
@@ -3218,9 +3160,8 @@ const TradingPage = () => {
     { symbol: 'US500.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'US100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'UK100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
-    { symbol: 'HK50.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
   ])
-  const [loadingInstruments, setLoadingInstruments] = useState(true) // Start true until prices load
+  const [loadingInstruments, setLoadingInstruments] = useState(false) // Don't block UI on prices
   const [starredSymbols, setStarredSymbols] = useState(['XAUUSD.i', 'EURUSD.i', 'GBPUSD.i'])
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [openTrades, setOpenTrades] = useState([])
@@ -3279,13 +3220,45 @@ const TradingPage = () => {
     fetchAccount()
     // Initial fetch in background
     fetchLivePrices()
+    // Fetch all supported symbols from backend to ensure "all symbols" are available
+    fetchSymbolsFromBackend()
     // Fetch admin-set spreads
     fetchAdminSpreads()
     
     return () => {
-      metaApiService.disconnect()
+      marketDataApiService.disconnect()
     }
   }, [accountId])
+
+  // Fetch all supported symbols from backend
+  const fetchSymbolsFromBackend = async () => {
+    try {
+      const res = await fetch(`${API_URL}/prices/symbols`)
+      const data = await res.json()
+      if (data.success && data.symbols) {
+        setInstruments(prev => {
+          const existing = new Set(prev.map(i => i.symbol))
+          const newInstruments = [...prev]
+          data.symbols.forEach(symbol => {
+            if (!existing.has(symbol)) {
+              newInstruments.push({
+                symbol,
+                bid: 0,
+                ask: 0,
+                spread: 0,
+                change: 0,
+                category: getSymbolCategory(symbol),
+                starred: false
+              })
+            }
+          })
+          return newInstruments
+        })
+      }
+    } catch (e) {
+      console.error('Error fetching instruments:', e)
+    }
+  }
 
   // Fetch open trades and account summary when account is loaded
   useEffect(() => {
@@ -3385,6 +3358,23 @@ const TradingPage = () => {
     if (!selectedInstrument?.symbol) return
     priceStreamService.setPrioritySymbols([selectedInstrument.symbol])
   }, [selectedInstrument?.symbol])
+
+  // ✅ Real-time Trade Updates for optimistic UI and instant sync
+  useEffect(() => {
+    const unsubscribe = priceStreamService.subscribeToTrades('tradingPageTrades', (trade, action) => {
+      if (action === 'updated') {
+        setOpenTrades(prev => {
+          const exists = prev.find(t => t._id === trade._id)
+          if (!exists) return [...prev, trade]
+          return prev.map(t => t._id === trade._id ? { ...t, ...trade } : t)
+        })
+      } else if (action === 'closed') {
+        setOpenTrades(prev => prev.filter(t => t._id !== trade._id))
+        fetchAccountSummary() // Refresh balance
+      }
+    })
+    return () => unsubscribe()
+  }, [])
 
   // Kill Switch - Check localStorage on load and update timer
   useEffect(() => {
@@ -3527,12 +3517,14 @@ const TradingPage = () => {
       // Get all symbols and fetch in single batch call to backend
       const allSymbols = instruments.map(i => i.symbol)
       
-      // Single batch call to backend (handles both MetaAPI and Binance)
-      const allPrices = await metaApiService.getAllPrices(allSymbols)
+      // Single batch call to backend (handles both AllTick and other providers)
+      const allPrices = await marketDataApiService.getAllPrices(allSymbols)
+      
+      // Stop loading state regardless of results to show instruments
+      setLoadingInstruments(false)
       
       // Always update livePrices state for open trades display
       if (Object.keys(allPrices).length > 0) {
-        setLoadingInstruments(false) // Prices loaded
         setLivePrices(prev => ({ ...prev, ...allPrices }))
         
         setInstruments(prev => prev.map(inst => {
@@ -3713,6 +3705,32 @@ const TradingPage = () => {
     }
   }
 
+  // //sanket - Optimistic trade modification for silky smooth chart interaction
+  const handleTradeModify = useCallback((update) => {
+    if (!update || !update.tradeId) return;
+    
+    // 1. Optimistically update the trade in local state immediately
+    setOpenTrades(prev => prev.map(t => {
+      const tid = t._id || t.id;
+      if (String(tid) === String(update.tradeId)) {
+        return { 
+          ...t, 
+          // Patch both field name variants — backend uses stopLoss/takeProfit,
+          // some UI components read sl/tp directly
+          stopLoss:   update.sl  !== undefined ? update.sl  : t.stopLoss,
+          sl:         update.sl  !== undefined ? update.sl  : t.sl,
+          takeProfit: update.tp  !== undefined ? update.tp  : t.takeProfit,
+          tp:         update.tp  !== undefined ? update.tp  : t.tp,
+        };
+      }
+      return t;
+    }));
+
+    //Sanket v2.0 - Do not refetch immediately after optimistic drag update.
+    // Immediate fetch can return stale backend value and overwrite the just-dropped price.
+    // WebSocket + periodic trade refresh flows already keep this in sync.
+  }, [accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fetch pending orders
   const fetchPendingOrders = async () => {
     try {
@@ -3855,7 +3873,7 @@ const TradingPage = () => {
 
   // Listen to MetaAPI price events from TradingView chart
   useEffect(() => {
-    const priceEventTarget = getMetaApiPriceEvents()
+    const priceEventTarget = getPriceEvents()
     
     const handleMetaApiPriceUpdate = (event) => {
       const { symbol, bid, ask, time } = event.detail
@@ -4734,19 +4752,19 @@ const TradingPage = () => {
             <Advance_Trading_View_Chart 
               symbol={selectedInstrument?.symbol} 
               trades={openTrades} 
-              onTradeModify={fetchOpenTrades}
+              onTradeModify={handleTradeModify}
             />
             {/* Live Price Status Indicator */}
             <div className="flex items-center justify-between px-2 py-1 text-xs">
               <div className="flex items-center gaps-2">
-                <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
+                {/* <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div> */}
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                  {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'}
+                  {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
                 </span>
               </div>
               {livePrices[selectedInstrument.symbol] && (
                 <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                  Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()}
+                  {/* Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()} */}
                 </div>
               )}
             </div>

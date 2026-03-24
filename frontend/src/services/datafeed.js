@@ -1,171 +1,14 @@
-
-// import { API_URL } from "../config/api";
-
-// /* Event system used by TradingPage.jsx to receive live price updates */
-// const priceEventTarget = new EventTarget();
-// export const getMetaApiPriceEvents = () => priceEventTarget;
-
-// /* TradingView configuration */
-// const configurationData = {
-//   supported_resolutions: ["1", "5", "15", "30", "60", "240", "1D"]
-// };
-
-// const Datafeed = {
-//   interval: null,
-
-//   onReady: (callback) => {
-//     setTimeout(() => callback(configurationData));
-//   },
-
-//   resolveSymbol: async (
-//     symbolName,
-//     onSymbolResolvedCallback,
-//     onResolveErrorCallback
-//   ) => {
-//     const symbolInfo = {
-//       name: symbolName,
-//       ticker: symbolName,
-//       type: "crypto",
-//       session: "24x7",
-//       timezone: "Etc/UTC",
-//       exchange: "MetaApi",
-//       minmov: 1,
-//       pricescale: 100,
-//       has_intraday: true,
-//       intraday_multipliers: ["1", "5", "15", "30", "60"],
-//       supported_resolutions: configurationData.supported_resolutions,
-//       volume_precision: 2,
-//       data_status: "streaming"
-//     };
-
-//     setTimeout(() => onSymbolResolvedCallback(symbolInfo), 0);
-//   },
-
-//   /* Load historical candles */
-//   getBars: async (
-//     symbolInfo,
-//     resolution,
-//     periodParams,
-//     onHistoryCallback,
-//     onErrorCallback
-//   ) => {
-
-//     try {
-
-//       const res = await fetch(`${API_URL}/xauusd/all`);
-//       const result = await res.json();
-//       const data = result.data;
-
-//       if (!data || !data.length) {
-//         onHistoryCallback([], { noData: true });
-//         return;
-//       }
-
-//       const bars = data.map((c) => ({
-//         time: new Date(c.time).getTime(),
-//         open: c.open,
-//         high: c.high,
-//         low: c.low,
-//         close: c.close
-//       }));
-
-//       bars.sort((a, b) => a.time - b.time);
-
-//       onHistoryCallback(bars, { noData: false });
-
-//     } catch (err) {
-
-//       console.log("History error:", err);
-//       onErrorCallback(err);
-
-//     }
-
-//   },
-
-//   /* Realtime updates */
-//   subscribeBars: (
-//     symbolInfo,
-//     resolution,
-//     onRealtimeCallback,
-//     subscriberUID
-//   ) => {
-
-//     // stop previous polling if exists
-//     if (Datafeed.interval) {
-//       clearInterval(Datafeed.interval);
-//       Datafeed.interval = null;
-//     }
-
-//     Datafeed.interval = setInterval(async () => {
-
-//       try {
-
-//         const res = await fetch(`${API_URL}/xauusd/latest`);
-//         const data = await res.json();
-
-//         if (!data || !data.length) return;
-
-//         const last = data[0];
-
-//         const bar = {
-//           time: new Date(last.time).getTime(),
-//           open: last.open,
-//           high: last.high,
-//           low: last.low,
-//           close: last.close
-//         };
-
-//         // Update TradingView chart
-//         onRealtimeCallback(bar);
-
-//         // Send price update to TradingPage
-//         const priceEvent = new CustomEvent("priceUpdate", {
-//           detail: {
-//             symbol: symbolInfo.name,
-//             bid: bar.close,
-//             ask: bar.close + 0.5,
-//             time: bar.time
-//           }
-//         });
-
-//         priceEventTarget.dispatchEvent(priceEvent);
-
-//       } catch (err) {
-//         console.log("Realtime error:", err);
-//       }
-
-//     }, 1000); // fetch every 1 second
-
-//   },
-
-//   /* Stop realtime updates */
-//   unsubscribeBars: () => {
-
-//     if (Datafeed.interval) {
-//       clearInterval(Datafeed.interval);
-//       Datafeed.interval = null;
-//     }
-
-//   }
-
-// };
-
-// export default Datafeed;
-
-
-
-// -----------------------------------------------------------------------------------------------------
-
 import { API_URL } from "../config/api";
+import priceStreamService from "./priceStream";
 
 /**
- * //sanket - Custom Datafeed for TradingView Charting Library
- * Integrates with MetaAPI data through our optimized backend caching service.
+ * Custom Datafeed for TradingView Charting Library
+ * Integrates with AllTick data through our optimized backend caching service.
  */
 
 /* Event system used by TradingPage.jsx to receive live price updates */
 const priceEventTarget = new EventTarget();
-export const getMetaApiPriceEvents = () => priceEventTarget;
+export const getPriceEvents = () => priceEventTarget;
 
 const configurationData = {
   supported_resolutions: ["1", "5", "15", "30", "60", "120", "240", "1D", "1W", "1M"]
@@ -249,12 +92,15 @@ const Datafeed = {
       ticker: symbolName,
       description: symbolName,
       type: "forex",
-      session: "24x7",
+      session: (s.includes("XAU") || s.includes("XAG") || (!s.includes("BTC") && !s.includes("ETH") && !s.includes("USDT"))) ? "0000-2400:23456" : "24x7",
       timezone: "Etc/UTC",
-      exchange: "MetaAPI",
+      exchange: "AllTick",
       minmov: 1,
       pricescale: pricescale,
       has_intraday: true,
+      intraday_multipliers: ['1', '5', '15', '30', '60', '240'],
+      has_daily: true,
+      has_weekly_and_monthly: true,
       supported_resolutions: configurationData.supported_resolutions,
       volume_precision: 2,
       data_status: "streaming"
@@ -291,7 +137,10 @@ const Datafeed = {
       const res = await fetch(url);
       if (!res.ok) {
         console.error(`[DATAFEED] ❌ getBars HTTP ${res.status} for ${symbolInfo.name}`);
-        onHistoryCallback([], { noData: true });
+        // CRITICAL: Call onError instead of onHistory([], {noData: true})
+        // This prevents TradingView from permanently marking this timeframe as "EMPTY"
+        // if we are just experiencing a temporary 429 rate limit.
+        onErrorCallback(`HTTP ${res.status}`);
         return;
       }
 
@@ -302,27 +151,6 @@ const Datafeed = {
       let bars = [];
       if (result.success && result.candles && result.candles.length > 0) {
         bars = normalizeBars(result.candles);
-      }
-
-      // On initial load, if bounded window is too sparse (common during refresh mid-candle),
-      // fetch an unbounded latest window and merge for a complete chart backbone.
-      const sparseThreshold = Math.max(80, Math.floor((countBack || 300) * 0.4));
-      if (firstDataRequest && bars.length < sparseThreshold) {
-        const fallbackParams = new URLSearchParams();
-        fallbackParams.set('symbol', symbolInfo.name);
-        fallbackParams.set('resolution', timeframe);
-        fallbackParams.set('limit', String(limit));
-        fallbackParams.set('preferLive', '1');
-        const fallbackUrl = `${API_URL}/prices/history?${fallbackParams.toString()}`;
-        const fallbackRes = await fetch(fallbackUrl);
-        if (fallbackRes.ok) {
-          const fallbackResult = await fallbackRes.json();
-          const fallbackBars = normalizeBars(fallbackResult?.candles || []);
-          const mergedByTime = new Map();
-          [...fallbackBars, ...bars].forEach((bar) => mergedByTime.set(bar.time, bar));
-          bars = [...mergedByTime.values()].sort((a, b) => a.time - b.time);
-          console.log(`[DATAFEED] ↺ fallback merged bars: ${bars.length} for ${symbolInfo.name}`);
-        }
       }
 
       if (bars.length === 0) {
@@ -432,6 +260,9 @@ const Datafeed = {
 
     bootstrapLiveBar();
     
+    // ✅ Backend Candle Authority: Join resolution-agnostic symbol room on backend
+    priceStreamService.subscribeBars(symbolInfo.name);
+    
     console.log(`[DATAFEED] ✅ subscribeBars: ${symbolInfo.name}, resolution=${resolution}m`);
     
     // ✅ Monitor for data gaps - production-grade health check
@@ -444,129 +275,52 @@ const Datafeed = {
         }
       }
     }, 10000);
+
+    // ✅ Backend Candle Authority: Authoritative bar updates (Source of Truth)
+    const handleCandleUpdate = (e) => {
+      const { symbol, timeframe: incomingTimeframe, candle } = e.detail;
+      
+      // Symbol match
+      if (normalizeRealtimeSymbol(symbol) !== normalizeRealtimeSymbol(symbolInfo.name)) return;
+      
+      // Resolution match (only process bars for the resolution we are watching)
+      if (incomingTimeframe !== timeframe) return;
+
+      if (!candle || !Number.isFinite(candle.time)) return;
+
+      const bar = {
+        time: candle.time,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume
+      };
+
+      currentBar = { ...bar };
+      lastBarTime = bar.time;
+      lastUpdateTime = Date.now();
+
+      // Update the singleton cache so History -> Realtime is seamless
+      Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
+      Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
+
+      // Push to chart
+      onRealtimeCallback(currentBar);
+    };
     
     const handlePriceUpdate = (e) => {
       tickCount++;
       const { symbol, bid, ask, time } = e.detail;
       lastTickTime = Date.now();
       
-      // Robust symbol matching across suffix and punctuation differences.
-      const cleanIncomingSymbol = normalizeRealtimeSymbol(symbol);
-      const cleanTargetSymbol = normalizeRealtimeSymbol(symbolInfo.name);
-      
-      if (cleanIncomingSymbol !== cleanTargetSymbol) {
-        return;
-      }
+      // Robust symbol matching
+      if (normalizeRealtimeSymbol(symbol) !== normalizeRealtimeSymbol(symbolInfo.name)) return;
 
-      // CRITICAL: Convert timestamp to UNIX MILLISECONDS
-      let timeMs = time;
-      
-      // If it's a string (ISO format from backend), parse it
-      if (typeof timeMs === 'string') {
-        timeMs = new Date(timeMs).getTime();
-      }
-      // If it's in seconds (< year 2286), convert to milliseconds
-      else if (typeof timeMs === 'number' && timeMs < 10000000000) {
-        timeMs = timeMs * 1000;
-      }
-      
-      // Validate timestamp
-      if (isNaN(timeMs) || timeMs <= 0) {
-        return; // Skip this update
-      }
-
-      // ✅ CRITICAL FIX: Calculate which candle this tick belongs to
-      const barTimeMs = Math.floor(timeMs / resolutionMs) * resolutionMs;
-
-      if (lastBarTime !== null && barTimeMs < lastBarTime) {
-        return;
-      }
-      
-      const bidPrice = parseFloat(bid);
-      const askPrice = parseFloat(ask);
-      if (!Number.isFinite(bidPrice) || !Number.isFinite(askPrice) || bidPrice <= 0 || askPrice <= 0) {
-        return;
-      }
-      const midPrice = (bidPrice + askPrice) / 2;
-      if (!Number.isFinite(midPrice) || midPrice <= 0) {
-        return;
-      }
-      
-      // ✅ OHLC Calculation: Use bid/ask spread for H/L (like real trading platforms)
-      // This matches backend calculation in storageService.ingestTick()
-      // - HIGH/LOW: Use actual bid/ask range to show true market volatility
-      // - OPEN/CLOSE: Use mid-price as the representative price
-      // Example: bid=5040.50, ask=5041.00 → high=5041.00, low=5040.50, close=5040.75
-      const tickHigh = Math.max(bidPrice, askPrice);
-      const tickLow = Math.min(bidPrice, askPrice);
-      
-      // ✅ Create NEW bar OR update EXISTING bar
-      if (lastBarTime !== null && barTimeMs > lastBarTime) {
-        // New timeframe started
-        // ⚠️ IMPORTANT: DO NOT emit the closed bar!
-        // TradingView has cached it as historical data. Re-emitting causes conflicts.
-        
-        if (currentBar && currentBar.volume > 0) {
-          console.log(`[DATAFEED] 🕯️ CLOSED (HISTORICAL): ${symbol} (${resolutionMinutes}m) @ ${new Date(lastBarTime).toISOString()} | O:${currentBar.open.toFixed(2)} H:${currentBar.high.toFixed(2)} L:${currentBar.low.toFixed(2)} C:${currentBar.close.toFixed(2)} V:${currentBar.volume}`);
-        }
-        
-        // Create new bar for this timeframe
-        currentBar = {
-          time: barTimeMs,
-          open: midPrice,
-          high: tickHigh,
-          low: tickLow,
-          close: midPrice,
-          volume: 1
-        };
-        
-        lastBarTime = barTimeMs;
-        lastUpdateTime = Date.now();
-        
-        console.log(`[DATAFEED] 🟢 OPENED (CURRENT): ${symbol} @ ${new Date(barTimeMs).toISOString()} (${resolutionMinutes}m)`);
-        
-        Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
-        Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
-        onRealtimeCallback(currentBar);
-        
-      } else if (lastBarTime === null) {
-        // ✅ FIRST BAR - initialize
-        currentBar = {
-          time: barTimeMs,
-          open: midPrice,
-          high: tickHigh,
-          low: tickLow,
-          close: midPrice,
-          volume: 1
-        };
-        
-        lastBarTime = barTimeMs;
-        lastUpdateTime = Date.now();
-        
-        console.log(`[DATAFEED] 🟢 OPENED (CURRENT): ${symbol} @ ${new Date(barTimeMs).toISOString()} (${resolutionMinutes}m)`);
-        Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
-        Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
-        onRealtimeCallback(currentBar);
-        
-      } else if (currentBar && barTimeMs === lastBarTime) {
-        // ✅ Same timeframe → UPDATE the current candle ONLY
-        currentBar.high = Math.max(currentBar.high, tickHigh, midPrice);
-        currentBar.low = Math.min(currentBar.low, tickLow, midPrice);
-        currentBar.close = midPrice;
-        currentBar.volume += 1;
-        
-        // ✅ THROTTLE: Only send updates every 300ms to prevent chart jitter
-        const now = Date.now();
-        if (now - lastUpdateTime >= throttleMs) {
-          if (currentBar.volume % 50 === 0) {
-            console.log(`[DATAFEED] 📊 UPDATE: ${symbol} (V:${currentBar.volume})`);
-          }
-          Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
-          Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
-          onRealtimeCallback(currentBar);
-          lastUpdateTime = now;
-        }
-      }
+      // Note: We no longer perform ad-hoc OHLC aggregation here.
+      // All candle formation is now handled by the backend in storageService.js
+      // and received via the 'candleUpdate' listener above.
+      // This ensures 100% consistency between live and historical data.
     };
 
     // Store the listener on the subscriber for cleanup
@@ -574,12 +328,15 @@ const Datafeed = {
     Datafeed._subscribers[subscriberUID] = handlePriceUpdate;
 
     console.log(`[DATAFEED] 👂 Real-time subscription: ${symbolInfo.name}`);
+    priceEventTarget.addEventListener("candleUpdate", handleCandleUpdate);
     priceEventTarget.addEventListener("priceUpdate", handlePriceUpdate);
     
     // Return cleanup function so TradingView can call it when unsubscribing
     return function cleanup() {
       isActive = false;
       clearInterval(dataGapMonitor);
+      priceStreamService.unsubscribeBars(symbolInfo.name);
+      priceEventTarget.removeEventListener("candleUpdate", handleCandleUpdate);
       priceEventTarget.removeEventListener("priceUpdate", handlePriceUpdate);
       delete Datafeed._subscribers[subscriberUID];
       console.log(`[DATAFEED] ❌ Unsubscribed: ${symbolInfo.name}, received ${tickCount} ticks`);
