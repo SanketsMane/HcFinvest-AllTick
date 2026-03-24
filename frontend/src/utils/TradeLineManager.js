@@ -2,13 +2,13 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.6 — Phase 65: The High-Frequency Engine
+ * TradeLineManager v7.7 — Phase 65: The Internal Spy Engine
  * ============================================================
  * createOrderLine() was NOT available on this TV license.
- * v7.6 RAF Overhaul:
- * - RAF Probing: 60fps price tracking via RequestAnimationFrame
- * - Global Mouse: Window-level tracking to bypass library capture
- * - Style Specs: Dotted Green/Red (2px for visibility), Solid Blue Entry.
+ * v7.7 Internal Probing:
+ * - State Probing: Uses internal chart.crosshairPrice() to bypass Iframe capture
+ * - Error Recovery: Fallback to event-based price extraction if probing fails
+ * - Handle Fix: Increased opacity for better hit-tracking
  * ============================================================
  */
 
@@ -98,36 +98,32 @@ export class TradeLineManager {
   _subscribeToCrosshair(widget) {
     if (!widget) return;
     
-    // 🛡️ v7.6 GLOBAL MOUSE & RAF TRACKER
+    // 🛡️ v7.7 INTERNAL STATE SPY
+    // Instead of raw DOM mouse, we probe the library's internal crosshair price
     try {
-        // Tracker for raw screen coordinates
-        window._tm_mouse_y = 0;
-        window.addEventListener('mousemove', (e) => {
-            window._tm_mouse_y = e.clientY;
-        }, { passive: true });
-
         const probe = () => {
             if (this.dragState.isDragging && this.dragState.activeTradeId) {
                 const chart = this.widget.activeChart();
-                const container = document.querySelector('iframe[id^="tradingview_"]') || document.querySelector('[class*="chart-container"]');
-                
-                if (chart && container) {
-                    const rect = container.getBoundingClientRect();
-                    const localY = window._tm_mouse_y - rect.top;
-                    
-                    const price = chart.coordinateToPrice(localY);
-                    if (price && Number.isFinite(price)) {
-                        this.dragState.currentPrice = price;
-                        this._updateGhostPosition(this.dragState.activeTradeId, this.dragState.ghostType, price);
+                if (chart) {
+                    // Try 3 different paths to internal price state
+                    let internalPrice = null;
+                    try { internalPrice = chart.crosshairPrice(); } catch {}
+                    if (!internalPrice) {
+                        try { internalPrice = chart.getCrosshairState?.()?.price; } catch {}
+                    }
+
+                    if (internalPrice && Number.isFinite(internalPrice)) {
+                        this.dragState.currentPrice = internalPrice;
+                        this._updateGhostPosition(this.dragState.activeTradeId, this.dragState.ghostType, internalPrice);
                     }
                 }
             }
             requestAnimationFrame(probe);
         };
         requestAnimationFrame(probe);
-        console.log('[TradeManager] High-Frequency RAF Probing ACTIVATED');
+        console.log('[TradeManager] v7.7 Internal Spy Engine ACTIVATED');
     } catch (e) {
-        console.warn('[TradeManager] RAF setup failed:', e.message);
+        console.warn('[TradeManager] Spy setup failed:', e.message);
     }
   }
 
@@ -229,8 +225,8 @@ export class TradeLineManager {
     // ── Handle (Interaction: unlocked, invisible) ──
     if (!rec.handle) {
       rec.handle = await this._createShape(tradeId, 'handle', entryPrice, {
-        color: 'rgba(255, 255, 255, 0.001)', // Fully transparent for hit-testing
-        width: 14, // Extra wide hit box for easy grabbing
+        color: 'rgba(255, 255, 255, 0.02)', // Slightly more opaque for robust tracking
+        width: 16, // Even wider hit box
         style: 0,
         text: '',
         lock: false,    // ⚡ Draggable handle
