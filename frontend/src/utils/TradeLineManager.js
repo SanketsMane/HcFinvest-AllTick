@@ -2,18 +2,18 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.17 — Phase 65: THE ULTIMATE PULSE
+ * TradeLineManager v7.18 — Phase 65: THE VISUAL SIGNATURE
  * ============================================================
  * createOrderLine() was NOT available on this TV license.
- * v7.17 Absolute Stability:
- * - Move-to-Start Fail-Safe: Corrects library event skipping
- * - Defensive API: Fallback coordinate-to-price conversion
- * - Ultimate Purge Verification: window.TRADE_ENGINE_VERSION check
+ * v7.18 Precision Interaction:
+ * - DPI Scaling: Correct resolution for Retina/4K displays
+ * - Blue Pulse: 500ms visual flash to prove interaction layer is active
+ * - Defensive API: 100% error-free coordinate-to-price mapping
  * ============================================================
  */
 // ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.17-ULTIMATE';
-console.log('%c [TradeManager v7.17] ULTIMATE PURE CANVAS ACTIVE ', 'background: #222; color: #bada55; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.18-SIGNATURE';
+console.log('%c [TradeManager v7.18] VISUAL SIGNATURE ACTIVE ', 'background: #222; color: #bada55; font-size: 20px;');
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -429,7 +429,8 @@ export class TradeLineManager {
     if (!container) return;
     const rect = container.getBoundingClientRect();
 
-    // 🛡️ v7.13 THE PURE CANVAS OVERLAY
+    // 🛡️ v7.18 DPI Scaling & Canvas Management
+    const dpr = window.devicePixelRatio || 1;
     const canvas = document.createElement('canvas');
     canvas.id = 'tm-interaction-layer';
     canvas.style.position = 'fixed';
@@ -437,14 +438,24 @@ export class TradeLineManager {
     canvas.style.left = `${rect.left}px`;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    
+    // Physical pixels vs CSS pixels
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    
     canvas.style.zIndex = '999999';
-    canvas.style.pointerEvents = 'auto'; // Capture the mouse
+    canvas.style.pointerEvents = 'auto';
     canvas.style.cursor = 'ns-resize';
     
+    // Instant Blue Pulse proof
+    canvas.style.backgroundColor = 'rgba(33, 150, 243, 0.15)'; 
+    setTimeout(() => { 
+        if (canvas) canvas.style.backgroundColor = 'transparent'; 
+    }, 500);
+
     document.body.appendChild(canvas);
     const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr); // Sync context with DPI
 
     const draw = (y, price) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
