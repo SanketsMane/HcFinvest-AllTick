@@ -4757,14 +4757,14 @@ const TradingPage = () => {
             {/* Live Price Status Indicator */}
             <div className="flex items-center justify-between px-2 py-1 text-xs">
               <div className="flex items-center gaps-2">
-                <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
+                {/* <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div> */}
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                  {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'}
+                  {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
                 </span>
               </div>
               {livePrices[selectedInstrument.symbol] && (
                 <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                  Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()}
+                  {/* Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()} */}
                 </div>
               )}
             </div>

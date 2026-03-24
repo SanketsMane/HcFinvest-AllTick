@@ -32,7 +32,7 @@ const Sidebar = ({ activeMenu = "Dashboard" }) => {
     { name: "IB", icon: Users, path: "/ib" },
     { name: "Copytrade", icon: Copy, path: "/copytrade" },
     { name: "Competition", icon: MdLeaderboard, path: "/competition" },
-    { name: "Leader Board", icon: FileText, path: "/leader-board" },
+    // { name: "Leader Board", icon: FileText, path: "/leader-board" },
     //{ name: "Profile", icon: UserCircle, path: "/profile" },
     { name: "Support", icon: HelpCircle, path: "/support" },
     { name: "Instructions", icon: FileText, path: "/instructions" },

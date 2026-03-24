@@ -208,7 +208,7 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
       ref={containerRef} 
       style={{ 
         width: "100%", 
-        height: "600px",
+        height: "100%",
         backgroundColor: "#0d0d0d"
       }} 
     />
