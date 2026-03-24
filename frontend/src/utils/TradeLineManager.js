@@ -11,10 +11,10 @@ import { API_URL } from '../config/api';
  * - Consolidated Logs: Better visibility into event flow
  * ============================================================
  */
- Broadway
+
 // ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.14-SHIELD';
-console.log('%c [TradeManager v7.14] HARDWARE SHIELD ACTIVE ', 'background: #222; color: #bada55; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.16-STABLE';
+console.log('%c [TradeManager v7.16] STABLE PURE CANVAS ACTIVE ', 'background: #222; color: #bada55; font-size: 20px;');
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
