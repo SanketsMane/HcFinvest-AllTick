@@ -2,19 +2,18 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.15 — Phase 65: The Final Fail-Safe
+ * TradeLineManager v7.17 — Phase 65: THE ULTIMATE PULSE
  * ============================================================
  * createOrderLine() was NOT available on this TV license.
- * v7.15 Ultimate Pulse:
- * - Move-to-Start: Forces Canvas activation on 'move' if 'started' was missed
- * - Zero-Library: Pure Canvas SL/TP ghosts for absolute 0ms lag
- * - Consolidated Logs: Better visibility into event flow
+ * v7.17 Absolute Stability:
+ * - Move-to-Start Fail-Safe: Corrects library event skipping
+ * - Defensive API: Fallback coordinate-to-price conversion
+ * - Ultimate Purge Verification: window.TRADE_ENGINE_VERSION check
  * ============================================================
  */
-
 // ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.16-STABLE';
-console.log('%c [TradeManager v7.16] STABLE PURE CANVAS ACTIVE ', 'background: #222; color: #bada55; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.17-ULTIMATE';
+console.log('%c [TradeManager v7.17] ULTIMATE PURE CANVAS ACTIVE ', 'background: #222; color: #bada55; font-size: 20px;');
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -87,7 +86,7 @@ export class TradeLineManager {
     this.isDragging = false;
     this.draggedTradeId = null;
 
-    console.log('[TradeManager v7.15] Final Fail-Safe Engine Active — (v7.15)');
+    console.log('[TradeManager v7.17] Ultimate Pulse Engine Active — (v7.17)');
   }
 
   initialize(widget) {
@@ -477,15 +476,21 @@ export class TradeLineManager {
     };
 
     canvas.onmousemove = (e) => {
-        if (!this.dragState.isDragging) return;
-        
-        const localY = e.clientY - rect.top;
-        const chart = this.widget.activeChart();
-        const price = chart.coordinateToPrice(localY);
-        
-        if (price && Number.isFinite(price)) {
-            this.dragState.currentPrice = price;
-            draw(localY, price); // Instant 60fps render
+        try {
+            if (!this.dragState.isDragging) return;
+            
+            const localY = e.clientY - rect.top;
+            
+            // 🛡️ v7.17 DEFENSIVE PRICE RESOLUTION
+            const chart = this.widget.activeChart?.() || this.widget.chart?.();
+            const price = chart?.coordinateToPrice?.(localY) ?? null;
+            
+            if (price && Number.isFinite(price)) {
+                this.dragState.currentPrice = price;
+                draw(localY, price); // Instant 60fps render
+            }
+        } catch (err) {
+            console.error('[TradeManager] Canvas interaction error:', err);
         }
     };
     
