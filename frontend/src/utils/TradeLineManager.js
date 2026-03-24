@@ -2,17 +2,17 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.22 — Phase 66: THE MT5-SPAWN ENGINE (FIXED)
+ * TradeLineManager v7.23 — Phase 66: THE MT5-SPAWN TANK
  * ============================================================
- * v7.22 MT5-Spawn:
- * - Fixed race condition in drag-stop handler
- * - Robust Drag-to-Spawn SL/TP directly from Entry
- * - Proportional Sync & 0ms native responsiveness
+ * v7.23 MT5-Spawn Tank:
+ * - Serialized Move (No overlapping ghost creation)
+ * - Sync-Flicker Protection (Protects lines during transient empty states)
+ * - Enhanced Diagnostic Labels (TV_ID included)
  * ============================================================
  */
 // ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.22-MT5-FIX';
-console.log('%c [TradeManager v7.22] MT5-SPAWN ENGINE ACTIVE ', 'background: #222; color: #ffeb3b; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.23-TANK';
+console.log('%c [TradeManager v7.23] MT5-SPAWN TANK ACTIVE ', 'background: #222; color: #76ff03; font-size: 20px;');
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -108,11 +108,11 @@ export class TradeLineManager {
     widget.subscribe('drawing_event', this._handler);
   }
 
-  _onNativeMove(tvId, meta) {
+  async _onNativeMove(tvId, meta) {
     const chart = this.widget.chart();
     const shape = chart.getShapeById(tvId);
     const price = shape?.getPoints?.()?.[0]?.price;
-    if (!price) return;
+    if (!price || this.isUpdatingGhost) return;
 
     // ─── Label Update ──────────────────────────────────────────
     const labelText = `${meta.type.toUpperCase()}  ${fmt(price)}`;
@@ -127,15 +127,15 @@ export class TradeLineManager {
         const isBuy = side.includes('buy') || side.includes('long');
         const entry = Number(trade.openPrice || trade.price);
         
-        // Determine if we are spawning SL or TP based on direction
-        let ghostType = '';
-        if (isBuy) {
-            ghostType = price > entry ? 'tp' : 'sl';
-        } else {
-            ghostType = price > entry ? 'sl' : 'tp';
-        }
+        let ghostType = isBuy ? (price > entry ? 'tp' : 'sl') : (price > entry ? 'sl' : 'tp');
 
-        this._updateSpawnGhost(meta.tradeId, ghostType, price);
+        // Serialized ghost update
+        this.isUpdatingGhost = true;
+        try {
+            await this._updateSpawnGhost(meta.tradeId, ghostType, price);
+        } finally {
+            this.isUpdatingGhost = false;
+        }
     }
   }
 
@@ -144,7 +144,7 @@ export class TradeLineManager {
     if (!this.lines[tid]) return;
     const set = this.lines[tid];
 
-    // Destroy existing ghost if type changed
+    // Destroy existing ghost if type changed (crossed the entry line)
     if (set.ghost && set.ghost.type !== type) {
         this._destroyShape(set.ghost.tvId);
         set.ghost = null;
@@ -158,7 +158,7 @@ export class TradeLineManager {
             width: 1,
             text: `NEW ${type.toUpperCase()}`
         });
-        set.ghost = { tvId: ghostId.tvId, type, price };
+        if (ghostId) set.ghost = { tvId: ghostId.tvId, type, price };
     } else {
         set.ghost.price = price;
         this._updateShape(set.ghost.tvId, price, `NEW ${type.toUpperCase()}  ${fmt(price)}`);
@@ -169,6 +169,9 @@ export class TradeLineManager {
     const chart = this.widget.chart();
     const shape = chart.getShapeById(tvId);
     const price = shape?.getPoints?.()?.[0]?.price;
+    
+    console.log(`[TradeManager] Drag Stop: ${meta.type} (TV:${tvId}) price=${price}`);
+
     if (!price || !meta.tradeId) {
         this.activeDragId = null;
         return;
@@ -178,54 +181,61 @@ export class TradeLineManager {
       const trade = this.getTradeById(meta.tradeId);
       const tid = String(meta.tradeId);
       
-      // If a ghost was spawned, commit it!
       const ghost = this.lines[tid]?.ghost;
       if (ghost) {
-          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${ghost.price}`);
+          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${ghost.price} (from Entry Drag)`);
           this._destroyShape(ghost.tvId);
-          await this._commitTrade(tid, ghost.type, ghost.price);
+          const p = ghost.price;
+          const t = ghost.type;
           this.lines[tid].ghost = null;
+          await this._commitTrade(tid, t, p);
       }
 
-      // Snap ENTRY back to real price
+      // Snap ENTRY back
       const realEntry = Number(trade?.openPrice || trade?.price);
       shape.setPoints([{ price: realEntry }]);
       shape.setProperties({ overrides: { text: `ENTRY  ${fmt(realEntry)}` } });
       
-      // Reset drag tracking AT THE VERY END to prevent race with syncTrades
-      this.activeDragId = null;
+      setTimeout(() => { this.activeDragId = null; }, 500); // Guard time
       return;
     }
 
-    // Regular Move (SL or TP)
     if (meta.type === 'sl' || meta.type === 'tp') {
         console.log(`[TradeManager] Confirming MOVE: ${meta.type} -> ${price}`);
         await this._commitTrade(meta.tradeId, meta.type, price);
     }
     
-    this.activeDragId = null;
+    setTimeout(() => { this.activeDragId = null; }, 500);
   }
 
   async syncTrades(trades, symbol = null) {
-    if (this.activeDragId) return; // Freeze sync during drag
+    if (this.activeDragId) return; // Locked during drag
 
     this.trades = trades || [];
-    const now = Date.now();
-    if (now - this.lastSync < 500) return;
-    this.lastSync = now;
+    const curSym = canonicalSymbol(symbol);
+    const visible = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym);
+    
+    // 🛡️ Flicker Protection: If incoming list is empty but we HAD trades, wait one cycle.
+    if (visible.length === 0 && Object.keys(this.lines).length > 0) {
+        if (!this._flickerGuard) {
+            console.log('[TradeManager] Flicker protected. Waiting for second empty signal.');
+            this._flickerGuard = true;
+            return;
+        }
+    }
+    this._flickerGuard = false;
+
+    const visibleIds = new Set(visible.map(t => String(t._id || t.id)));
 
     if (!this.widget) return;
     const chart = this.widget.chart();
-    const curSym = canonicalSymbol(symbol);
-    const visible = trades.filter(t => canonicalSymbol(t.symbol) === curSym);
-    const visibleIds = new Set(visible.map(t => String(t._id || t.id)));
 
     // Cleanup
     Object.keys(this.lines).forEach(tid => {
         if (!visibleIds.has(tid)) this.removeTradeLines(tid);
     });
 
-    // 🛡️ Sync
+    // Sync
     for (const trade of visible) {
       await this._syncTradeShapes(chart, trade);
     }
