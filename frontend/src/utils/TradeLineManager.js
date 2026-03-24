@@ -2,17 +2,17 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.21 — Phase 66: THE MT5-SPAWN ENGINE
+ * TradeLineManager v7.22 — Phase 66: THE MT5-SPAWN ENGINE (FIXED)
  * ============================================================
- * v7.21 MT5-Spawn:
- * - Drag-to-Spawn SL/TP directly from Entry
- * - Native Drawing Bypass (createShape) for all charting licenses
+ * v7.22 MT5-Spawn:
+ * - Fixed race condition in drag-stop handler
+ * - Robust Drag-to-Spawn SL/TP directly from Entry
  * - Proportional Sync & 0ms native responsiveness
  * ============================================================
  */
 // ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.21-MT5-SPAWN';
-console.log('%c [TradeManager v7.21] MT5-SPAWN ENGINE ACTIVE ', 'background: #222; color: #ffeb3b; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.22-MT5-FIX';
+console.log('%c [TradeManager v7.22] MT5-SPAWN ENGINE ACTIVE ', 'background: #222; color: #ffeb3b; font-size: 20px;');
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -169,10 +169,10 @@ export class TradeLineManager {
     const chart = this.widget.chart();
     const shape = chart.getShapeById(tvId);
     const price = shape?.getPoints?.()?.[0]?.price;
-    if (!price || !meta.tradeId) return;
-
-    // Reset drag tracking
-    this.activeDragId = null;
+    if (!price || !meta.tradeId) {
+        this.activeDragId = null;
+        return;
+    }
 
     if (meta.type === 'entry') {
       const trade = this.getTradeById(meta.tradeId);
@@ -181,9 +181,9 @@ export class TradeLineManager {
       // If a ghost was spawned, commit it!
       const ghost = this.lines[tid]?.ghost;
       if (ghost) {
-          console.log(`[TradeManager] Confirming SPWAN: ${ghost.type} -> ${ghost.price}`);
-          await this._commitTrade(tid, ghost.type, ghost.price);
+          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${ghost.price}`);
           this._destroyShape(ghost.tvId);
+          await this._commitTrade(tid, ghost.type, ghost.price);
           this.lines[tid].ghost = null;
       }
 
@@ -191,13 +191,19 @@ export class TradeLineManager {
       const realEntry = Number(trade?.openPrice || trade?.price);
       shape.setPoints([{ price: realEntry }]);
       shape.setProperties({ overrides: { text: `ENTRY  ${fmt(realEntry)}` } });
+      
+      // Reset drag tracking AT THE VERY END to prevent race with syncTrades
+      this.activeDragId = null;
       return;
     }
 
     // Regular Move (SL or TP)
     if (meta.type === 'sl' || meta.type === 'tp') {
+        console.log(`[TradeManager] Confirming MOVE: ${meta.type} -> ${price}`);
         await this._commitTrade(meta.tradeId, meta.type, price);
     }
+    
+    this.activeDragId = null;
   }
 
   async syncTrades(trades, symbol = null) {
