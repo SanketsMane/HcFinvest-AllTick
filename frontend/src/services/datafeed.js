@@ -114,6 +114,18 @@ const Datafeed = {
     setTimeout(() => callback(configurationData));
   },
 
+  // 🛡️ v7.52 Sync with server time to ensure candle countdown is accurate
+  getServerTime: (callback) => {
+    fetch(`${API_URL}/prices/time`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && json.time) {
+          callback(json.time);
+        }
+      })
+      .catch(() => { /* Fallback to local time if API fails */ });
+  },
+
   // Required by TradingView — powers the built-in symbol search dialog
   searchSymbols: (userInput, _exchange, _symbolType, onResult) => {
     const query = (userInput || '').toUpperCase();

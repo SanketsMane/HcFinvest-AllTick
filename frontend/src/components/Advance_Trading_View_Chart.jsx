@@ -91,6 +91,7 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
         overrides: {
           "paneProperties.background": isDarkMode ? "#0d0d0d" : "#ffffff", // ✅ v7.55: Dynamic background
           "mainSeriesProperties.style": 1,
+          "scalesProperties.showCountdown": true, // ✅ v7.53: Enable candle countdown by default
         }
       });
 

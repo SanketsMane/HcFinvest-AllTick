@@ -52,6 +52,11 @@ router.get('/status', async (req, res) => {
   }
 })
 
+// GET /api/prices/time - Get authoritative server time for candle countdown
+router.get('/time', (req, res) => {
+  res.json({ success: true, time: Math.floor(Date.now() / 1000) });
+})
+
 // GET /api/prices/live-persistence - Get real-time candle persistence health
 router.get('/live-persistence', async (req, res) => {
   try {

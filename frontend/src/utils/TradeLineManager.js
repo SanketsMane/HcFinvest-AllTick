@@ -348,7 +348,7 @@ export class TradeLineManager {
             {
                 shape: 'horizontal_line',
                 lock: false,
-                disableSelection: false,
+                disableSelection: true, // 🛡️ v7.53 Hide floating properties toolbar for trade lines
                 disableSave: true,
                 disableUndo: true,
                 overrides: {
