@@ -4488,10 +4488,13 @@ const TradingPage = () => {
   }
 
   const handleInstrumentClick = (inst) => {
-    const existingTab = openTabs.find(tab => tab.symbol === inst.symbol)
-    if (!existingTab) {
-      setOpenTabs([...openTabs, inst])
-    }
+    setOpenTabs(prevTabs => {
+      const existingTab = prevTabs.find(tab => tab.symbol === inst.symbol)
+      if (!existingTab) {
+        return [...prevTabs, inst]
+      }
+      return prevTabs
+    })
     setActiveTab(inst.symbol)
     setSelectedInstrument(inst)
   }
@@ -4888,8 +4891,32 @@ const TradingPage = () => {
               isDarkMode={isDarkMode}
               onSymbolChange={(newSym) => {
                 // 🔄 Sync chart's internal search with parent tabs
-                const inst = instruments.find(i => i.symbol === newSym) || { symbol: newSym, name: newSym };
-                handleInstrumentClick(inst);
+                const cleanSym = newSym.replace(/\.i$/i, '').toUpperCase();
+                
+                // If it's already the active tab, ignore (this fires on initial load)
+                if (cleanSym === activeTab) return;
+
+                setOpenTabs(prevTabs => {
+                  const existingTabIndex = prevTabs.findIndex(t => t.symbol === cleanSym);
+                  
+                  if (existingTabIndex >= 0) {
+                    // Symbol already has a tab open somewhere, just switch to it (will force chart to re-render but keeps state clean)
+                    setTimeout(() => {
+                      setActiveTab(cleanSym);
+                      setSelectedInstrument(prevTabs[existingTabIndex]);
+                    }, 0);
+                    return prevTabs;
+                  } else {
+                    // Replace the CURRENT active tab with the new symbol! 
+                    // (because the user changed the symbol of the current chart widget)
+                    const inst = instruments.find(i => i.symbol === cleanSym) || { symbol: cleanSym, name: cleanSym };
+                    setTimeout(() => {
+                      setActiveTab(cleanSym);
+                      setSelectedInstrument(inst);
+                    }, 0);
+                    return prevTabs.map(tab => tab.symbol === activeTab ? inst : tab);
+                  }
+                });
               }}
             />
             {/* Live Price Status Indicator */}

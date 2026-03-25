@@ -96,8 +96,24 @@ export class TradeLineManager {
       const action = String(status?.status || status || '').toLowerCase();
       
       // Stop logging spammy points_changed and move events
-      if (action !== 'points_changed' && action !== 'move') {
+      if (action !== 'points_changed' && action !== 'move' && action !== 'remove') {
           console.log(`[TradeManager] EVENT: ${tvId} (${meta.type}) status="${action}"`);
+      }
+
+      // 🛡️ Prevent manual deletion of Entry/SL/TP lines by the user
+      // If action is remove or deleted, we forcefully recreate the line if the trade is still open
+      if (action === 'remove' || action === 'deleted') {
+         if (meta.tradeId && this.lines[meta.tradeId]?.[meta.type]) {
+            console.log(`[TradeManager] Blocked deletion of ${meta.type.toUpperCase()} line for trade ${meta.tradeId}`);
+            // Remove the shape tracking reference so syncTrades redraws it immediately
+            this.lines[meta.tradeId][meta.type] = null;
+            
+            setTimeout(() => {
+                this.syncLockUntil = 0; // Bypass sync lock
+                this.syncTrades(this.trades, this.currentSymbol);
+            }, 50);
+         }
+         return;
       }
 
       if (action === 'started') {
@@ -242,6 +258,7 @@ export class TradeLineManager {
     if (Date.now() < this.syncLockUntil) return; // v7.28 Sync Lock (Prevent flickering during commit)
 
     this.trades = trades || [];
+    this.currentSymbol = symbol; // Track current symbol for the redraw handler
     const curSym = canonicalSymbol(symbol);
     const visible = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym && !String(t._id || t.id).startsWith('temp_'));
     const visibleIds = new Set(visible.map(t => String(t._id || t.id)));
