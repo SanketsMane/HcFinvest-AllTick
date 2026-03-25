@@ -3269,16 +3269,17 @@ const TradingPage = () => {
     }
   }, [openTabs, activeTab])
 
-  // Auto-redirect to History tab when a trade closes
+  // Auto-refresh History and Account Summary when a trade closes (detect length decrease)
   const prevOpenTradesLength = useRef(openTrades.length)
   useEffect(() => {
     // If openTrades length decreased and wasn't 0 previously, a trade was closed (either manually or by SL/TP)
     if (openTrades.length < prevOpenTradesLength.current && prevOpenTradesLength.current > 0) {
-      if (activePositionTab !== 'History') setActivePositionTab('History');
-      if (isBottomPanelMinimized) setIsBottomPanelMinimized(false);
+      // User requested NOT to auto-redirect. Just silently refresh the history so it's ready.
+      fetchTradeHistory()
+      fetchAccountSummary()
     }
     prevOpenTradesLength.current = openTrades.length;
-  }, [openTrades.length, activePositionTab, isBottomPanelMinimized])
+  }, [openTrades.length])
 
   // Fetch all supported symbols from backend
   const fetchSymbolsFromBackend = async () => {
