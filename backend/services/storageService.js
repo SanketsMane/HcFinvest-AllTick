@@ -527,11 +527,14 @@ class StorageService extends EventEmitter {
 
       let bar;
       if (!existing || existing.timeMs !== bucketStartMs) {
+        // ✅ ELITE: SNAP OPEN TO PREVIOUS CLOSE
+        // This eliminates visual "gap-ups" between 1m candles by ensuring perfect continuity.
+        const previousClose = (existing && existing.close > 0) ? existing.close : close;
         bar = {
           timeMs: bucketStartMs,
-          open: close,
-          high: tickHigh,      // ← Use bid/ask range, not mid-price
-          low: tickLow,        // ← Use bid/ask range, not mid-price
+          open: previousClose,
+          high: Math.max(previousClose, tickHigh),
+          low: Math.min(previousClose, tickLow),
           close: close,
           volume: 1
         };

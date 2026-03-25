@@ -471,13 +471,12 @@ function All_Tick_Chart({ symbol = "BTCUSDT", onPriceUpdate }) {
       locale: "en",
 
       disabled_features: [
-
-        "use_localstorage_for_settings",
-
         "study_templates",
-
         "header_saveload"
-
+      ],
+      enabled_features: [
+        "use_localstorage_for_settings",
+        "save_chart_properties_to_local_storage"
       ],
 
       fullscreen: false,
@@ -498,7 +497,23 @@ function All_Tick_Chart({ symbol = "BTCUSDT", onPriceUpdate }) {
 
       }
 
-      widget.remove();
+      
+
+      try {
+
+        if (widget && typeof widget.remove === 'function') {
+
+          widget.remove();
+
+        }
+
+      } catch (err) {
+
+        console.error('[All_Tick_Chart] Cleanup error:', err);
+
+      }
+
+      
 
       console.log('[All_Tick_Chart] Chart cleanup complete');
 

@@ -89,7 +89,7 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
     isInitializingRef.current = true;
 
     try {
-      purgeTradingViewPersistedState();
+      // purgeTradingViewPersistedState();
 
       const widget = new window.TradingView.widget({
         symbol: latestSymbolRef.current || "XAUUSD",
@@ -103,11 +103,11 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
         datafeed: Datafeed,
         symbol_search_request_delay: 1000,
         disabled_features: [
-          "use_localstorage_for_settings",
-          "save_chart_properties_to_local_storage",
           "header_saveload"
         ],
         enabled_features: [
+          "use_localstorage_for_settings",
+          "save_chart_properties_to_local_storage",
           "header_resolutions",
           "header_chart_type",
           "trading_objects"
