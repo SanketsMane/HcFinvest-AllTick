@@ -114,7 +114,7 @@ export class TradeLineManager {
           if (this.commitTimers[tvId]) clearTimeout(this.commitTimers[tvId]);
           this.commitTimers[tvId] = setTimeout(() => {
               this._onNativeStop(tvId, meta);
-          }, 750);
+          }, 200); // 🛡️ v7.33 Ultra-fast 200ms user interaction response
       }
     };
     widget.subscribe('drawing_event', this._handler);
@@ -178,7 +178,7 @@ export class TradeLineManager {
     const shape = chart.getShapeById(tvId);
     const price = shape?.getPoints?.()?.[0]?.price;
     
-    console.log(`[TradeManager] Drag Stop [750ms final]: ${meta.type} (TV:${tvId}) price=${price}`);
+    console.log(`[TradeManager] Drag Stop [200ms final]: ${meta.type} (TV:${tvId}) price=${price}`);
 
     if (!price || !meta.tradeId) {
         this.activeDragId = null;
@@ -191,11 +191,19 @@ export class TradeLineManager {
       
       const ghost = this.lines[tid]?.ghost;
       if (ghost) {
-          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${price} (Target Tracking)`);
-          this._destroyShape(ghost.tvId);
+          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${price} (Optimistic Local Plot)`);
           const t = ghost.type;
+          this._destroyShape(ghost.tvId);
           this.lines[tid].ghost = null;
-          await this._commitTrade(tid, t, price); // Guaranteed precise coordinate match to user drop
+          
+          // ✨ OPTIMISTIC RAW PLOT: Immediately draw solid line so user doesn't wait 2.5s for API fallback
+          const color = t === 'tp' ? '#4caf50' : '#f44336';
+          const shapeRef = await this._createShape(tid, t, price, {
+              color, style: 1, width: 1, text: `${t.toUpperCase()}  ${fmt(price)}`
+          });
+          this.lines[tid][t] = shapeRef;
+
+          await this._commitTrade(tid, t, price); // Network execution
       }
 
       // 🛡️ v7.25 Forced Snap-Back: The Entry line never moves on the chart.
@@ -210,11 +218,12 @@ export class TradeLineManager {
 
     if (meta.type === 'sl' || meta.type === 'tp') {
         console.log(`[TradeManager] Confirming ${meta.type.toUpperCase()} DROP -> ${price}`);
-        await this._commitTrade(meta.tradeId, meta.type, price);
+        // Optimistically update the text label locally so it doesn't look old!
         this._updateShape(tvId, price, `${meta.type.toUpperCase()}  ${fmt(price)}`);
+        await this._commitTrade(meta.tradeId, meta.type, price);
     }
     
-    setTimeout(() => { this.activeDragId = null; }, 500);
+    setTimeout(() => { this.activeDragId = null; }, 200);
   }
 
   async syncTrades(trades, symbol = null) {
@@ -300,7 +309,7 @@ export class TradeLineManager {
                     linestyle: cfg.style,
                     showLabel: true,
                     text: cfg.text,
-                    horzLabelsAlign: 'right',
+                    horzLabelsAlign: 'left', // v7.33 Draw text on opposite side of Y-Axis
                 }
             }
         );
