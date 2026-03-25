@@ -2,17 +2,18 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.26 — Phase 66: THE DEBUGGER
+ * TradeLineManager v7.28 — Phase 66: THE PERFECTIONIST
  * ============================================================
- * v7.26 Debugger:
- * - Absolute Event Logging (Dumps every status from the library)
- * - Metadata Preservation (Safeguard for null shape on stop)
- * - Robust Ghost Lifecycle
+ * v7.28 Perfectionist:
+ * - Sync Lock (2.5s guard after commit to prevent flicker)
+ * - Dynamic Precision (Instrument-aware decimal places)
+ * - Absolute Entry Pinning (Snap-back refinement)
+ * - State-Preserving Commits (Merge SL/TP)
  * ============================================================
  */
 // ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.26-DEBUG';
-console.log('%c [TradeManager v7.26] DEBUGGER ACTIVE ', 'background: #222; color: #ffeb3b; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.28-PERFECT';
+console.log('%c [TradeManager v7.28] PERFECTIONIST ENGINE ACTIVE ', 'background: #222; color: #e91e63; font-size: 20px;');
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -66,8 +67,9 @@ export class TradeLineManager {
     this.dragStartPrice = 0;
     this.isUpdatingGhost = false;
     this._missingTrades = {}; // tid -> timestamp
+    this.syncLockUntil = 0; // v7.28 Anti-Flicker lock
 
-    console.log('[TradeManager v7.20] Native Drawing Engine Initialized');
+    console.log('[TradeManager v7.28] Perfectionist Engine Initialized');
   }
 
   initialize(widget) {
@@ -103,7 +105,9 @@ export class TradeLineManager {
         this._onNativeMove(tvId, meta);
       }
 
-      if (action === 'stopped' || action === 'finished') {
+      // 🛡️ v7.27 Universal Compatibility Mapping
+      // Some TV versions use 'properties_changed' as the final drag release event.
+      if (action === 'stopped' || action === 'finished' || action === 'properties_changed') {
         this._onNativeStop(tvId, meta);
       }
     };
@@ -213,7 +217,8 @@ export class TradeLineManager {
   }
 
   async syncTrades(trades, symbol = null) {
-    if (this.activeDragId) return; // Locked
+    if (this.activeDragId) return; // Locked during interaction
+    if (Date.now() < this.syncLockUntil) return; // v7.28 Sync Lock (Prevent flickering during commit)
 
     this.trades = trades || [];
     const curSym = canonicalSymbol(symbol);
@@ -362,9 +367,20 @@ export class TradeLineManager {
     const trade = this.getTradeById(tid);
     if (!trade) return;
 
+    // 🛡️ v7.28 Precision Discovery
+    // Try to get instrument precision from chart to eliminate slippage
+    let decimals = 5;
+    try {
+        const info = this.widget.activeChart().symbolInfo();
+        if (info && info.pricescale) {
+            decimals = Math.round(Math.log10(info.pricescale));
+            if (decimals < 0) decimals = 2; // Default to 2 for things like JPY
+        }
+    } catch {}
+
     // Preserve existing value if not the one being modified
-    const currentSL = type === 'sl' ? parseFloat(price.toFixed(5)) : (trade.stopLoss || trade.sl || 0);
-    const currentTP = type === 'tp' ? parseFloat(price.toFixed(5)) : (trade.takeProfit || trade.tp || 0);
+    const currentSL = type === 'sl' ? parseFloat(price.toFixed(decimals)) : (trade.stopLoss || trade.sl || 0);
+    const currentTP = type === 'tp' ? parseFloat(price.toFixed(decimals)) : (trade.takeProfit || trade.tp || 0);
 
     const payload = { 
         tradeId: tid,
@@ -374,6 +390,9 @@ export class TradeLineManager {
 
     const token = getAuthToken();
     if (!token) return;
+
+    // 🛡️ v7.28 Engage Sync Lock
+    this.syncLockUntil = Date.now() + 2500; 
 
     try {
       const res = await fetch(`${API_URL}/trade/modify`, {
