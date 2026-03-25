@@ -1,11 +1,10 @@
-
 // Internal_Transfer.jsx
 
 import { API_URL } from "../config/api";
 import { ArrowRightLeft, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-export const Internal_Transfer = () => {
+export const Internal_Transfer = ({ show, onClose }) => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [wallet, setWallet] = useState(null);
@@ -154,7 +153,7 @@ export const Internal_Transfer = () => {
 
   return (
     <>
-      {/* BUTTON */}
+      {/* {/* BUTTON .*}
       <button
         onClick={() => {
           setShowInternalTransferModal(true);
@@ -167,10 +166,10 @@ export const Internal_Transfer = () => {
       >
         <ArrowRightLeft size={isMobile ? 16 : 20} />
         Internal Transfer
-      </button>
+      </button> */}
 
       {/* MODAL */}
-      {showInternalTransferModal && (
+      {show && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-xl border border-gray-200">
 
@@ -181,7 +180,7 @@ export const Internal_Transfer = () => {
               </h3>
 
               <button
-                onClick={() => setShowInternalTransferModal(false)}
+                onClick={onClose}
                 className="text-gray-500 hover:text-gray-900"
               >
                 <X size={20} />
@@ -266,7 +265,7 @@ export const Internal_Transfer = () => {
             {/* BUTTONS */}
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setShowInternalTransferModal(false)}
+                onClick={onClose}
                 className="px-6 py-2 border rounded-lg"
               >
                 Cancel

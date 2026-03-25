@@ -619,6 +619,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import Sidebar from '../components/Sidebar'
+import NavbarClient from '../components/NavbarClient'
 
 const CopyTradePage = () => {
   const navigate = useNavigate()
@@ -1004,72 +1005,74 @@ const CopyTradePage = () => {
       
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-auto ${isMobile ? 'pt-14' : ''}`}>
+      <main className={`flex-1 p-6 overflow-auto ${isMobile ? 'pt-14' : ''}`}>
         {!isMobile && (
           // <header className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
           //   <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Copy Trading</h1>
           // </header>
           
-                              <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-3 sm:px-6 text-white">
-                      <div className="font-semibold text-sm sm:text-base">
-                        Order Book
-                      </div>
+                    //           <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-3 sm:px-6 text-white">
+                    //   <div className="font-semibold text-sm sm:text-base">
+                    //     Copy Trading
+                    //   </div>
             
-                      <div className="flex items-center gap-4 sm:gap-5">
-                        <RefreshCw size={18} className="cursor-pointer" />
+                    //   <div className="flex items-center gap-4 sm:gap-5">
+                    //     <RefreshCw size={18} className="cursor-pointer" />
             
-                        <div className="relative">
-                          <Settings
-                            size={20}
-                            className="cursor-pointer hover:text-blue-300 transition"
-                            onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-                          />
+                    //     <div className="relative">
+                    //       <Settings
+                    //         size={20}
+                    //         className="cursor-pointer hover:text-blue-300 transition"
+                    //         onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                    //       />
             
-                          {showSettingsMenu && (
-                            <div className="absolute right-0 mt-3 w-44 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
-                              {/* Profile */}
-                              <button
-                                onClick={() => navigate("/profile")}
-                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                              >
-                                <User size={16} />
-                                Profile
-                              </button>
+                    //       {showSettingsMenu && (
+                    //         <div className="absolute right-0 mt-3 w-44 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
+                            
+                    //           <button
+                    //             onClick={() => navigate("/profile")}
+                    //             className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                    //           >
+                    //             <User size={16} />
+                    //             Profile
+                    //           </button>
             
-                              {/* KYC */}
-                              <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
-                                <ShieldCheck size={16} />
-                                KYC
-                              </button>
+                             
+                    //           <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                    //             <ShieldCheck size={16} />
+                    //             KYC
+                    //           </button>
             
-                              {/* Theme */}
-                              <button
-                                onClick={toggleDarkMode}
-                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                              >
-                                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-                                Theme
-                              </button>
+                             
+                    //           <button
+                    //             onClick={toggleDarkMode}
+                    //             className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                    //           >
+                    //             {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                    //             Theme
+                    //           </button>
             
-                              {/* Divider */}
-                              <div className="border-t border-gray-200"></div>
+                           
+                    //           <div className="border-t border-gray-200"></div>
             
-                              {/* Logout */}
-                              <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition"
-                              >
-                                <LogOut size={16} />
-                                Logout
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                          
+                    //           <button
+                    //             onClick={handleLogout}
+                    //             className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition"
+                    //           >
+                    //             <LogOut size={16} />
+                    //             Logout
+                    //           </button>
+                    //         </div>
+                    //       )}
+                    //     </div>
+                    //   </div>
+                    // </div>
+
+                    <NavbarClient title="Copy Trade" subtitle="Manage your copy trading activity"/>
         )}
 
-        <div className={`${isMobile ? 'p-4' : 'p-6'}`}>
+        <div className={`${isMobile ? 'p-4' : ''}`}>
           {/* Become a Master Banner */}
           {!myMasterProfile && (
             <div className={`bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl ${isMobile ? 'p-4' : 'p-5'} border border-yellow-500/30 mb-4`}>

@@ -23,18 +23,17 @@ import {
   ArrowRightLeft,
   Bitcoin,
   ExternalLink,
-  Settings,  User,  Moon, ShieldCheck,  LogOut, Sun,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
 import { Internal_Transfer } from "./Internal_Transfer";
-
+import NavbarClient from "../components/NavbarClient";
 
 const WalletPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // const { isDarkMode } = useTheme();
+  const { isDarkMode } = useTheme();
 
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -43,15 +42,13 @@ const WalletPage = () => {
   const [loading, setLoading] = useState(true);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [showInternalTransferModal, setShowInternalTransferModal] = useState(false);
+
   const [transferAmount, setTransferAmount] = useState("");
   const [fromAccount, setFromAccount] = useState("");
   const [toAccount, setToAccount] = useState("");
   const [transferFee] = useState(2);
-    const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-      const { isDarkMode, toggleDarkMode } = useTheme();
-
-
+  const [showInternalTransferModal, setShowInternalTransferModal] =
+    useState(false);
 
   const [showPaymentMethodsView, setShowPaymentMethodsView] = useState(false);
   const [showBankTransferModal, setShowBankTransferModal] = useState(false);
@@ -81,16 +78,16 @@ const WalletPage = () => {
   const [oxapayPayment, setOxapayPayment] = useState(null);
 
   useEffect(() => {
-  const action = searchParams.get("action");
+    const action = searchParams.get("action");
 
-  if (action === "deposit") {
-    setShowPaymentMethodsView(true);
-  }
+    if (action === "deposit") {
+      setShowPaymentMethodsView(true);
+    }
 
-  if (action === "withdraw") {
-    setShowWithdrawModal(true);
-  }
-}, []);
+    if (action === "withdraw") {
+      setShowWithdrawModal(true);
+    }
+  }, []);
 
   // Crypto withdrawal state
   const [cryptoWithdrawAvailable, setCryptoWithdrawAvailable] = useState(false);
@@ -607,7 +604,7 @@ const WalletPage = () => {
     });
   };
 
-/* 
+  /* 
   const getTransferText = (tx) => {
   // Wallet → Account
   if (tx.type === "Transfer_To_Account") {
@@ -631,43 +628,40 @@ const WalletPage = () => {
 };
  */
 
-// ✅ REMOVE DUPLICATE (IMPORTANT)
-const filteredTransactions = transactions.filter((tx) => {
-  return tx.type !== "Account_Transfer_In";
-});
+  // ✅ REMOVE DUPLICATE (IMPORTANT)
+  const filteredTransactions = transactions.filter((tx) => {
+    return tx.type !== "Account_Transfer_In";
+  });
 
-const getTransferText = (tx) => {
+  const getTransferText = (tx) => {
+    // Always prefer stored values first
+    const getId = (fallback, obj) => fallback || obj?.accountId || "N/A";
 
-  // Always prefer stored values first
-  const getId = (fallback, obj) =>
-    fallback || obj?.accountId || "N/A";
+    // Wallet → Account
+    if (tx.type === "Transfer_To_Account") {
+      return `Wallet → Account ${getId(tx.toAccountNumber, tx.tradingAccountId)}`;
+    }
 
-  // Wallet → Account
-  if (tx.type === "Transfer_To_Account") {
-    return `Wallet → Account ${getId(tx.toAccountNumber, tx.tradingAccountId)}`;
-  }
+    // Account → Wallet
+    if (tx.type === "Transfer_From_Account") {
+      return `Account ${getId(tx.fromAccountNumber, tx.tradingAccountId)} → Wallet`;
+    }
 
-  // Account → Wallet
-  if (tx.type === "Transfer_From_Account") {
-    return `Account ${getId(tx.fromAccountNumber, tx.tradingAccountId)} → Wallet`;
-  }
+    // Account → Account
+    if (
+      tx.type === "Account_Transfer_Out" ||
+      tx.type === "Account_Transfer_In"
+    ) {
+      return `Account ${getId(tx.fromAccountNumber, tx.fromTradingAccountId)} → Account ${getId(tx.toAccountNumber, tx.toTradingAccountId)}`;
+    }
 
-  // Account → Account
-  if (
-    tx.type === "Account_Transfer_Out" ||
-    tx.type === "Account_Transfer_In"
-  ) {
-    return `Account ${getId(tx.fromAccountNumber, tx.fromTradingAccountId)} → Account ${getId(tx.toAccountNumber, tx.toTradingAccountId)}`;
-  }
-
-  return tx.type;
-};
-
+    return tx.type;
+  };
 
   return (
     <div className="min-h-screen flex bg-[#f4f6fb] text-gray-800">
       {/* Mobile Header */}
-      {isMobile && (
+      {/* {isMobile && (
         <header
           className={`fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center gap-4 bg-[#2f3f74] text-gray-900 border-b border-gray-200`}
         >
@@ -692,92 +686,19 @@ const getTransferText = (tx) => {
             <Home size={20} className="text-gray-500" />
           </button>
         </header>
-      )}
+      )} */}
 
       {/* Collapsible Sidebar - Hidden on Mobile, Fixed */}
 
       {!isMobile && <Sidebar activeMenu="Wallet" />}
 
       {/* Main Content - Scrollable */}
-      <main className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}>
-        {/* {!isMobile && (
-          <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <div>
-              <h1
-                className={`text-xl font-semibold ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-              >
-                Wallet
-              </h1>
-              <p
-                className={`text-sm ${isDarkMode ? "text-gray-500" : "text-gray-600"}`}
-              >
-                Manage your funds
-              </p>
-            </div>
-          </header>
-        )} */}
+      <main className={`flex-1 p-6 overflow-y-auto ${isMobile ? "pt-14" : ""}`}>
+        {!isMobile && (
+            <NavbarClient title="Wallet" subtitle="Manage your funds and transactions" />
+        )}
 
-
-
-        <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-3 sm:px-6 text-white">
-          <div className="font-semibold text-sm sm:text-base">
-            Wallet
-          </div>
-
-          <div className="flex items-center gap-4 sm:gap-5">
-            <RefreshCw size={18} className="cursor-pointer" />
-
-            <div className="relative">
-              <Settings
-                size={20}
-                className="cursor-pointer hover:text-blue-300 transition"
-                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-              />
-
-              {showSettingsMenu && (
-                <div className="absolute right-0 mt-3 w-44 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
-                  {/* Profile */}
-                  <button
-                    onClick={() => navigate("/profile")}
-                    className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                  >
-                    <User size={16} />
-                    Profile
-                  </button>
-
-                  {/* KYC */}
-                  <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
-                    <ShieldCheck size={16} />
-                    KYC
-                  </button>
-
-                  {/* Theme */}
-                  <button
-                    onClick={toggleDarkMode}
-                    className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                  >
-                    {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-                    Theme
-                  </button>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-200"></div>
-
-                  {/* Logout */}
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition"
-                  >
-                    <LogOut size={16} />
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className={`${isMobile ? "p-4" : "p-6"}`}>
+        <div className={`${isMobile ? "p-4" : ""}`}>
           {/* Success/Error Messages */}
           {success && (
             <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-500 flex items-center gap-2 text-sm">
@@ -866,11 +787,20 @@ const getTransferText = (tx) => {
                   <ArrowUpCircle size={isMobile ? 16 : 20} /> Withdraw
                 </button>
 
-                <Internal_Transfer />
+                <button
+                  onClick={() => setShowInternalTransferModal(true)}
+                  className="flex items-center gap-2 bg-blue-500 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+                >
+                  <ArrowRightLeft size={18} />
+                  Internal Transfer
+                </button>
 
+                <Internal_Transfer
+  show={showInternalTransferModal}
+  onClose={() => setShowInternalTransferModal(false)}
+/>
 
-
-{/*  
+                {/*  
                 {cryptoWithdrawAvailable && (
                   <button
                     onClick={() => {
@@ -887,7 +817,7 @@ const getTransferText = (tx) => {
                     <Bitcoin size={isMobile ? 16 : 20} /> Crypto Withdraw
                   </button>
                 )}
- */}               
+ */}
               </div>
             </div>
           </div>
@@ -907,7 +837,7 @@ const getTransferText = (tx) => {
                   onClick={downloadTransactionsCSV}
                   disabled={transactions.length === 0}
                   className={`flex items-center gap-1 px-3 py-1.5 
-                    rounded-lg text-sm disabled:opacity-50 ${isDarkMode ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-gray-100 hover:bg-blue-600 transition text-white"} font-bold `}
+                    rounded-lg text-sm disabled:opacity-50 ${isDarkMode ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-blue-500 hover:bg-blue-600 transition text-white"} font-bold `}
                 >
                   <Download size={14} /> Download
                 </button>
@@ -990,7 +920,6 @@ const getTransferText = (tx) => {
                               />
                             )}
                             <div>
-                              
                               {/* 
                               <span className="text-gray-900">
                                 {tx.type === "Transfer_To_Account"
@@ -1005,11 +934,9 @@ const getTransferText = (tx) => {
                               </span>
  */}
 
- <span className="text-gray-900">
-  {getTransferText(tx)}
-</span>
-
-
+                              <span className="text-gray-900">
+                                {getTransferText(tx)}
+                              </span>
 
                               {tx.tradingAccountName && (
                                 <p className="text-white text-xs">
