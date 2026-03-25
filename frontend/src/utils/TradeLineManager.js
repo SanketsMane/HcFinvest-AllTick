@@ -2,9 +2,10 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.51 — Phase 67: THE PINNED ENTRY
+ * TradeLineManager v7.52 — Phase 68: THE PINNED ENTRY (FIXED)
  * ============================================================
- * v7.51 Pinned Entry:
+ * v7.52 Pinned Entry (Fixed):
+ * - cursor-independent price tracking (lastDragPrice)
  * - Immediate Snap-Back (Pin entry line during drag)
  * - Sync Lock (2.5s guard after commit to prevent flicker)
  * - Dynamic Precision (Instrument-aware decimal places)
@@ -62,6 +63,7 @@ export class TradeLineManager {
     this.trades = [];
     this.lastSync = 0;
     this.isCommitBlocked = false;
+    this.lastDragPrice = 0; // 🛡️ v7.52 Tracking cursor independently of shape position
     
     // Ghost tracking
     this.activeDragId = null;
@@ -148,11 +150,16 @@ export class TradeLineManager {
         const trade = this.getTradeById(meta.tradeId);
         if (!trade) return;
 
-        // 🛡️ v7.51 IMMEDIATE PINNING: Force the entry line back to its original price 
-        // DURING the move event so it never visually leaves its position.
+        // 🛡️ v7.52 Store the incoming raw price before we snap the line back.
+        // This ensures the ghost and the final drop price are accurate.
+        this.lastDragPrice = price;
+
+        // 🛡️ v7.52 DUAL PINNING: Force the entry line back immediately.
         const realEntry = Number(trade.openPrice || trade.price);
-        if (realEntry && Math.abs(price - realEntry) > 0.00001) {
+        if (realEntry && Math.abs(price - realEntry) > 0.000001) {
             this._updateShape(tvId, realEntry);
+            // Re-force after micro-task to combat internal TV drag loops
+            Promise.resolve().then(() => this._updateShape(tvId, realEntry));
         }
 
         const side = String(trade.side || trade.type || '').toLowerCase();
@@ -200,8 +207,14 @@ export class TradeLineManager {
   async _onNativeStop(tvId, meta) {
     const chart = this.widget.chart();
     const shape = chart.getShapeById(tvId);
-    const price = shape?.getPoints?.()?.[0]?.price;
+    let price = shape?.getPoints?.()?.[0]?.price;
     
+    // 🛡️ v7.52 If this was an entry drag, use our tracked cursor price instead of the (possibly snapped) shape price.
+    if (meta.type === 'entry' && this.lastDragPrice) {
+        price = this.lastDragPrice;
+        this.lastDragPrice = 0; // Reset
+    }
+
     console.log(`[TradeManager] Drag Stop [200ms final]: ${meta.type} (TV:${tvId}) price=${price}`);
 
     if (!price || !meta.tradeId) {
