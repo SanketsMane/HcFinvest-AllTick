@@ -7,15 +7,7 @@ import { TradeLineManager } from "../utils/TradeLineManager.js";
 const LS_SYMBOL   = 'hcf_chart_symbol';
 const LS_INTERVAL = 'hcf_chart_interval';
 
-const canonicalSymbol = (raw) => {
-  const value = String(raw || '').trim().toUpperCase();
-  if (!value) return '';
-  const compact = value.replace(/[^A-Z0-9]/g, '');
-  if (!compact) return '';
-  if (/^[A-Z]{6}[A-Z]$/.test(compact)) return compact.slice(0, 6);
-  if (/^[A-Z]{6}/.test(compact)) return compact.slice(0, 6);
-  return compact;
-};
+import { canonicalSymbol } from "../utils/symbolUtils.js";
 
 /**
  * Production-Grade Trading Chart Component — v7.55
@@ -91,7 +83,6 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
         overrides: {
           "paneProperties.background": isDarkMode ? "#0d0d0d" : "#ffffff", // ✅ v7.55: Dynamic background
           "mainSeriesProperties.style": 1,
-          "scalesProperties.showCountdown": true, // ✅ v7.53: Enable candle countdown by default
         }
       });
 
