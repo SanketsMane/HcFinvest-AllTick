@@ -29,7 +29,7 @@ export class TradeLineManager {
     this.isUpdatingGhost = false;
     this.syncLockUntil = 0; 
 
-    console.log('[TradeManager v7.66] Stationary Ghost Engine Active');
+    console.log('[TradeManager v7.68] Stationary Ghost & Resilient API Active');
   }
 
   initialize(widget) {
@@ -372,19 +372,28 @@ export class TradeLineManager {
     const token = getAuthToken();
     if (!token) return;
 
+    const url = `${API_URL}/trade/modify`;
+    console.log(`[TradeManager] Committing to: ${url}`, payload);
+
     this.syncLockUntil = Date.now() + 2500; 
     try {
-      const res = await fetch(`${API_URL}/trade/modify`, {
+      const res = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
+      
+      console.log(`[TradeManager] Response status: ${res.status}`);
       const data = await res.json();
+      
       if (data.success && this.onTradeModify) {
+        console.log(`[TradeManager] ✅ Modification SUCCESS`);
         this.onTradeModify({ tradeId: tid, sl: currentSL, tp: currentTP });
+      } else {
+        console.warn(`[TradeManager] ❌ Modification FAILED:`, data.message);
       }
     } catch (e) {
-      console.error('[TradeManager] Commit error:', e);
+      console.error('[TradeManager] ❌ Commit execution error:', e);
     }
   }
 }
