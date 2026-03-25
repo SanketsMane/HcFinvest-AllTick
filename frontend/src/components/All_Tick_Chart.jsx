@@ -498,7 +498,23 @@ function All_Tick_Chart({ symbol = "BTCUSDT", onPriceUpdate }) {
 
       }
 
-      widget.remove();
+      
+
+      try {
+
+        if (widget && typeof widget.remove === 'function') {
+
+          widget.remove();
+
+        }
+
+      } catch (err) {
+
+        console.error('[All_Tick_Chart] Cleanup error:', err);
+
+      }
+
+      
 
       console.log('[All_Tick_Chart] Chart cleanup complete');
 
