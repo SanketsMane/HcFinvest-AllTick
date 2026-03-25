@@ -354,6 +354,45 @@ router.get('/me', async (req, res) => {
   }
 })
 
+// POST /api/auth/favorites/toggle - Toggle instrument in user favorites
+router.post('/favorites/toggle', async (req, res) => {
+  try {
+    const { userId, symbol } = req.body;
+    
+    if (!userId || !symbol) {
+      return res.status(400).json({ success: false, message: 'User ID and symbol required' });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Initialize array if undefined
+    if (!user.favoriteInstruments) {
+      user.favoriteInstruments = [];
+    }
+    
+    const index = user.favoriteInstruments.indexOf(symbol);
+    if (index === -1) {
+      user.favoriteInstruments.push(symbol);
+    } else {
+      user.favoriteInstruments.splice(index, 1);
+    }
+    
+    await user.save();
+    
+    res.json({ 
+      success: true, 
+      favorites: user.favoriteInstruments,
+      message: index === -1 ? 'Added to favorites' : 'Removed from favorites'
+    });
+  } catch (error) {
+    console.error('Toggle favorite error:', error);
+    res.status(500).json({ success: false, message: 'Error updating favorites', error: error.message });
+  }
+})
+
 // PUT /api/auth/update-profile - Update user profile
 router.put('/update-profile', async (req, res) => {
   try {

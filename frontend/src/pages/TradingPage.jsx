@@ -3400,6 +3400,16 @@ const TradingPage = () => {
           navigate('/user/login')
           return
         }
+        
+        // Hydrate starred symbols from user profile
+        if (data.user && data.user.favoriteInstruments) {
+          setStarredSymbols(data.user.favoriteInstruments)
+          // Update mapped instruments
+          setInstruments(prev => prev.map(inst => ({
+            ...inst,
+            starred: data.user.favoriteInstruments.includes(inst.symbol)
+          })))
+        }
       } catch (error) {
         console.error('Auth check error:', error)
       }
@@ -4401,9 +4411,43 @@ const TradingPage = () => {
 
   const filteredInstruments = instruments.filter(inst => {
     const matchesSearch = inst.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+    if (activeCategory === 'Starred') {
+      return matchesSearch && inst.starred
+    }
     const matchesCategory = activeCategory === 'All' || inst.category === activeCategory
     return matchesSearch && matchesCategory
   })
+
+  const toggleStar = async (e, symbol) => {
+    e.stopPropagation();
+    
+    // Optimistic UI update
+    setStarredSymbols(prev => {
+      const isStarred = prev.includes(symbol);
+      const next = isStarred ? prev.filter(s => s !== symbol) : [...prev, symbol];
+      
+      // Update mapped instruments
+      setInstruments(insts => insts.map(inst => 
+        inst.symbol === symbol ? { ...inst, starred: !isStarred } : inst
+      ));
+      
+      return next;
+    });
+
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_URL}/auth/favorites/toggle`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ userId: user._id, symbol })
+      });
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+    }
+  }
 
   const handleInstrumentClick = (inst) => {
     const existingTab = openTabs.find(tab => tab.symbol === inst.symbol)
@@ -4618,8 +4662,15 @@ const TradingPage = () => {
               
               {/* Category Tabs */}
               <div className={`flex items-center gap-1 px-3 py-2 border-b overflow-x-auto scrollbar-hide ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <button className="text-gray-600 hover:text-yellow-500 shrink-0">
-                  <Star size={14} />
+                <button 
+                  onClick={() => setActiveCategory('Starred')} 
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors shrink-0 ${
+                    activeCategory === 'Starred' 
+                      ? 'bg-yellow-500 text-white' 
+                      : 'text-gray-400 hover:text-yellow-500'
+                  }`}
+                >
+                  <Star size={14} className={activeCategory === 'Starred' ? 'fill-white' : ''} />
                 </button>
                 {categories.map(cat => (
                   <button
@@ -4657,7 +4708,9 @@ const TradingPage = () => {
                           : (isDarkMode ? 'border-gray-700 hover:border-gray-600 hover:bg-[#1a1a1a]' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50')
                       }`}
                     >
-                      <Star size={12} className={`shrink-0 mr-2 ${inst.starred ? 'text-yellow-500 fill-yellow-500' : 'text-gray-700'}`} />
+                      <div onClick={(e) => toggleStar(e, inst.symbol)} className="cursor-pointer hover:scale-110 transition-transform">
+                        <Star size={12} className={`shrink-0 mr-2 ${inst.starred ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-400'}`} />
+                      </div>
                       <div className="text-left min-w-[55px]">
                         <div className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{inst.symbol}</div>
                         <div className="text-green-500 text-[10px]">+{inst.change?.toFixed(2) || '0.00'}%</div>

@@ -129,6 +129,12 @@ const userSchema = new mongoose.Schema({
     default: ''
   },
   
+  // Starred trading instruments personalization
+  favoriteInstruments: {
+    type: [String],
+    default: []
+  },
+  
   createdAt: {
     type: Date,
     default: Date.now

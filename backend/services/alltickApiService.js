@@ -493,7 +493,7 @@ class AllTickApiService {
     if (!Array.isArray(symbols)) return [];
     this.prioritySymbols = symbols;
     if (this.isConnected) {
-      this.subscribeToSymbols(symbols);
+      this.resubscribeAll(); // Prevent destroying the global background stream
     }
     return symbols;
   }
