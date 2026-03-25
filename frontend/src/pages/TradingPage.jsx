@@ -3169,6 +3169,7 @@ const TradingPage = () => {
     { symbol: 'US500.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'US100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'UK100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
+    { symbol: 'ES35.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
   ])
   const [loadingInstruments, setLoadingInstruments] = useState(false) // Don't block UI on prices
   const [starredSymbols, setStarredSymbols] = useState(['XAUUSD.i', 'EURUSD.i', 'GBPUSD.i'])
