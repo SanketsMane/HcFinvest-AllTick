@@ -95,20 +95,20 @@ export class TradeLineManager {
 
       const action = String(status?.status || status || '').toLowerCase();
       
-      // Stop logging spammy points_changed events
-      if (action !== 'points_changed') {
+      // Stop logging spammy points_changed and move events
+      if (action !== 'points_changed' && action !== 'move') {
           console.log(`[TradeManager] EVENT: ${tvId} (${meta.type}) status="${action}"`);
       }
 
       if (action === 'started') {
         this.activeDragId = meta.tradeId;
         const shape = widget.chart().getShapeById(tvId);
-        this.dragStartPrice = shape?.getPoints?.()?.[0]?.price || 0;
+        const p = shape?.getPoints?.()?.[0]?.price;
+        this.dragStartPrice = Number.isFinite(p) ? p : 0;
       }
 
-      // 🛡️ v7.30 Debounced Real-Time Drag Parsing
-      // Never use properties_changed, it triggers infinite snap-back loops when labels update
-      if (action === 'points_changed') {
+      // 🛡️ v7.32 Track BOTH move and points_changed to guarantee we never miss a final drag endpoint!
+      if (action === 'points_changed' || action === 'move') {
           if (meta.type === 'entry') this._onNativeMove(tvId, meta); // spawn ghost
 
           if (this.commitTimers[tvId]) clearTimeout(this.commitTimers[tvId]);
@@ -124,7 +124,7 @@ export class TradeLineManager {
     const chart = this.widget.chart();
     const shape = chart.getShapeById(tvId);
     const price = shape?.getPoints?.()?.[0]?.price;
-    if (!price || this.isUpdatingGhost) return;
+    if (!price || !Number.isFinite(price) || this.isUpdatingGhost) return;
 
     // ─── MT5 Ghosting (Spawn Logic) ─────────────────────────────
     if (meta.type === 'entry') {
@@ -191,12 +191,11 @@ export class TradeLineManager {
       
       const ghost = this.lines[tid]?.ghost;
       if (ghost) {
-          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${ghost.price} (v7.25-Pinned)`);
+          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${price} (Target Tracking)`);
           this._destroyShape(ghost.tvId);
-          const p = ghost.price;
           const t = ghost.type;
           this.lines[tid].ghost = null;
-          await this._commitTrade(tid, t, p);
+          await this._commitTrade(tid, t, price); // Guaranteed precise coordinate match to user drop
       }
 
       // 🛡️ v7.25 Forced Snap-Back: The Entry line never moves on the chart.
