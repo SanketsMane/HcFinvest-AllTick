@@ -2,17 +2,18 @@ import { API_URL } from '../config/api';
 
 /**
  * ============================================================
- * TradeLineManager v7.1 — Phase 65: The Robust Engine
+ * TradeLineManager v7.26 — Phase 66: THE DEBUGGER
  * ============================================================
- * createOrderLine() was NOT available on this TV license.
- * v7.1 Refinements:
- * - Crosshair Resiliency: Fixed subscribeCrosshairMove call & added fallback
- * - Event-Based Move Fallback: Restored move tracking if crosshair fails
- * - Global Drag Freeze: Maintained v7.0 state protection
+ * v7.26 Debugger:
+ * - Absolute Event Logging (Dumps every status from the library)
+ * - Metadata Preservation (Safeguard for null shape on stop)
+ * - Robust Ghost Lifecycle
  * ============================================================
  */
-
 // ─── Auth ────────────────────────────────────────────────────
+window.TRADE_ENGINE_VERSION = '7.26-DEBUG';
+console.log('%c [TradeManager v7.26] DEBUGGER ACTIVE ', 'background: #222; color: #ffeb3b; font-size: 20px;');
+
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
   const t = raw.trim();
@@ -54,555 +55,338 @@ export class TradeLineManager {
   constructor(chartRef, onTradeModify) {
     this.chartRef = chartRef;
     this.onTradeModify = onTradeModify;
-
-    // { tradeId: { entry, handle, ghostSL, ghostTP, sl, tp } }
-    this.lines = {};
-    this.tvIdMap = {}; // tvId → { tradeId, type }
-
-    // 🧠 v7.0 Authoritative State
-    this.tradeStateMap = new Map(); 
-    this.dragState = {
-      activeTradeId: null,
-      isDragging: false,
-      ghostType: null, // 'sl' or 'tp'
-      currentPrice: null
-    };
-
+    this.lines = {}; // tradeId -> { entry, sl, tp, ghost }
+    this.tvIdMap = {}; // tvId -> { tradeId, type }
     this.trades = [];
-    this.lastSyncTime = 0;
+    this.lastSync = 0;
+    this.isCommitBlocked = false;
+    
+    // Ghost tracking
+    this.activeDragId = null;
+    this.dragStartPrice = 0;
+    this.isUpdatingGhost = false;
+    this._missingTrades = {}; // tid -> timestamp
 
-    // 🛡️ v7.0 Source Control
-    this.isUpdatingFromSystem = false;
-
-    // In-flight API guards
-    this.modifyInFlight = {};
-    this.pendingModify  = {};
-
-    // Debounced commit per tvId
-    this._commitFns = {};
-
-    this.isDragging = false;
-    this.draggedTradeId = null;
-
-    console.log('[TradeManager v7.1] Engine Initialized — Robust Perfection');
+    console.log('[TradeManager v7.20] Native Drawing Engine Initialized');
   }
 
-  // ─── Lifecycle ──────────────────────────────────────────────
-
-  _subscribeToCrosshair(widget) {
-    if (!widget) return;
-    try {
-      // 🛡️ v7.1 Dual-Path Check for crosshair subscription
-      const chart = widget.activeChart ? widget.activeChart() : (widget.chart ? widget.chart() : null);
-      if (chart && typeof chart.subscribeCrosshairMove === 'function') {
-        chart.subscribeCrosshairMove((param) => {
-          if (!this.dragState.isDragging || !this.dragState.activeTradeId) return;
-          
-          const price = param.price;
-          if (!Number.isFinite(price)) return;
-          
-          this.dragState.currentPrice = price;
-          this._updateGhostPosition(this.dragState.activeTradeId, this.dragState.ghostType, price);
-        });
-        console.log('[TradeManager] Crosshair sync ACTIVATED (0ms mode)');
-      } else {
-        console.warn('[TradeManager] Crosshair sync UNAVAILABLE; using Event Fallback');
-      }
-    } catch (e) {
-      console.warn('[TradeManager] Crosshair sub error:', e.message);
-    }
+  initialize(widget) {
+    this.widget = widget;
+    this._attachEvents(widget);
   }
 
   destroy() {
     if (this.widget && this._handler) {
-      try { this.widget.unsubscribe('drawing_event', this._handler); } catch {}
+      this.widget.unsubscribe('drawing_event', this._handler);
     }
-    Object.keys(this.lines).forEach(id => this.removeTradeLines(id));
-    this.lines  = {};
-    this.tvIdMap = {};
-    this.trades = [];
+    Object.keys(this.lines).forEach(tid => this.removeTradeLines(tid));
   }
 
-  // ─── Symbol helper ──────────────────────────────────────────
-
-  _symbolMatches(tradeSymbol, chartSymbol) {
-    if (!tradeSymbol || !chartSymbol) return false;
-    return canonicalSymbol(tradeSymbol) === canonicalSymbol(chartSymbol);
-  }
-
-  // ─── Main sync entry ─────────────────────────────────────────
-
-  async syncTrades(actualTrades, symbol = null) {
-    // 🛡️ v7.0 GLOBAL FREEZE: Block all updates during active drag
-    if (this.dragState.isDragging) return;
-
-    const now = Date.now();
-    if (now - this.lastSyncTime < 500) return;
-    this.lastSyncTime = now;
-
-    const chart = this.chartRef.current;
-    if (!chart) return;
-
-    this.trades = Array.isArray(actualTrades) ? actualTrades : [];
-
-    // Filter to symbol
-    const raw = symbol
-      ? this.trades.filter(t => this._symbolMatches(t?.symbol, symbol))
-      : this.trades;
-
-    const visible = (symbol && raw.length === 0 && this.trades.length > 0) ? this.trades : raw;
-    const visibleIds = new Set(visible.map(t => String(t?._id ?? t?.id ?? t?.tradeId ?? '')));
-
-    // Remove stale lines
-    Object.keys(this.lines).forEach(id => {
-      if (!visibleIds.has(id)) this.removeTradeLines(id);
-    });
-
-    // Update Trade Map first (Single Source of Truth)
-    visible.forEach(t => {
-      const tid = String(t?._id ?? t?.id ?? t?.tradeId ?? '');
-      this.tradeStateMap.set(tid, {
-        entry: Number(t?.openPrice ?? t?.price),
-        sl:    Number(t?.stopLoss ?? t?.sl),
-        tp:    Number(t?.takeProfit ?? t?.tp)
-      });
-    });
-
-    // Create/update visible trade lines
-    for (const trade of visible) {
-      await this._syncTrade(trade);
-    }
-  }
-
-  async _syncTrade(trade) {
-    const chart = this.chartRef.current;
-    if (!chart) return;
-
-    const tradeId = String(trade?._id ?? trade?.id ?? trade?.tradeId ?? '');
-    if (!tradeId) return;
-
-    const entryPrice = Number(trade?.openPrice ?? trade?.price);
-    const slPrice    = Number(trade?.stopLoss ?? trade?.sl);
-    const tpPrice    = Number(trade?.takeProfit ?? trade?.tp);
-
-    if (!Number.isFinite(entryPrice) || entryPrice <= 0) return;
-
-    if (!this.lines[tradeId]) {
-      this.lines[tradeId] = { entry: null, handle: null, ghostSL: null, ghostTP: null, sl: null, tp: null };
-    }
-    const rec = this.lines[tradeId];
-
-    // ── Entry (Visual: locked, blue, solid) ──
-    if (!rec.entry) {
-      rec.entry = await this._createShape(tradeId, 'entry', entryPrice, {
-        color: '#2196F3',
-        width: 2,
-        style: 0,       // solid
-        text: `Entry  ${fmt(entryPrice)}`,
-        lock: true,     // 🛡️ Visually locked to prevent jitter
-        disableSelection: true,
-      });
-    } else if (Number(rec.entry.price) !== entryPrice) {
-      this._moveShape(rec.entry.tvId, entryPrice);
-      rec.entry.price = entryPrice;
-      this._setShapeText(rec.entry.tvId, `Entry  ${fmt(entryPrice)}`);
-    }
-
-    // ── Handle (Interaction: unlocked, invisible) ──
-    if (!rec.handle) {
-      rec.handle = await this._createShape(tradeId, 'handle', entryPrice, {
-        color: 'rgba(255, 255, 255, 0.001)', // Fully transparent for hit-testing
-        width: 14, // Extra wide hit box for easy grabbing
-        style: 0,
-        text: '',
-        lock: false,    // ⚡ Draggable handle
-        disableSelection: false,
-      });
-    } else if (Number(rec.handle.price) !== entryPrice) {
-      this._moveShape(rec.handle.tvId, entryPrice);
-      rec.handle.price = entryPrice;
-    }
-
-    // ── Ghost SL (Persistent, off-screen at price 0.001) ──
-    if (!rec.ghostSL) {
-      rec.ghostSL = await this._createShape(tradeId, 'ghost', 0.001, {
-        color: '#E53935',
-        width: 1,
-        style: 2,
-        text: '',
-        lock: true,
-        disableSelection: true,
-      });
-    }
-
-    // ── Ghost TP (Persistent, off-screen at price 0.001) ──
-    if (!rec.ghostTP) {
-      rec.ghostTP = await this._createShape(tradeId, 'ghost', 0.001, {
-        color: '#43A047',
-        width: 1,
-        style: 2,
-        text: '',
-        lock: true,
-        disableSelection: true,
-      });
-    }
-
-    // ── SL (draggable, red, dashed) ──
-    if (Number.isFinite(slPrice) && slPrice > 0) {
-      if (!rec.sl) {
-        rec.sl = await this._createShape(tradeId, 'sl', slPrice, {
-          color: '#E53935',
-          width: 1,
-          style: 2,
-          text: `SL  ${fmt(slPrice)}`,
-          lock: false,
-          disableSelection: false,
-        });
-      } else if (!this.modifyInFlight[tradeId] && Number(rec.sl.price) !== slPrice) {
-        this._moveShape(rec.sl.tvId, slPrice);
-        rec.sl.price = slPrice;
-        this._setShapeText(rec.sl.tvId, `SL  ${fmt(slPrice)}`);
-      }
-    } else if (rec.sl) {
-      this._destroyShape(rec.sl.tvId);
-      rec.sl = null;
-    }
-
-    // ── TP (draggable, green, dashed) ──
-    if (Number.isFinite(tpPrice) && tpPrice > 0) {
-      if (!rec.tp) {
-        rec.tp = await this._createShape(tradeId, 'tp', tpPrice, {
-          color: '#43A047',
-          width: 1,
-          style: 2,
-          text: `TP  ${fmt(tpPrice)}`,
-          lock: false,
-          disableSelection: false,
-        });
-      } else if (!this.modifyInFlight[tradeId] && Number(rec.tp.price) !== tpPrice) {
-        this._moveShape(rec.tp.tvId, tpPrice);
-        rec.tp.price = tpPrice;
-        this._setShapeText(rec.tp.tvId, `TP  ${fmt(tpPrice)}`);
-      }
-    } else if (rec.tp) {
-      this._destroyShape(rec.tp.tvId);
-      rec.tp = null;
-    }
-  }
-
-  // ─── Shape helpers ───────────────────────────────────────────
-
-  async _createShape(tradeId, type, price, cfg) {
-    const chart = this.chartRef.current;
-    if (!chart?.createShape) return null;
-
-    try {
-      const time = Math.floor((Date.now() - 30000) / 1000);
-      const tvId = String(await chart.createShape(
-        { time, price },
-        {
-          shape: 'horizontal_line',
-          lock: cfg.lock,
-          disableSelection: Boolean(cfg.disableSelection),
-          disableSave: true,
-          disableUndo: true,
-          overrides: {
-            linecolor:        cfg.color,
-            textcolor:        cfg.color,
-            linewidth:        cfg.width,
-            linestyle:        cfg.style,
-            showLabel:        cfg.text ? true : false,
-            text:             cfg.text || '',
-            horzLabelsAlign:  'right', // MT5 style: Right-aligned in price scale
-            vertLabelsAlign:  'top',
-          },
-        }
-      ));
-
-      if (!tvId || tvId === 'null' || tvId === 'undefined') return null;
-
-      this.tvIdMap[tvId] = { tradeId, type };
-      return { tvId, price };
-    } catch (e) {
-      console.error(`[TradeManager] createShape(${type}) error:`, e.message);
-      return null;
-    }
-  }
-
-  _moveShape(tvId, price) {
-    const chart = this.chartRef.current;
-    if (!tvId || !chart?.getShapeById) return;
-    try {
-      this.isUpdatingFromSystem = true;
-      chart.getShapeById(tvId)?.setPoints?.([{ price }]);
-    } catch {}
-    finally { this.isUpdatingFromSystem = false; }
-  }
-
-  _setShapeText(tvId, text) {
-    const chart = this.chartRef.current;
-    if (!tvId || !chart?.getShapeById) return;
-    try {
-      chart.getShapeById(tvId)?.setProperties?.({
-        overrides: { 
-          text, 
-          showLabel: text ? true : false,
-          horzLabelsAlign: 'right', 
-          vertLabelsAlign: 'top' 
-        }
-      });
-    } catch {}
-  }
-
-  _setShapeVisible(tvId, visible) {
-    const chart = this.chartRef.current;
-    if (!tvId || !chart?.getShapeById) return;
-    try {
-      chart.getShapeById(tvId)?.setProperties?.({
-        overrides: { visible }
-      });
-    } catch {}
-  }
-
-  _setShapeColor(tvId, color) {
-    const chart = this.chartRef.current;
-    if (!tvId || !chart?.getShapeById) return;
-    try {
-      chart.getShapeById(tvId)?.setProperties?.({
-        overrides: { linecolor: color, textcolor: color }
-      });
-    } catch {}
-  }
-
-  _destroyShape(tvId) {
-    const chart = this.chartRef.current;
-    if (!tvId || !chart?.removeEntity) return;
-    try { chart.removeEntity(tvId); } catch {}
-    delete this.tvIdMap[tvId];
-    delete this._commitFns[tvId];
-  }
-
-  removeTradeLines(tradeId) {
-    const rec = this.lines[tradeId];
-    if (!rec) return;
-    if (rec.handle)   this._destroyShape(rec.handle.tvId);
-    if (rec.ghostSL)  this._destroyShape(rec.ghostSL.tvId);
-    if (rec.ghostTP)  this._destroyShape(rec.ghostTP.tvId);
-    if (rec.sl)       this._destroyShape(rec.sl.tvId);
-    if (rec.tp)       this._destroyShape(rec.tp.tvId);
-    if (rec.entry)    this._destroyShape(rec.entry.tvId);
-    delete this.lines[tradeId];
-  }
-
-  // ─── Event handling ──────────────────────────────────────────
+  // ─── Events ──────────────────────────────────────────────────
 
   _attachEvents(widget) {
-    if (!widget) return;
-
     this._handler = (id, status) => {
-      const tvId = String(id || '');
-      if (!tvId) return;
-
+      const tvId = String(id);
       const meta = this.tvIdMap[tvId];
-      if (!meta) return;
+      if (!meta || this.isCommitBlocked) return;
 
-      // 🛡️ Determine statusKey FIRST
-      let statusKey = '';
-      if (typeof status === 'string') statusKey = status.toLowerCase();
-      else if (status && typeof status === 'object') {
-        statusKey = String(status.status || status.state || status.type || status.value || '').toLowerCase();
+      const action = String(status?.status || status || '').toLowerCase();
+      console.log(`[TradeManager] EVENT: ${tvId} (${meta.type}) status="${action}"`);
+
+      if (action === 'started') {
+        this.activeDragId = meta.tradeId;
+        const shape = widget.chart().getShapeById(tvId);
+        this.dragStartPrice = shape?.getPoints?.()?.[0]?.price || 0;
       }
 
-      console.log(`[TradeManager] Event: ${tvId} (${meta.type}) status=${statusKey}`);
-
-      // 🛡️ v7.0 FIREWALL: Ignore programmatic updates to break loops
-      if (this.isUpdatingFromSystem) return;
-      if (meta.type === 'entry' || meta.type === 'ghost') return;
-
-      // Handle REDIRECTION
-      if (meta.type === 'handle') {
-        this._handleEntryDrag(tvId, meta, statusKey);
-        return;
+      if (action === 'move') {
+        this._onNativeMove(tvId, meta);
       }
 
-      // Update manual drag state
-      if (statusKey === 'started' || statusKey === 'move') {
-        this.dragState.isDragging = true;
-        this.dragState.activeTradeId = meta.tradeId;
-
-        // 🛡️ v7.1 EVENT FALLBACK: Update position if Crosshair Sync failed
-        if (statusKey === 'move') {
-          const point = chart.getShapeById(tvId)?.getPoints?.()?.[0];
-          if (point?.price) {
-            this.dragState.currentPrice = Number(point.price);
-            this._handleEntryDrag(tvId, meta, 'move'); // Update ghost direction/visibility
-            this._updateGhostPosition(meta.tradeId, this.dragState.ghostType, point.price);
-          }
-        }
-      }
-
-      // Commit when user drops
-      if (statusKey === 'stopped' || statusKey === 'drag_end' || statusKey === 'finished') {
-        this.dragState.isDragging = false;
-        this._scheduleCommit(tvId, meta);
+      if (action === 'stopped' || action === 'finished') {
+        this._onNativeStop(tvId, meta);
       }
     };
-
     widget.subscribe('drawing_event', this._handler);
   }
 
-  _onDragMove(tvId, meta) {
-    const chart = this.chartRef.current;
-    if (!chart?.getShapeById) return;
-    try {
-      const shape = chart.getShapeById(tvId);
-      const livePrice = Number(shape?.getPoints?.()?.[0]?.price);
-      if (!Number.isFinite(livePrice)) return;
-      const label = meta.type === 'sl' ? `SL  ${fmt(livePrice)}` : `TP  ${fmt(livePrice)}`;
-      this._setShapeText(tvId, label);
-    } catch {}
-  }
+  async _onNativeMove(tvId, meta) {
+    const chart = this.widget.chart();
+    const shape = chart.getShapeById(tvId);
+    const price = shape?.getPoints?.()?.[0]?.price;
+    if (!price || this.isUpdatingGhost) return;
 
-  _scheduleCommit(tvId, meta) {
-    if (!this._commitFns[tvId]) {
-      this._commitFns[tvId] = debounce(async () => {
-        const chart = this.chartRef.current;
-        if (!chart?.getShapeById) return;
-        let newPrice;
+    // ─── Label Update ──────────────────────────────────────────
+    const labelText = `${meta.type.toUpperCase()}  ${fmt(price)}`;
+    shape.setProperties({ overrides: { text: labelText } });
+
+    // ─── MT5 Ghosting (Spawn Logic) ─────────────────────────────
+    if (meta.type === 'entry') {
+        const trade = this.getTradeById(meta.tradeId);
+        if (!trade) return;
+
+        const side = String(trade.side || trade.type || '').toLowerCase();
+        const isBuy = side.includes('buy') || side.includes('long');
+        const entry = Number(trade.openPrice || trade.price);
+        
+        let ghostType = isBuy ? (price > entry ? 'tp' : 'sl') : (price > entry ? 'sl' : 'tp');
+
+        // Serialized ghost update
+        this.isUpdatingGhost = true;
         try {
-          const shape = chart.getShapeById(tvId);
-          newPrice = Number(shape?.getPoints?.()?.[0]?.price);
-        } catch { return; }
-        if (!Number.isFinite(newPrice) || newPrice <= 0) return;
-        const { tradeId, type } = meta;
-        const rec = this.lines[tradeId];
-        if (!rec?.[type]) return;
-        rec[type].price = newPrice;
-        this._setShapeText(tvId, `${type.toUpperCase()}  ${fmt(newPrice)}`);
-
-        const payload = { tradeId };
-        if (type === 'sl') payload.sl = newPrice;
-        if (type === 'tp') payload.tp = newPrice;
-        console.log(`[TradeManager] Committing ${type.toUpperCase()} = ${newPrice} for trade ${tradeId.slice(-6)}`);
-        await this._modifyTrade(payload);
-      }, 400);
+            await this._updateSpawnGhost(meta.tradeId, ghostType, price);
+        } finally {
+            this.isUpdatingGhost = false;
+        }
     }
-    this._commitFns[tvId]();
   }
 
-  // ─── v7.0 REAL-TIME ENGINE METHODS ───────────────
+  async _updateSpawnGhost(tradeId, type, price) {
+    const tid = String(tradeId);
+    if (!this.lines[tid]) return;
+    const set = this.lines[tid];
 
-  _updateGhostPosition(tradeId, type, price) {
-    const rec = this.lines[tradeId];
-    if (!rec) return;
-    const ghost = type === 'tp' ? rec.ghostTP : rec.ghostSL;
-    if (!ghost) return;
-
-    this._moveShape(ghost.tvId, price);
-    this._setShapeText(ghost.tvId, `${type.toUpperCase()} (RELEASE TO DROP)  ${fmt(price)}`);
-  }
-
-  async _handleEntryDrag(tvId, meta, statusKey) {
-    const tradeId = meta.tradeId;
-    const rec = this.lines[tradeId];
-    if (!rec) return;
-
-    const data = this.tradeStateMap.get(tradeId);
-    if (!data) return;
-
-    const isStarting = (statusKey === 'started');
-    const isStopping = (statusKey === 'stopped' || statusKey === 'drag_end' || statusKey === 'finished' || statusKey === 'points_changed');
-
-    // 1. Initial StartPrice used to determine Ghost Type (SL vs TP)
-    if (isStarting) {
-      this.dragState.isDragging = true;
-      this.dragState.activeTradeId = tradeId;
-      this.dragState.startPrice = data.entry;
-      console.log(`[TradeManager] v7.0 Engine Drag START: ${tradeId.slice(-6)}`);
+    // Destroy existing ghost if type changed (crossed the entry line)
+    if (set.ghost && set.ghost.type !== type) {
+        this._destroyShape(set.ghost.tvId);
+        set.ghost = null;
     }
 
-    // 2. Logic to determine SL vs TP based on side and direction
-    if (this.dragState.isDragging) {
-      const mousePrice = this.dragState.currentPrice || data.entry;
-      const isUp = mousePrice > data.entry;
-      const tradeObj = this.getTradeById(tradeId);
-      const side = String(tradeObj?.side || tradeObj?.type || '').toLowerCase();
-      const isBuy = (side === 'buy' || side === 'long');
+    if (!set.ghost) {
+        const color = type === 'tp' ? '#4caf50' : '#f44336';
+        const ghostId = await this._createShape(tradeId, `ghost-${type}`, price, {
+            color,
+            style: 2, // Dotted
+            width: 1,
+            text: `NEW ${type.toUpperCase()}`
+        });
+        if (ghostId) set.ghost = { tvId: ghostId.tvId, type, price };
+    } else {
+        set.ghost.price = price;
+        this._updateShape(set.ghost.tvId, price, `NEW ${type.toUpperCase()}  ${fmt(price)}`);
+    }
+  }
+
+  async _onNativeStop(tvId, meta) {
+    const chart = this.widget.chart();
+    const shape = chart.getShapeById(tvId);
+    const price = shape?.getPoints?.()?.[0]?.price;
+    
+    console.log(`[TradeManager] Drag Stop: ${meta.type} (TV:${tvId}) price=${price}`);
+
+    if (!price || !meta.tradeId) {
+        this.activeDragId = null;
+        return;
+    }
+
+    if (meta.type === 'entry') {
+      const trade = this.getTradeById(meta.tradeId);
+      const tid = String(meta.tradeId);
       
-      this.dragState.ghostType = isBuy ? (isUp ? 'tp' : 'sl') : (isUp ? 'sl' : 'tp');
+      const ghost = this.lines[tid]?.ghost;
+      if (ghost) {
+          console.log(`[TradeManager] Confirming SPAWN: ${ghost.type} -> ${ghost.price} (v7.25-Pinned)`);
+          this._destroyShape(ghost.tvId);
+          const p = ghost.price;
+          const t = ghost.type;
+          this.lines[tid].ghost = null;
+          await this._commitTrade(tid, t, p);
+      }
+
+      // 🛡️ v7.25 Forced Snap-Back: The Entry line never moves on the chart.
+      const realEntry = Number(trade?.openPrice || trade?.price);
+      if (shape && realEntry) {
+          shape.setPoints([{ price: realEntry }]);
+          shape.setProperties({ overrides: { text: `ENTRY  ${fmt(realEntry)}` } });
+      }
+      
+      setTimeout(() => { this.activeDragId = null; }, 100); 
+      return;
     }
 
-    // 3. Close the loop on Drop
-    if (isStopping && this.dragState.activeTradeId === tradeId) {
-      const finalPrice = this.dragState.currentPrice;
-      const finalType = this.dragState.ghostType;
+    if (meta.type === 'sl' || meta.type === 'tp') {
+        console.log(`[TradeManager] Confirming MOVE: ${meta.type} -> ${price}`);
+        await this._commitTrade(meta.tradeId, meta.type, price);
+    }
+    
+    setTimeout(() => { this.activeDragId = null; }, 500);
+  }
 
-      console.log(`[TradeManager] v7.0 Engine Drag STOP: ${finalType} @ ${finalPrice}`);
+  async syncTrades(trades, symbol = null) {
+    if (this.activeDragId) return; // Locked
 
-      // Reset State
-      this.dragState.isDragging = false;
-      this.dragState.activeTradeId = null;
+    this.trades = trades || [];
+    const curSym = canonicalSymbol(symbol);
+    const visible = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym);
+    const visibleIds = new Set(visible.map(t => String(t._id || t.id)));
 
-      // Hide Ghosts (Move to 0)
-      if (rec.ghostSL) { this._moveShape(rec.ghostSL.tvId, 0.001); this._setShapeText(rec.ghostSL.tvId, ''); }
-      if (rec.ghostTP) { this._moveShape(rec.ghostTP.tvId, 0.001); this._setShapeText(rec.ghostTP.tvId, ''); }
+    if (!this.widget) return;
+    const chart = this.widget.chart();
+    const now = Date.now();
 
-      // Reset handle to entry
-      this._moveShape(rec.handle.tvId, data.entry);
+    // ─── The Vault (Graceful Removal) ──────────────────────────
+    // Track when we first see a trade missing
+    Object.keys(this.lines).forEach(tid => {
+        if (!visibleIds.has(tid)) {
+            if (!this._missingTrades[tid]) {
+                this._missingTrades[tid] = now;
+                console.log(`[TradeManager] Trade ${tid} missing. Starting 15s grace period.`);
+            }
+        } else {
+            delete this._missingTrades[tid]; // Reset if it reappears
+        }
+    });
 
-      // Commit
-      if (finalPrice && Math.abs(finalPrice - data.entry) > (data.entry * 0.0001)) {
-        const payload = { tradeId, [finalType]: finalPrice };
-        await this._modifyTrade(payload);
-      }
+    // Actually remove only if missing for > 15s
+    Object.keys(this._missingTrades).forEach(tid => {
+        if (now - this._missingTrades[tid] > 15000) {
+            console.log(`[TradeManager] Grace period expired for ${tid}. Removing lines.`);
+            this.removeTradeLines(tid);
+            delete this._missingTrades[tid];
+        }
+    });
+
+    // Cleanup internal state for IDs that are definitively gone
+    Object.keys(this.lines).forEach(tid => {
+        if (!visibleIds.has(tid) && !this._missingTrades[tid]) {
+            // This should only happen if removeTradeLines was already called
+        }
+    });
+
+    // Sync active trades
+    for (const trade of visible) {
+      await this._syncTradeShapes(chart, trade);
     }
   }
 
-  // ─── Backend API ─────────────────────────────────────────────
+  async _syncTradeShapes(chart, trade) {
+    const tid = String(trade._id || trade.id);
+    const entry = Number(trade.openPrice || trade.price);
+    const sl = Number(trade.stopLoss || trade.sl);
+    const tp = Number(trade.takeProfit || trade.tp);
 
-  async _modifyTrade(payload) {
-    const { tradeId } = payload;
-    if (!tradeId) return false;
-    if (this.modifyInFlight[tradeId]) {
-      this.pendingModify[tradeId] = { ...(this.pendingModify[tradeId] || {}), ...payload };
-      return true;
+    if (!this.lines[tid]) this.lines[tid] = { entry: null, sl: null, tp: null };
+    const set = this.lines[tid];
+
+    // ENTRY (Fixed position, but draggable to spawn ghosts)
+    if (!set.entry) {
+      set.entry = await this._createShape(tid, 'entry', entry, { color: '#2196F3', style: 0, width: 2, text: `ENTRY  ${fmt(entry)}` });
+    } else {
+      this._updateShape(set.entry.tvId, entry, `ENTRY  ${fmt(entry)}`);
     }
-    const token = getAuthToken();
-    if (!token) return false;
-    this.modifyInFlight[tradeId] = true;
+
+    // SL
+    if (sl > 0) {
+      if (!set.sl) {
+        set.sl = await this._createShape(tid, 'sl', sl, { color: '#f44336', style: 1, width: 1, text: `SL  ${fmt(sl)}` });
+      } else {
+        this._updateShape(set.sl.tvId, sl, `SL  ${fmt(sl)}`);
+      }
+    } else if (set.sl) { this._destroyShape(set.sl.tvId); set.sl = null; }
+
+    // TP
+    if (tp > 0) {
+      if (!set.tp) {
+        set.tp = await this._createShape(tid, 'tp', tp, { color: '#4caf50', style: 1, width: 1, text: `TP  ${fmt(tp)}` });
+      } else {
+        this._updateShape(set.tp.tvId, tp, `TP  ${fmt(tp)}`);
+      }
+    } else if (set.tp) { this._destroyShape(set.tp.tvId); set.tp = null; }
+  }
+
+  async _createShape(tradeId, type, price, cfg) {
+    const chart = this.widget.chart();
     try {
-      console.log(`[TradeManager] modifyTrade PAYLOAD:`, payload);
+        const tvId = await chart.createShape(
+            { price, time: Math.floor((Date.now() - 60000) / 1000) },
+            {
+                shape: 'horizontal_line',
+                lock: false,
+                disableSelection: false,
+                disableSave: true,
+                disableUndo: true,
+                overrides: {
+                    linecolor: cfg.color,
+                    textcolor: cfg.color,
+                    linewidth: cfg.width,
+                    linestyle: cfg.style,
+                    showLabel: true,
+                    text: cfg.text,
+                    horzLabelsAlign: 'right',
+                }
+            }
+        );
+        this.tvIdMap[tvId] = { tradeId, type };
+        return { tvId, price };
+    } catch (e) { return null; }
+  }
+
+  _updateShape(tvId, price, text) {
+    const shape = this.widget.chart().getShapeById(tvId);
+    if (!shape) return;
+    this.isCommitBlocked = true;
+    try {
+        shape.setPoints([{ price }]);
+        shape.setProperties({ overrides: { text } });
+    } finally { this.isCommitBlocked = false; }
+  }
+
+  _destroyShape(tvId) {
+    try { this.widget.chart().removeEntity(tvId); } catch {}
+    delete this.tvIdMap[tvId];
+  }
+
+  removeTradeLines(tradeId) {
+    const tid = String(tradeId);
+    if (!this.lines[tid]) return;
+    const set = this.lines[tid];
+
+    if (set.entry) this._destroyShape(set.entry.tvId);
+    if (set.sl) this._destroyShape(set.sl.tvId);
+    if (set.tp) this._destroyShape(set.tp.tvId);
+    if (set.ghost) this._destroyShape(set.ghost.tvId);
+
+    delete this.lines[tid];
+    console.log(`[TradeManager] Cleaned up lines for trade ${tid}`);
+  }
+
+  getTradeById(tid) {
+    return this.trades.find(t => String(t._id || t.id) === tid);
+  }
+
+  async _commitTrade(tradeId, type, price) {
+    const tid = String(tradeId);
+    console.log(`[TradeManager] Native Commit: ${tid} ${type} -> ${price}`);
+    
+    // 🛡️ v7.25 State-Preserving Commit
+    const trade = this.getTradeById(tid);
+    if (!trade) return;
+
+    // Preserve existing value if not the one being modified
+    const currentSL = type === 'sl' ? parseFloat(price.toFixed(5)) : (trade.stopLoss || trade.sl || 0);
+    const currentTP = type === 'tp' ? parseFloat(price.toFixed(5)) : (trade.takeProfit || trade.tp || 0);
+
+    const payload = { 
+        tradeId: tid,
+        sl: currentSL,
+        tp: currentTP
+    };
+
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
       const res = await fetch(`${API_URL}/trade/modify`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
-      console.log('[TradeManager] modifyTrade RESPONSE:', data);
-      if (data?.success && this.onTradeModify) {
-        const update = { tradeId };
-        if (payload.sl !== undefined) { update.sl = payload.sl; update.stopLoss = payload.sl; }
-        if (payload.tp !== undefined) { update.tp = payload.tp; update.takeProfit = payload.tp; }
-        this.onTradeModify(update);
+      if (data.success && this.onTradeModify) {
+        this.onTradeModify({ tradeId: tid, sl: currentSL, tp: currentTP });
       }
-      this.modifyInFlight[tradeId] = false;
-      if (this.pendingModify[tradeId]) {
-        const next = this.pendingModify[tradeId];
-        delete this.pendingModify[tradeId];
-        return this._modifyTrade(next);
-      }
-      return data?.success || false;
     } catch (e) {
-      console.error('[TradeManager] modifyTrade error:', e);
-      this.modifyInFlight[tradeId] = false;
-      return false;
+      console.error('[TradeManager] Commit error:', e);
     }
-  }
-
-  getTradeById(tradeId) {
-    return this.trades.find(t => String(t?._id ?? t?.id ?? t?.tradeId) === tradeId) || null;
   }
 }
