@@ -47,8 +47,19 @@ export class HCFinvestBrokerAdapter {
 
   async symbolInfo(symbol) {
     if (this._symbolInfoCache[symbol]) return this._symbolInfoCache[symbol];
+
+    // v7.50: Dynamic precision mapping to ensure Buy/Sell lines align with Price Candles
+    const s = symbol.toUpperCase();
+    let pricescale = 100000;
     
-    // Detailed symbol metadata to prevent library rejection
+    if (s.includes("JPY") || s.includes("XAU") || s.includes("BTC") || s.includes("ETH") || s.includes("USDT")) {
+      pricescale = 100;
+    } else if (s.includes("XAG")) {
+      pricescale = 1000;
+    } else if (s.includes("US100") || s.includes("US30") || s.includes("US500") || s.includes("DE30") || s.includes("GER30") || s.includes("SPA35") || s.includes("ES35") || s.includes("FR40") || s.includes("FRA40")) {
+      pricescale = 100;
+    }
+
     const info = {
       name: symbol,
       ticker: symbol,
@@ -58,11 +69,11 @@ export class HCFinvestBrokerAdapter {
       timezone: 'UTC',
       exchange: 'HCFinvest',
       minmov: 1,
-      pricescale: 100, // Matches XAUUSD.i 4364.86 behavior
-      pipSize: 0.01,
+      pricescale: pricescale, 
+      pipSize: 1 / pricescale,
       pipValue: 1,
-      minTick: 0.01,
-      qty: { min: 0.01, max: 100, step: 0.01 },
+      minTick: 1 / pricescale,
+      qty: { min: 0.01, max: 10000, step: 0.01 },
       currency: 'USD',
       unit: '',
     };

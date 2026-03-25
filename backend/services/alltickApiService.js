@@ -547,14 +547,11 @@ class AllTickApiService {
   async syncLivePriceToTiers(symbol, tick) {
     if (!symbol || !tick || !tick.price) return;
 
-    // Only sync major timeframes to save Redis overhead
+    // 🚀 PERFORMANCE: Only sync high-frequency timeframes (1m, 5m) to Redis.
+    // Syncing 4h or 1d on every tick at 50ms latency is excessive and blocks the event loop.
     const timeframes = [
       { tf: '1m', mins: 1 },
-      { tf: '5m', mins: 5 },
-      { tf: '15m', mins: 15 },
-      { tf: '1h', mins: 60 },
-      { tf: '4h', mins: 240 },
-      { tf: '1d', mins: 1440 }
+      { tf: '5m', mins: 5 }
     ];
 
     try {
