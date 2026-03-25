@@ -35,9 +35,8 @@ import alltickApiService from './services/alltickApiService.js'
 import binanceRoutes from "./routes/binance.js";
 import marketRoutes from "./routes/market.js";
 import storageService from './services/storageService.js' // //sanket - Import storage service
-
-// import xauusd_Routes from "./routes/xauusd_Routes.js";
-// import streamer from "./services/xauusdStreamer.cjs";
+import tradeEngine from './services/tradeEngine.js';
+import propTradingEngine from './services/propTradingEngine.js';
 import competitionRoutes from "./routes/competitionRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
 import internalTransferRoutes from "./routes/internalTransfer.js";
@@ -76,6 +75,7 @@ const socketPrioritySymbols = new Map()
 let isShuttingDown = false
 let broadcastInterval = null
 let syncInterval = null
+let slTpCheckInterval = null
 
 function refreshPrioritySymbols() {
     const activeChartSymbols = [...io.sockets.adapter.rooms.get('chartUpdates') || []]
@@ -181,6 +181,45 @@ broadcastInterval = setInterval(async () => {
   })
 }, 1000)
 
+// --- AUTO SL/TP & PENDING CHECKER ---
+// Runs every 1 second to verify if any open trades hit their Stop Loss or Take Profit natively
+slTpCheckInterval = setInterval(async () => {
+  if (isShuttingDown) return;
+  try {
+    const allPrices = await alltickApiService.getAllPrices();
+    if (!allPrices || Object.keys(allPrices).length === 0) return;
+
+    // 1. Check SL/TP for all Regular and Challenge Trades
+    const closedChallenge = await propTradingEngine.checkSlTpForAllTrades(allPrices);
+    const closedRegular = await tradeEngine.checkSlTpForAllTrades(allPrices);
+    
+    const allClosed = [...closedChallenge, ...closedRegular];
+    
+    if (allClosed.length > 0) {
+      console.log(`[TradeEngine] Natively auto-closed ${allClosed.length} trades via SL/TP hit.`);
+      // Emit closure to specific users
+      allClosed.forEach(ct => {
+        if (ct.trade && ct.trade.tradingAccountId) {
+          app.get('io').to(`account:${ct.trade.tradingAccountId}`).emit('tradeClosed', ct.trade);
+        }
+      });
+    }
+
+    // 2. Check Pending Orders
+    const executedPending = await tradeEngine.checkPendingOrders(allPrices);
+    if (executedPending && executedPending.length > 0) {
+      console.log(`[TradeEngine] Auto-executed ${executedPending.length} pending orders.`);
+      executedPending.forEach(et => {
+        if (et.trade && et.trade.tradingAccountId) {
+          app.get('io').to(`account:${et.trade.tradingAccountId}`).emit('tradeUpdated', et.trade);
+        }
+      });
+    }
+  } catch (err) {
+    // console.error('[TradeEngine] Auto SL/TP Check Error:', err.message);
+  }
+}, 1000);
+
 const gracefulShutdown = async (signal) => {
   if (isShuttingDown) return
   isShuttingDown = true
@@ -190,6 +229,7 @@ const gracefulShutdown = async (signal) => {
   try {
     if (broadcastInterval) clearInterval(broadcastInterval)
     if (syncInterval) clearInterval(syncInterval)
+    if (slTpCheckInterval) clearInterval(slTpCheckInterval)
 
     if (ENABLE_LIVE_PERSIST) {
       const finalStats = await storageService.shutdown()
