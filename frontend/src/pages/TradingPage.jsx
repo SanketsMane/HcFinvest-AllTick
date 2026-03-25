@@ -4613,7 +4613,7 @@ const TradingPage = () => {
               <span className={`ml-3 text-xs ${accountType === 'challenge' ? 'text-yellow-500' : 'text-teal-400'}`}>
                 {accountType === 'challenge' ? 'Challenge' : (account?.accountTypeId?.name || 'Standard')} - {account?.accountId}
               </span>
-              <span className="text-gray-400 ml-3 text-xs">Balance: <span className="text-white">${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
+              <span className="text-gray-400 ml-3 text-xs">Balance: <span className="text-black">${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
             </>
           )}
           <div className="flex-1" />
