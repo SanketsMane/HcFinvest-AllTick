@@ -210,7 +210,7 @@ export class TradeLineManager {
           } else {
               const color = t === 'tp' ? '#4caf50' : '#f44336';
               const shapeRef = await this._createShape(tid, t, price, {
-                  color, style: 1, width: 1, text: `${t.toUpperCase()}`
+                  color, style: 1, width: 2, text: `${t.toUpperCase()}`
               });
               this.lines[tid][t] = shapeRef;
           }
@@ -278,7 +278,7 @@ export class TradeLineManager {
 
     // ENTRY (Fixed position, but draggable to spawn ghosts)
     if (!set.entry) {
-      set.entry = await this._createShape(tid, 'entry', entry, { color: '#2196F3', style: 0, width: 2, text: `ENTRY` });
+      set.entry = await this._createShape(tid, 'entry', entry, { color: '#2196F3', style: 1, width: 2, text: `ENTRY` });
     } else {
       this._updateShape(set.entry.tvId, entry);
     }
@@ -286,7 +286,7 @@ export class TradeLineManager {
     // SL
     if (Number.isFinite(sl) && sl > 0) {
       if (!set.sl) {
-        set.sl = await this._createShape(tid, 'sl', sl, { color: '#f44336', style: 1, width: 1, text: `SL` });
+        set.sl = await this._createShape(tid, 'sl', sl, { color: '#f44336', style: 1, width: 2, text: `SL` });
       } else {
         this._updateShape(set.sl.tvId, sl);
       }
@@ -295,7 +295,7 @@ export class TradeLineManager {
     // TP
     if (Number.isFinite(tp) && tp > 0) {
       if (!set.tp) {
-        set.tp = await this._createShape(tid, 'tp', tp, { color: '#4caf50', style: 1, width: 1, text: `TP` });
+        set.tp = await this._createShape(tid, 'tp', tp, { color: '#4caf50', style: 1, width: 2, text: `TP` });
       } else {
         this._updateShape(set.tp.tvId, tp);
       }
