@@ -98,24 +98,30 @@ chargesSchema.index({ level: 1, userId: 1, instrumentSymbol: 1, segment: 1, acco
 // Priority: USER > INSTRUMENT > ACCOUNT_TYPE > SEGMENT > GLOBAL
 // Merges charges from multiple levels - most specific wins for each field
 chargesSchema.statics.getChargesForTrade = async function(userId, symbol, segment, accountTypeId) {
-  console.log(`Getting charges for: userId=${userId}, symbol=${symbol}, segment=${segment}, accountTypeId=${accountTypeId}`)
+  const normalizeSymbol = (s = '') => String(s).toUpperCase().replace(/\.I$/i, '')
+  const normSymbol = normalizeSymbol(symbol)
+  
+  console.log(`Getting charges for: userId=${userId}, symbol=${symbol} (norm: ${normSymbol}), segment=${segment}, accountTypeId=${accountTypeId}`)
   
   // Build query to find all potentially applicable charges
   const allCharges = await this.find({ isActive: true }).sort({ createdAt: -1 })
   
   // Filter charges that apply to this trade
   let applicableCharges = allCharges.filter(charge => {
+    // Normalize stored instrument symbol for comparison
+    const chargeSymbol = charge.instrumentSymbol ? normalizeSymbol(charge.instrumentSymbol) : null
+
     // USER level - must match userId
     if (charge.level === 'USER') {
       if (!charge.userId || charge.userId.toString() !== userId?.toString()) return false
       // If instrument is specified, must match
-      if (charge.instrumentSymbol && charge.instrumentSymbol !== symbol) return false
+      if (chargeSymbol && chargeSymbol !== normSymbol) return false
       return true
     }
     
     // INSTRUMENT level - must match symbol
     if (charge.level === 'INSTRUMENT') {
-      if (charge.instrumentSymbol !== symbol) return false
+      if (chargeSymbol !== normSymbol) return false
       // If accountTypeId is specified, must match
       if (charge.accountTypeId && charge.accountTypeId.toString() !== accountTypeId?.toString()) return false
       return true
@@ -189,21 +195,23 @@ chargesSchema.statics.getChargesForTrade = async function(userId, symbol, segmen
   for (let i = applicableCharges.length - 1; i >= 0; i--) {
     const charge = applicableCharges[i]
     
-    // Only overwrite if the charge has a non-zero/non-default value
-    if (charge.spreadValue > 0) {
+    // FIXED: Use explicit null/undefined check instead of > 0 
+    // to allow '0' values from higher priority levels to override global defaults.
+    if (charge.spreadValue !== undefined && charge.spreadValue !== null) {
       result.spreadValue = charge.spreadValue
       result.spreadType = charge.spreadType
     }
-    if (charge.commissionValue > 0) {
+    if (charge.commissionValue !== undefined && charge.commissionValue !== null) {
       result.commissionValue = charge.commissionValue
       result.commissionType = charge.commissionType
       result.commissionOnBuy = charge.commissionOnBuy
       result.commissionOnSell = charge.commissionOnSell
       result.commissionOnClose = charge.commissionOnClose
     }
-    if (charge.swapLong !== 0 || charge.swapShort !== 0) {
-      result.swapLong = charge.swapLong
-      result.swapShort = charge.swapShort
+    if ((charge.swapLong !== undefined && charge.swapLong !== null) || 
+        (charge.swapShort !== undefined && charge.swapShort !== null)) {
+      result.swapLong = charge.swapLong || 0
+      result.swapShort = charge.swapShort || 0
       result.swapType = charge.swapType
     }
   }

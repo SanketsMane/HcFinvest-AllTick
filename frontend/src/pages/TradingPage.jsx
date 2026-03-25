@@ -3042,13 +3042,14 @@
 
 // ---------------------------------------------------------------------------------------------------------------------------
 
-
 import { API_URL } from '../config/api'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon, Clock, ChevronDown, Check } from 'lucide-react'
 import marketDataApiService from '../services/marketDataApi'
 import priceStreamService, { getPriceEvents } from '../services/priceStream'
+import { getAdminMarkupValue, getRetailPrice } from '../utils/priceUtils';
+import Datafeed from '../services/datafeed';
 import { useTheme } from '../context/ThemeContext'
 import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
@@ -3402,8 +3403,24 @@ const TradingPage = () => {
       }
     })
     
-    return () => unsubscribe()
-  }, [selectedInstrument?.symbol])
+    // Fallback: also fetch via HTTP for initial load
+    fetchLivePrices()
+
+    // ✅ Reactive Trade Sync (v7.69)
+    // Instantly refresh UI when backend emits tradeClosed or tradeUpdated
+    priceStreamService.subscribeToAccount(accountId);
+    const untrade = priceStreamService.subscribeToTrades('tradingPage', (trade, status) => {
+        console.log(`[TradingPage] Reactive Trade ${status}:`, trade._id || trade.id);
+        fetchOpenTrades();
+        fetchAccountSummary();
+        if (status === 'closed') fetchTradeHistory();
+    });
+    
+    return () => {
+        unsubscribe();
+        untrade();
+    }
+  }, [selectedInstrument?.symbol, accountId])
 
   useEffect(() => {
     if (!selectedInstrument?.symbol) return
@@ -3695,43 +3712,11 @@ const TradingPage = () => {
     return price.toFixed(decimals)
   }
 
-  // Calculate display price with admin spread applied
-  // This shows users the actual execution price they'll get
+  // Calculate display price with admin spread applied (Retail Lens)
   const getDisplayPrice = (symbol, side, rawBid, rawAsk) => {
-    const spreadConfig = getSpreadConfig(symbol)
-    if (!spreadConfig || !spreadConfig.spread) {
-      // No admin spread configured, return raw price
-      return side === 'BUY' ? rawAsk : rawBid
-    }
-    
-    const spreadValue = spreadConfig.spread
-    const spreadType = spreadConfig.spreadType || 'FIXED'
-    
-    let spread = spreadValue
-    if (spreadType === 'PERCENTAGE') {
-      spread = (rawAsk - rawBid) * (spreadValue / 100)
-    } else {
-      // FIXED spread - convert from pips/cents to actual price units
-      // Forex: 1 pip = 0.0001 (or 0.01 for JPY pairs)
-      // Metals (Gold/Silver): value is in cents, so divide by 100
-      // Crypto: value is in USD, use as-is
-      if (isJpyPair(symbol)) {
-        spread = spreadValue * 0.01 // JPY pairs: 1 pip = 0.01
-      } else if (isMetalSymbol(symbol)) {
-        spread = spreadValue / 100 // Metals: cents to dollars
-      } else if (isCryptoSymbol(symbol)) {
-        spread = spreadValue // Crypto: USD value as-is
-      } else {
-        spread = spreadValue * 0.0001 // Standard Forex: 1 pip = 0.0001
-      }
-    }
-    
-    // Apply spread: BUY gets higher price, SELL gets lower price
-    if (side === 'BUY') {
-      return rawAsk + spread
-    } else {
-      return rawBid - spread
-    }
+    // Standardize price for markup calculation
+    const basePrice = side === 'BUY' ? rawAsk : rawBid;
+    return getRetailPrice(basePrice, symbol, side, adminSpreads);
   }
 
   // Fetch admin-set spreads for instruments (based on user's account type)
@@ -3747,6 +3732,9 @@ const TradingPage = () => {
       const data = await res.json()
       if (data.success) {
         setAdminSpreads(data.spreads || {})
+        if (typeof Datafeed?.setAdminSpreads === 'function') {
+           Datafeed.setAdminSpreads(data.spreads || {});
+        }
       }
     } catch (error) {
       console.error('Error fetching admin spreads:', error)
@@ -4212,7 +4200,9 @@ const TradingPage = () => {
       const data = await res.json()
 
       if (data.success) {
-        setTradeSuccess(`Trade closed. P/L: $${data.realizedPnl?.toFixed(2)}`)
+        setTradeSuccess(`Trade closed! P/L: $${data.realizedPnl?.toFixed(2)}`)
+        // Instantly refresh local state even before fetch
+        setOpenTrades(prev => prev.filter(t => t._id !== tradeId && t.id !== tradeId))
         fetchOpenTrades()
         fetchTradeHistory()
         fetchAccountSummary()
@@ -4902,6 +4892,7 @@ const TradingPage = () => {
               trades={openTrades} 
               onTradeModify={handleTradeModify}
               isDarkMode={isDarkMode}
+              adminSpreads={adminSpreads}
               onSymbolChange={(newSym) => {
                 // 🔄 Sync chart's internal search with parent tabs
                 const cleanSym = newSym.replace(/\.i$/i, '').toUpperCase();

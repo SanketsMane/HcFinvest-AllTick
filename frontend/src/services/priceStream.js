@@ -326,6 +326,15 @@ class PriceStreamService {
     }
   }
 
+  // ✅ Account-room subscription (v7.69)
+  subscribeToAccount(accountId) {
+    if (this.socket?.connected) {
+      this.socket.emit('subscribe', { tradingAccountId: accountId })
+    } else if (!this.socket) {
+      this.connect()
+    }
+  }
+
   // ✅ Trade synchronization subscriptions
   subscribeToTrades(id, callback) {
     this.tradeSubscribers.set(id, callback)

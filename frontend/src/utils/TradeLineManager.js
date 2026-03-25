@@ -1,4 +1,5 @@
 import { canonicalSymbol } from './symbolUtils';
+import { getAdminMarkupValue, unwrapRetailPrice } from './priceUtils';
 
 const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 const API_URL = base.endsWith('/api') ? base : `${base}/api`;
@@ -18,22 +19,28 @@ export class TradeLineManager {
     this.onTradeModify = onTradeModify;
     this.lines = {}; // tradeId -> { entry, sl, tp, ghost, entryGhost }
     this.tvIdMap = {}; // tvId -> { tradeId, type }
+    this.widget = null;
+    this.chart = null;
     this.trades = [];
-    this.lastSync = 0;
-    this.isCommitBlocked = false;
-    this.lastDragPrice = 0; 
-    
-    // Ghost tracking
+    this.syncLockUntil = 0;
+    this.syncLockDuration = 1200; // v7.69: Reduced to 1.2s for snappier UI
     this.activeDragId = null;
     this.dragStartPrice = 0;
     this.isUpdatingGhost = false;
-    this.syncLockUntil = 0; 
+    this.isCommitBlocked = false; // Keep this for _updateShape
 
-    console.log('[TradeManager v7.68] Stationary Ghost & Resilient API Active');
+    console.log('[TradeManager v7.70] Retail Lens Synchronization Active');
+    this._adminSpreads = {};
+  }
+
+  setAdminSpreads(spreads) {
+    this._adminSpreads = spreads || {};
+    console.log('[TradeManager] Admin spreads updated');
   }
 
   initialize(widget) {
     this.widget = widget;
+    this.chart = widget.chart(); // Initialize chart reference
     this._attachEvents(widget);
   }
 
@@ -208,10 +215,12 @@ export class TradeLineManager {
     }
   }
 
+  /**
+   * Sync all trades for the current symbol to the chart.
+   * v7.69: Orphan Cleanup always happens, even if interactive lock is active.
+   * This ensures drawings disappear instantly when a trade is closed.
+   */
   async syncTrades(trades, symbol = null) {
-    if (this.activeDragId) return; 
-    if (Date.now() < this.syncLockUntil) return; 
-
     this.trades = trades || [];
     this.currentSymbol = symbol; 
     const curSym = canonicalSymbol(symbol);
@@ -221,12 +230,22 @@ export class TradeLineManager {
     if (!this.widget) return;
     const chart = this.widget.chart();
 
+    // 🛡️ v7.69: Orphan Cleanup PRIORITIZATION
+    // We MUST remove drawings for trades that are no longer in the list (closed trades),
+    // even if the user is currently dragging or in the interaction lock period.
     Object.keys(this.lines).forEach(tid => {
         if (!visibleIds.has(tid)) {
+            console.log(`[TradeManager] 🧹 Orphan Cleanup: ${tid}`);
             this.removeTradeLines(tid);
         }
     });
 
+    // Interaction Lock: skip updating positions of ACTIVE trades while user is busy.
+    // This prevents "jumpy" lines during manual adjustment.
+    if (this.activeDragId) return; 
+    if (Date.now() < this.syncLockUntil) return; 
+
+    // Sync positions for visible trades
     for (const trade of visible) {
       await this._syncTradeShapes(chart, trade);
     }
@@ -234,14 +253,17 @@ export class TradeLineManager {
 
   async _syncTradeShapes(chart, trade) {
     const tid = String(trade._id || trade.id);
-    const entry = Number(trade.openPrice || trade.price);
-    const sl = Number(trade.stopLoss || trade.sl);
-    const tp = Number(trade.takeProfit || trade.tp);
+    const markup = getAdminMarkupValue(trade.symbol, this._adminSpreads);
+
+    const entry = Number(trade.openPrice || trade.price) - markup;
+    const sl = Number(trade.stopLoss || trade.sl) > 0 ? Number(trade.stopLoss || trade.sl) - markup : null;
+    const tp = Number(trade.takeProfit || trade.tp) > 0 ? Number(trade.takeProfit || trade.tp) - markup : null;
 
     if (!Number.isFinite(entry)) return;
 
-    if (!this.lines[tid]) this.lines[tid] = { entry: null, sl: null, tp: null };
+    if (!this.lines[tid]) this.lines[tid] = { entry: null, sl: null, tp: null, trade: trade }; // Store trade for optimistic updates
     const set = this.lines[tid];
+    set.trade = trade; // Always update with the latest trade object
 
     if (!set.entry) {
       set.entry = await this._createShape(tid, 'entry', entry, { color: '#2196F3', style: 1, width: 2, text: `ENTRY` });
@@ -334,39 +356,29 @@ export class TradeLineManager {
     if (type !== 'sl' && type !== 'tp') return;
 
     const tid = String(tradeId);
-    const trade = this.getTradeById(tid);
-    if (!trade) return;
+    const t = this.getTradeById(tid);
+    if (!t) return;
 
-    let decimals = 5;
-    try {
-        const info = this.widget.activeChart().symbolInfo();
-        if (info && info.pricescale) {
-            decimals = Math.round(Math.log10(info.pricescale));
-            if (decimals < 0) decimals = 2;
-        }
-    } catch {}
-
-    let fallbackSL = trade.stopLoss || trade.sl || 0;
-    if (this.lines[tid]?.sl?.tvId) {
-        try {
-            const slShape = this.widget.chart().getShapeById(this.lines[tid].sl.tvId);
-            const p = slShape?.getPoints?.()?.[0]?.price;
-            if (Number.isFinite(p)) fallbackSL = p;
-        } catch {}
-    }
-
-    let fallbackTP = trade.takeProfit || trade.tp || 0;
-    if (this.lines[tid]?.tp?.tvId) {
-        try {
-            const tpShape = this.widget.chart().getShapeById(this.lines[tid].tp.tvId);
-            const p = tpShape?.getPoints?.()?.[0]?.price;
-            if (Number.isFinite(p)) fallbackTP = p;
-        } catch {}
-    }
-
+    // v7.69: Enforce strict decimals based on chart pricescale to prevent drift
+    const pricescale = this.chart?.symbolExt?.()?.pricescale || 100;
+    const decimals = Math.max(0, Math.round(Math.log10(pricescale)));
+    
+    // Exact rounding to prevent "applied on 4560" jumps caused by floating point drift
     const roundedPrice = parseFloat(price.toFixed(decimals));
-    const currentSL = type === 'sl' ? roundedPrice : parseFloat(Number(fallbackSL).toFixed(decimals));
-    const currentTP = type === 'tp' ? roundedPrice : parseFloat(Number(fallbackTP).toFixed(decimals));
+    
+    const isBuy = String(t.side || t.type || '').toLowerCase().includes('buy') || String(t.side || t.type || '').toLowerCase().includes('long');
+    
+    let currentSL = parseFloat(Number(t.stopLoss || t.sl || 0).toFixed(decimals));
+    let currentTP = parseFloat(Number(t.takeProfit || t.tp || 0).toFixed(decimals));
+
+    const markup = getAdminMarkupValue(t.symbol, this._adminSpreads);
+    const rawPrice = roundedPrice + markup; // Translate visual positioning back to raw interbank price
+
+    if (type === 'sl') {
+        currentSL = rawPrice;
+    } else if (type === 'tp') {
+        currentTP = rawPrice;
+    }
 
     const payload = { tradeId: tid, sl: currentSL, tp: currentTP };
     const token = getAuthToken();
@@ -375,10 +387,10 @@ export class TradeLineManager {
     const url = `${API_URL}/trade/modify`;
     console.log(`[TradeManager] Committing to: ${url}`, payload);
 
-    this.syncLockUntil = Date.now() + 2500; 
+    this.syncLockUntil = Date.now() + this.syncLockDuration; 
     try {
       const res = await fetch(url, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
@@ -388,6 +400,17 @@ export class TradeLineManager {
       
       if (data.success && this.onTradeModify) {
         console.log(`[TradeManager] ✅ Modification SUCCESS`);
+        
+        // 🚀 v7.69 OPTIMISTIC UPDATE
+        // Manually update the local trade object so the next syncTrades (even during lock)
+        // doesn't "jump" the lines back to old positions.
+        if (this.lines[tid] && this.lines[tid].trade) {
+            this.lines[tid].trade.sl = currentSL;
+            this.lines[tid].trade.tp = currentTP;
+            this.lines[tid].trade.stopLoss = currentSL;
+            this.lines[tid].trade.takeProfit = currentTP;
+        }
+
         this.onTradeModify({ tradeId: tid, sl: currentSL, tp: currentTP });
       } else {
         console.warn(`[TradeManager] ❌ Modification FAILED:`, data.message);

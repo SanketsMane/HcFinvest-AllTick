@@ -1,5 +1,6 @@
 import { API_URL } from "../config/api";
 import priceStreamService from "./priceStream";
+import { wrapOHLC } from "../utils/priceUtils";
 
 /**
  * Custom Datafeed for TradingView Charting Library
@@ -109,6 +110,12 @@ const ALL_SYMBOLS = [
 
 const Datafeed = {
   interval: null,
+  _adminSpreads: {},
+
+  setAdminSpreads: (spreads) => {
+    Datafeed._adminSpreads = spreads || {};
+    console.log('[DATAFEED] Admin spreads updated', Object.keys(Datafeed._adminSpreads).length);
+  },
 
   onReady: (callback) => {
     setTimeout(() => callback(configurationData));
@@ -220,7 +227,9 @@ const Datafeed = {
 
       let bars = [];
       if (result.success && result.candles && result.candles.length > 0) {
-        bars = normalizeBars(result.candles);
+        // Apply Retail Lens Markup to historical bars
+        const rawBars = normalizeBars(result.candles);
+        bars = rawBars.map(bar => wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads));
       }
 
       if (bars.length === 0) {
@@ -356,8 +365,6 @@ const Datafeed = {
       // Resolution match (only process bars for the resolution we are watching)
       if (incomingTimeframe !== timeframe) return;
 
-      if (!candle || !Number.isFinite(candle.time)) return;
-
       const bar = {
         time: candle.time,
         open: candle.open,
@@ -367,7 +374,10 @@ const Datafeed = {
         volume: candle.volume
       };
 
-      currentBar = { ...bar };
+      // Apply Retail Lens Markup to AUTHORITATIVE bar
+      const authoritativeBar = wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads);
+
+      currentBar = { ...authoritativeBar };
       lastBarTime = bar.time;
       lastUpdateTime = Date.now();
 

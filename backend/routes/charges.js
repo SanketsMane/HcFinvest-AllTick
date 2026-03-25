@@ -8,14 +8,13 @@ router.get('/spreads', async (req, res) => {
   try {
     const { userId, accountTypeId } = req.query
     
-    // Get all charges that have spread values
-    const charges = await Charges.find({ isActive: true, spreadValue: { $gt: 0 } })
-      .sort({ level: 1 })
+    // Get all active charges
+    const charges = await Charges.find({ isActive: true })
     
     // Build a map of symbol -> spread (respecting hierarchy)
     const spreadMap = {}
     
-    // All supported symbols
+    // All supported symbols - used for global/segment expansion
     const allSymbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'NZDUSD', 'USDCAD', 'EURGBP', 'EURJPY', 'GBPJPY', 'XAUUSD', 'XAGUSD', 'BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'BNBUSD', 'SOLUSD', 'ADAUSD', 'DOGEUSD', 'DOTUSD', 'MATICUSD', 'AVAXUSD', 'LINKUSD']
     
     const segmentSymbols = {
@@ -28,79 +27,104 @@ router.get('/spreads', async (req, res) => {
     // Priority order: USER > INSTRUMENT > ACCOUNT_TYPE > SEGMENT > GLOBAL
     const priorityOrder = { 'USER': 1, 'INSTRUMENT': 2, 'ACCOUNT_TYPE': 3, 'SEGMENT': 4, 'GLOBAL': 5 }
     
-    // Filter charges that apply to this user/account type
-    const applicableCharges = charges.filter(charge => {
-      // USER level - must match userId if provided
-      if (charge.level === 'USER') {
-        return userId && charge.userId?.toString() === userId
-      }
-      // ACCOUNT_TYPE level - must match accountTypeId if provided
-      if (charge.level === 'ACCOUNT_TYPE') {
-        return accountTypeId && charge.accountTypeId?.toString() === accountTypeId
-      }
-      // INSTRUMENT, SEGMENT, GLOBAL - always applicable
-      return true
-    })
+    // Sort logic - lowest priority first so higher priority ones overwrite them
+    const sortedCharges = charges.sort((a, b) => priorityOrder[b.level] - priorityOrder[a.level])
     
-    for (const charge of applicableCharges) {
-      // For USER level with specific instrument
-      if (charge.level === 'USER' && charge.instrumentSymbol) {
-        const existing = spreadMap[charge.instrumentSymbol]
-        if (!existing || priorityOrder[charge.level] < priorityOrder[existing.level]) {
-          spreadMap[charge.instrumentSymbol] = {
+    const normalizeSymbol = (s = '') => String(s).toUpperCase().replace(/\.I$/i, '')
+
+    for (const charge of sortedCharges) {
+      // 1. Specific USER + INSTRUMENT (Highest priority)
+      if (charge.level === 'USER' && charge.instrumentSymbol && userId && charge.userId?.toString() === userId) {
+        const normSymbol = normalizeSymbol(charge.instrumentSymbol)
+        spreadMap[normSymbol] = {
+          spread: charge.spreadValue,
+          spreadType: charge.spreadType,
+          commission: charge.commissionValue,
+          commissionType: charge.commissionType,
+          swapLong: charge.swapLong,
+          swapShort: charge.swapShort,
+          level: 'USER'
+        }
+      }
+      // 2. USER level (applies to all symbols for this user)
+      else if (charge.level === 'USER' && !charge.instrumentSymbol && userId && charge.userId?.toString() === userId) {
+        for (const symbol of allSymbols) {
+          const normSymbol = normalizeSymbol(symbol)
+          spreadMap[normSymbol] = {
             spread: charge.spreadValue,
             spreadType: charge.spreadType,
-            level: charge.level
+            commission: charge.commissionValue,
+            commissionType: charge.commissionType,
+            swapLong: charge.swapLong,
+            swapShort: charge.swapShort,
+            level: 'USER'
           }
         }
       }
-      // For instrument-specific charges
-      else if (charge.instrumentSymbol) {
-        const existing = spreadMap[charge.instrumentSymbol]
-        if (!existing || priorityOrder[charge.level] < priorityOrder[existing.level]) {
-          spreadMap[charge.instrumentSymbol] = {
+      // 3. INSTRUMENT level
+      else if (charge.level === 'INSTRUMENT' && charge.instrumentSymbol) {
+        const normSymbol = normalizeSymbol(charge.instrumentSymbol)
+        if (!spreadMap[normSymbol] || priorityOrder['INSTRUMENT'] <= priorityOrder[spreadMap[normSymbol].level]) {
+          spreadMap[normSymbol] = {
             spread: charge.spreadValue,
             spreadType: charge.spreadType,
-            level: charge.level
+            commission: charge.commissionValue,
+            commissionType: charge.commissionType,
+            swapLong: charge.swapLong,
+            swapShort: charge.swapShort,
+            level: 'INSTRUMENT'
           }
         }
       }
-      // For ACCOUNT_TYPE level - apply to all symbols or specific segment
-      else if (charge.level === 'ACCOUNT_TYPE') {
+      // 4. ACCOUNT_TYPE level
+      else if (charge.level === 'ACCOUNT_TYPE' && accountTypeId && charge.accountTypeId?.toString() === accountTypeId) {
         const symbols = charge.segment ? (segmentSymbols[charge.segment] || []) : allSymbols
         for (const symbol of symbols) {
-          const existing = spreadMap[symbol]
-          if (!existing || priorityOrder[charge.level] < priorityOrder[existing.level]) {
-            spreadMap[symbol] = {
+          const normSymbol = normalizeSymbol(symbol)
+          if (!spreadMap[normSymbol] || priorityOrder['ACCOUNT_TYPE'] <= priorityOrder[spreadMap[normSymbol].level]) {
+            spreadMap[normSymbol] = {
               spread: charge.spreadValue,
               spreadType: charge.spreadType,
-              level: charge.level
+              commission: charge.commissionValue,
+              commissionType: charge.commissionType,
+              swapLong: charge.swapLong,
+              swapShort: charge.swapShort,
+              level: 'ACCOUNT_TYPE'
             }
           }
         }
       }
-      // For segment-level charges, apply to all instruments in that segment
-      else if (charge.segment) {
+      // 5. SEGMENT level
+      else if (charge.level === 'SEGMENT' && charge.segment) {
         const symbols = segmentSymbols[charge.segment] || []
         for (const symbol of symbols) {
-          const existing = spreadMap[symbol]
-          if (!existing || priorityOrder[charge.level] < priorityOrder[existing.level]) {
-            spreadMap[symbol] = {
+          const normSymbol = normalizeSymbol(symbol)
+          if (!spreadMap[normSymbol] || priorityOrder['SEGMENT'] <= priorityOrder[spreadMap[normSymbol].level]) {
+            spreadMap[normSymbol] = {
               spread: charge.spreadValue,
               spreadType: charge.spreadType,
-              level: charge.level
+              commission: charge.commissionValue,
+              commissionType: charge.commissionType,
+              swapLong: charge.swapLong,
+              swapShort: charge.swapShort,
+              level: 'SEGMENT'
             }
           }
         }
       }
-      // For global charges, apply to all instruments that don't have specific settings
+      // 6. GLOBAL level
       else if (charge.level === 'GLOBAL') {
         for (const symbol of allSymbols) {
-          if (!spreadMap[symbol]) {
-            spreadMap[symbol] = {
+          const normSymbol = normalizeSymbol(symbol)
+          if (!spreadMap[normSymbol] || priorityOrder['GLOBAL'] <= priorityOrder[spreadMap[normSymbol].level]) {
+            spreadMap[normSymbol] = {
               spread: charge.spreadValue,
               spreadType: charge.spreadType,
-              level: charge.level
+              commission: charge.commissionValue,
+              commissionType: charge.commissionType,
+              swapLong: charge.swapLong,
+              swapShort: charge.swapShort,
+              level: 'GLOBAL'
             }
           }
         }

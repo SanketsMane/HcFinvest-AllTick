@@ -15,7 +15,7 @@ import { canonicalSymbol } from "../utils/symbolUtils.js";
  * - Volume indicator and other indicators are saved/restored automatically.
  * - Active tab symbol is always what the chart loads on refresh.
  */
-const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeModify, isDarkMode = false, onSymbolChange }) => {
+const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeModify, isDarkMode = false, onSymbolChange, adminSpreads = {} }) => {
   const containerRef  = useRef(null);
   const widgetRef     = useRef(null);
   const chartRef      = useRef(null);
@@ -198,6 +198,14 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
       managerRef.current.syncTrades(trades, symbol);
     }
   }, [trades, symbol]);
+
+  // ─── Sync admin spreads to manager ────────────────────────────────────────
+  useEffect(() => {
+    if (managerRef.current) {
+      managerRef.current.setAdminSpreads(adminSpreads);
+      managerRef.current.syncTrades(trades, symbol); // Re-sync to apply new markup
+    }
+  }, [adminSpreads, trades, symbol]);
 
   // ─── Live price stream listener ───────────────────────────────────────────
   useEffect(() => {

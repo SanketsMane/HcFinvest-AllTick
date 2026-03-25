@@ -100,32 +100,35 @@ const AdminForexCharges = () => {
       })
       const data = await res.json()
       if (data.success) {
-        alert(editingCharge ? 'Updated!' : 'Created!')
+        alert(editingCharge ? 'Charge updated successfully!' : 'New charge added successfully!')
         setModalType(null)
         setEditingCharge(null)
         resetForm()
         fetchCharges()
       } else {
-        alert(data.message || 'Error saving')
+        alert('Failed to save charge: ' + data.message)
       }
     } catch (error) {
-      alert('Error saving')
+      console.error('Save error:', error)
+      alert('An error occurred while saving the charge.')
     }
   }
 
   const handleDelete = async (chargeId) => {
-    if (!confirm('Are you sure you want to delete this charge?')) return
-    try {
-      const res = await fetch(`${API_URL}/charges/${chargeId}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (data.success) {
-        alert('Charge deleted!')
-        fetchCharges()
-      } else {
-        alert(data.message || 'Error deleting charge')
+    if (window.confirm('Are you sure you want to delete this charge? This cannot be undone.')) {
+      try {
+        const res = await fetch(`${API_URL}/charges/${chargeId}`, { method: 'DELETE' })
+        const data = await res.json()
+        if (data.success) {
+          alert('Charge deleted successfully')
+          fetchCharges()
+        } else {
+          alert('Delete failed: ' + data.message)
+        }
+      } catch (e) {
+        console.error('Delete error:', e)
+        alert('An error occurred while deleting.')
       }
-    } catch (error) {
-      alert('Error deleting charge')
     }
   }
 
