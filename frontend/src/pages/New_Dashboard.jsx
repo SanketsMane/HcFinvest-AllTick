@@ -9,14 +9,13 @@ import {
   Gauge,
   ArrowLeft,
   CircleDollarSign,
-   User, BadgeCheck, Moon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../config/api";
 import Sidebar from "../components/Sidebar";
 import { useEffect, useState } from "react";
 import { Internal_Transfer } from "./Internal_Transfer";
-import NavbarClient from "../components/NavbarClient.jsx";
+import NavbarClient from "../components/NavbarClient";
 
 const New_Dashboard = () => {
   const banners = [
@@ -49,8 +48,6 @@ const New_Dashboard = () => {
 
   const [openTrades, setOpenTrades] = useState([]);
   const [livePrices, setLivePrices] = useState({});
-    const [open, setOpen] = useState(false);
-
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -295,7 +292,6 @@ const New_Dashboard = () => {
 
 
   const investmentData = getInvestmentDistribution();
-  // const initial = user?.name?.charAt(0)?.toUpperCase() || "U";
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -304,7 +300,7 @@ const New_Dashboard = () => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {/* Header */}
+
         {/* <div className="mb-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             Dashboard
@@ -316,7 +312,8 @@ const New_Dashboard = () => {
             Welcome back, John. Here's your trading overview for today.
           </p>
         </div> */}
-        <NavbarClient title="Dashbaord" subtitle="Welcome back to hcfinvest" />
+
+        <NavbarClient title="Dashbaord" subtitle="Welcome back to hcfinvest." />
 
         {/* Banner */}
         {/* Banner Wrapper */}
@@ -329,7 +326,7 @@ const New_Dashboard = () => {
             {banners.map((banner, index) => (
               <div
                 key={index}
-                className={`min-w-full p-6 h-80 text-white bg-gradient-to-r ${banner.bg} relative`}
+                className={`min-w-full h-80 p-6 text-white bg-gradient-to-r ${banner.bg} relative`}
               >
                 <span className="text-xs bg-white/10 px-3 py-1 rounded-full">
                   Limited Time
@@ -568,7 +565,98 @@ const New_Dashboard = () => {
             
 
               {/* ACTIVE POSITIONS */}
+{/*               
               <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="flex justify-between mb-4">
+                  <h3 className="font-semibold">Active Positions</h3>
+                  <span
+                    onClick={() => navigate("/orders")}
+                    className="text-blue-500 text-sm cursor-pointer"
+                  >
+                    View All →
+                  </span>
+                </div>
+
+                <p className="text-gray-400 text-sm mb-2">
+                  {openTrades.length} open trades
+                </p>
+
+                {/* Total P/L .*}
+                <div className="bg-gray-100 rounded-lg p-3 mb-3 flex justify-between">
+                  <span>Total P/L</span>
+                  <span
+                    className={`font-semibold ${
+                      totalPnl >= 0 ? "text-green-600" : "text-red-500"
+                    }`}
+                  >
+                    {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Trades List .*}
+                {openTrades.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center">
+                    No active trades
+                  </p>
+                ) : (
+                  openTrades.slice(0, 4).map((trade) => {
+                    const pnl = calculatePnl(trade);
+
+                    return (
+                      <div
+                        key={trade._id}
+                        className="flex justify-between items-center border rounded-lg px-3 py-2 mb-2"
+                      >
+                        <span className="font-medium">{trade.symbol}</span>
+                        <span
+                          className={
+                            pnl >= 0 ? "text-green-600" : "text-red-500"
+                          }
+                        >
+                          {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div> 
+*/}
+          </div>
+
+          {/* RIGHT SIDE - APP CARD .*}
+          <div className="bg-gradient-to-br from-gray-900 to-blue-900 text-white rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <div>
+              <span className="text-xs bg-green-500 px-2 py-1 rounded-full">
+                NEW APP
+              </span>
+
+              <h3 className="text-lg font-bold mt-3">Trade on the Go</h3>
+
+              <p className="text-sm text-gray-300 mt-2">
+                Full trading power in your pocket. Scan the QR code to download.
+              </p>
+            </div>
+
+            {/* QR .*}
+            <div className="flex justify-center items-center flex-1 mt-5">
+              <div className="w-[90%] max-w-[300px] aspect-square bg-white rounded-2xl flex items-center justify-center text-black shadow-lg">
+                QR
+              </div>
+            </div>
+
+            {/* Buttons .*}
+            <div className="mt-4 space-y-2">
+              <button className="w-full bg-white/10 py-2 rounded-lg text-sm">
+                App Store
+              </button>
+              <button className="w-full bg-white/10 py-2 rounded-lg text-sm">
+                Google Play
+              </button>
+            </div>
+          </div>
+          */}
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
                 <div className="flex justify-between mb-4">
                   <h3 className="font-semibold">Active Positions</h3>
                   <span
@@ -622,40 +710,6 @@ const New_Dashboard = () => {
                   })
                 )}
               </div>
-          </div>
-
-          {/* RIGHT SIDE - APP CARD */}
-          <div className="bg-gradient-to-br from-gray-900 to-blue-900 text-white rounded-2xl p-5 shadow-sm flex flex-col justify-between">
-            <div>
-              <span className="text-xs bg-green-500 px-2 py-1 rounded-full">
-                NEW APP
-              </span>
-
-              <h3 className="text-lg font-bold mt-3">Trade on the Go</h3>
-
-              <p className="text-sm text-gray-300 mt-2">
-                Full trading power in your pocket. Scan the QR code to download.
-              </p>
-            </div>
-
-            {/* QR */}
-            {/* QR */}
-            <div className="flex justify-center items-center flex-1 mt-5">
-              <div className="w-[90%] max-w-[300px] aspect-square bg-white rounded-2xl flex items-center justify-center text-black shadow-lg">
-                QR
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="mt-4 space-y-2">
-              <button className="w-full bg-white/10 py-2 rounded-lg text-sm">
-                App Store
-              </button>
-              <button className="w-full bg-white/10 py-2 rounded-lg text-sm">
-                Google Play
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

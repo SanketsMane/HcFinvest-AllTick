@@ -50,6 +50,7 @@ const WalletPage = () => {
   const [showInternalTransferModal, setShowInternalTransferModal] =
     useState(false);
 
+    
   const [showPaymentMethodsView, setShowPaymentMethodsView] = useState(false);
   const [showBankTransferModal, setShowBankTransferModal] = useState(false);
   const [showUPIModal, setShowUPIModal] = useState(false);
@@ -796,9 +797,9 @@ const WalletPage = () => {
                 </button>
 
                 <Internal_Transfer
-  show={showInternalTransferModal}
-  onClose={() => setShowInternalTransferModal(false)}
-/>
+                  show={showInternalTransferModal}
+                  onClose={() => setShowInternalTransferModal(false)}
+                />
 
                 {/*  
                 {cryptoWithdrawAvailable && (

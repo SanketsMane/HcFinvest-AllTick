@@ -43,6 +43,7 @@ import internalTransferRoutes from "./routes/internalTransfer.js";
 import redisClient from './services/redisClient.js';
 import competitionLeaderboard from "./routes/competitionLeaderboard.js";
 import competitionEmailRoutes from "./routes/emailRoutes.js";
+import "./utils/competitionStatusCron.js";
 
 
 const __filename = fileURLToPath(import.meta.url)

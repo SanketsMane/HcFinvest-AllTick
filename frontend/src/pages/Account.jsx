@@ -148,7 +148,7 @@ if (accs.length > 0) {
       <div className="flex-1 flex flex-col p-6">
         {/* TOP BAR */}
 
-        <NavbarClient title="My Account" subtitle="Manage your trading accounts" />
+              <NavbarClient title="My Account" subtitle="Manage your trading accounts" />
         
 
         {/* PAGE CONTENT */}

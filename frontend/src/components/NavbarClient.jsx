@@ -17,7 +17,7 @@ const NavbarClient = ({title , subtitle}) => {
       const initial = user?.name?.charAt(0)?.toUpperCase() || "U";
 
     return(
-            <div className="flex items-center justify-between mb-6 relative">
+            <div className="flex items-center justify-between mb-6 relative border-b border-gray-300 pb-4">
               
               {/* LEFT */}
               <div>
@@ -33,24 +33,23 @@ const NavbarClient = ({title , subtitle}) => {
               </div>
         
               {/* RIGHT - PROFILE */}
-                  <div className="relative">
+                  <div className="relative" >
                     {/* PROFILE BUTTON */}
                     <div
                       onClick={() => setOpen(!open)}
-                      className="flex items-center gap-3 cursor-pointer px-3 py-2 rounded-xl hover:bg-gray-100 transition-all duration-200"
-                    >
+                      className="flex items-center gap-4 cursor-pointer px-5 py-3 rounded-xl bg-white shadow-sm transition-all duration-200 hover:bg-gray-100 hover:shadow-md hover:scale-[1.02] active:scale-95 group">
                       {/* Avatar */}
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white flex items-center justify-center font-semibold shadow-sm">
+                     <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white flex items-center justify-center font-semibold shadow-sm transition-transform duration-200 group-hover:scale-110">
                         {initial}
                       </div>
         
                       {/* Name */}
                       <div className="text-right leading-tight">
-                        <p className="text-sm font-semibold text-gray-800">
+                        <p className="text-lg font-semibold text-gray-800">
                           {user?.firstName || "User"}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          Account
+                        <p className="text-sm text-gray-500">
+                          Pro Trader
                         </p>
                       </div>
                     </div>

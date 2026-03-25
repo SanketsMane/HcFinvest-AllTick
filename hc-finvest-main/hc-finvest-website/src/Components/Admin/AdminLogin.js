@@ -126,7 +126,7 @@ const AdminLogin = () => {
             py: 1,
             fontWeight: 600,
             bgcolor: "#0b2447",
-            "&:hover": { bgcolor: "#132a5c" },
+            "&:hover": { bgcolor: "#001f62" },
           }}
         >
           Login
