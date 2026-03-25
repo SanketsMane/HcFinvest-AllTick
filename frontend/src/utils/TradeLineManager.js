@@ -66,7 +66,6 @@ export class TradeLineManager {
     this.activeDragId = null;
     this.dragStartPrice = 0;
     this.isUpdatingGhost = false;
-    this._missingTrades = {}; // tid -> timestamp
     this.syncLockUntil = 0; // v7.28 Anti-Flicker lock
 
     console.log('[TradeManager v7.28] Perfectionist Engine Initialized');
@@ -232,32 +231,12 @@ export class TradeLineManager {
     const chart = this.widget.chart();
     const now = Date.now();
 
-    // ─── The Vault (Graceful Removal) ──────────────────────────
-    // Track when we first see a trade missing
+    // ─── Instant Orphan Cleanup ──────────────────────────────────────────
+    // Trades missing from the Redux store instantly have their lines deleted.
     Object.keys(this.lines).forEach(tid => {
         if (!visibleIds.has(tid)) {
-            if (!this._missingTrades[tid]) {
-                this._missingTrades[tid] = now;
-                console.log(`[TradeManager] Trade ${tid} missing. Starting 15s grace period.`);
-            }
-        } else {
-            delete this._missingTrades[tid]; // Reset if it reappears
-        }
-    });
-
-    // Actually remove only if missing for > 15s
-    Object.keys(this._missingTrades).forEach(tid => {
-        if (now - this._missingTrades[tid] > 15000) {
-            console.log(`[TradeManager] Grace period expired for ${tid}. Removing lines.`);
+            console.log(`[TradeManager] Trade ${tid} closed/missing. Instant cleanup.`);
             this.removeTradeLines(tid);
-            delete this._missingTrades[tid];
-        }
-    });
-
-    // Cleanup internal state for IDs that are definitively gone
-    Object.keys(this.lines).forEach(tid => {
-        if (!visibleIds.has(tid) && !this._missingTrades[tid]) {
-            // This should only happen if removeTradeLines was already called
         }
     });
 
@@ -273,6 +252,8 @@ export class TradeLineManager {
     const sl = Number(trade.stopLoss || trade.sl);
     const tp = Number(trade.takeProfit || trade.tp);
 
+    if (!Number.isFinite(entry)) return;
+
     if (!this.lines[tid]) this.lines[tid] = { entry: null, sl: null, tp: null };
     const set = this.lines[tid];
 
@@ -284,7 +265,7 @@ export class TradeLineManager {
     }
 
     // SL
-    if (sl > 0) {
+    if (Number.isFinite(sl) && sl > 0) {
       if (!set.sl) {
         set.sl = await this._createShape(tid, 'sl', sl, { color: '#f44336', style: 1, width: 1, text: `SL  ${fmt(sl)}` });
       } else {
@@ -293,7 +274,7 @@ export class TradeLineManager {
     } else if (set.sl) { this._destroyShape(set.sl.tvId); set.sl = null; }
 
     // TP
-    if (tp > 0) {
+    if (Number.isFinite(tp) && tp > 0) {
       if (!set.tp) {
         set.tp = await this._createShape(tid, 'tp', tp, { color: '#4caf50', style: 1, width: 1, text: `TP  ${fmt(tp)}` });
       } else {
