@@ -3109,6 +3109,7 @@ const TradingPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [activePositionTab, setActivePositionTab] = useState('Positions')
+  const [isBottomPanelMinimized, setIsBottomPanelMinimized] = useState(false)
   const [oneClickTrading, setOneClickTrading] = useState(false)
   const [selectedSide, setSelectedSide] = useState('BUY') // BUY or SELL
   const [openTabs, setOpenTabs] = useState(() => {
@@ -3267,6 +3268,17 @@ const TradingPage = () => {
       console.error('[TradingPage] Failed to save tabs to localStorage:', err)
     }
   }, [openTabs, activeTab])
+
+  // Auto-redirect to History tab when a trade closes
+  const prevOpenTradesLength = useRef(openTrades.length)
+  useEffect(() => {
+    // If openTrades length decreased and wasn't 0 previously, a trade was closed (either manually or by SL/TP)
+    if (openTrades.length < prevOpenTradesLength.current && prevOpenTradesLength.current > 0) {
+      if (activePositionTab !== 'History') setActivePositionTab('History');
+      if (isBottomPanelMinimized) setIsBottomPanelMinimized(false);
+    }
+    prevOpenTradesLength.current = openTrades.length;
+  }, [openTrades.length, activePositionTab, isBottomPanelMinimized])
 
   // Fetch all supported symbols from backend
   const fetchSymbolsFromBackend = async () => {
@@ -4936,7 +4948,7 @@ const TradingPage = () => {
           </div>
 
           {/* Positions Panel - Expanded height for History tab */}
-          <div className={`${isMobile ? 'h-48' : (activePositionTab === 'History' ? 'h-80' : 'h-44')} border-t flex flex-col shrink-0 overflow-hidden ${isDarkMode ? 'bg-[#0d0d0d] border-gray-800' : 'bg-white border-gray-200'}`}>
+          <div className={`${isBottomPanelMinimized ? 'h-10' : (isMobile ? 'h-48' : (activePositionTab === 'History' ? 'h-80' : 'h-44'))} border-t flex flex-col shrink-0 overflow-hidden ${isDarkMode ? 'bg-[#0d0d0d] border-gray-800' : 'bg-white border-gray-200'} transition-all duration-300`}>
             <div className={`h-10 flex items-center justify-between px-2 sm:px-4 border-b overflow-x-auto ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
               <div className="flex gap-2 sm:gap-6">
                 {[
@@ -4947,7 +4959,10 @@ const TradingPage = () => {
                 ].map(tab => (
                   <button
                     key={tab.name}
-                    onClick={() => setActivePositionTab(tab.name)}
+                    onClick={() => {
+                      if (isBottomPanelMinimized) setIsBottomPanelMinimized(false);
+                      setActivePositionTab(tab.name);
+                    }}
                     className={`text-xs sm:text-sm whitespace-nowrap ${activePositionTab === tab.name ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-gray-500 hover:text-white'}`}
                   >
                     {isMobile ? `${tab.name.split(' ')[0]}(${tab.count})` : `${tab.name}(${tab.count})`}
@@ -4990,11 +5005,18 @@ const TradingPage = () => {
                     )}
                   </>
                 )}
-                <span className="text-xs sm:text-sm text-gray-500">P/L: <span className={accountSummary.floatingPnl >= 0 ? 'text-green-500' : 'text-red-500'}>{accountSummary.floatingPnl >= 0 ? '+' : ''}${accountSummary.floatingPnl?.toFixed(2) || '0.00'}</span></span>
+                <span className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">P/L: <span className={accountSummary.floatingPnl >= 0 ? 'text-green-500 font-medium' : 'text-red-500 font-medium'}>{accountSummary.floatingPnl >= 0 ? '+' : ''}${Math.abs(accountSummary.floatingPnl || 0).toFixed(2)}</span></span>
+                <button
+                  onClick={() => setIsBottomPanelMinimized(!isBottomPanelMinimized)}
+                  className={`ml-1 p-1 rounded-md transition-all duration-300 ${isDarkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-200'} ${isBottomPanelMinimized ? 'rotate-180' : ''}`}
+                  title={isBottomPanelMinimized ? "Expand Panel" : "Minimize Panel"}
+                >
+                  <ChevronDown size={18} />
+                </button>
               </div>
             </div>
             
-            <div className="flex-1 overflow-auto">
+            <div className={`flex-1 overflow-auto transition-opacity duration-300 ${isBottomPanelMinimized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
               {activePositionTab === 'Positions' && (
               <table className="w-full text-sm">
                 <thead className={`text-gray-500 border-b sticky top-0 ${isDarkMode ? 'border-gray-800 bg-[#0d0d0d]' : 'border-gray-200 bg-white'}`}>

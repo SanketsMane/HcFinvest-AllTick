@@ -648,22 +648,22 @@ class PropTradingEngine {
         if (sl && bid <= sl) {
           shouldClose = true
           closeReason = 'SL'
-          closePrice = bid
+          closePrice = sl
         } else if (tp && bid >= tp) {
           shouldClose = true
           closeReason = 'TP'
-          closePrice = bid
+          closePrice = tp
         }
       } else {
         // For SELL: SL triggers when ask >= SL, TP triggers when ask <= TP
         if (sl && ask >= sl) {
           shouldClose = true
           closeReason = 'SL'
-          closePrice = ask
+          closePrice = sl
         } else if (tp && ask <= tp) {
           shouldClose = true
           closeReason = 'TP'
-          closePrice = ask
+          closePrice = tp
         }
       }
 

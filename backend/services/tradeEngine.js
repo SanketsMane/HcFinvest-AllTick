@@ -556,7 +556,17 @@ class TradeEngine {
 
       const trigger = trade.checkSlTp(prices.bid, prices.ask)
       if (trigger) {
-        const result = await this.closeTrade(trade._id, prices.bid, prices.ask, trigger)
+        // ZERO SLIPPAGE IMPLEMENTATION:
+        // Use the exact requested SL/TP price rather than the market price that breached it
+        let exactExecutionPrice = trade.side === 'BUY' ? prices.bid : prices.ask;
+        if (trigger === 'SL' && (trade.stopLoss || trade.sl)) {
+          exactExecutionPrice = trade.stopLoss || trade.sl;
+        } else if (trigger === 'TP' && (trade.takeProfit || trade.tp)) {
+          exactExecutionPrice = trade.takeProfit || trade.tp;
+        }
+
+        // Pass exactExecutionPrice for both bid and ask to ensure the exact price is used for P/L calculation regardless of trade side
+        const result = await this.closeTrade(trade._id, exactExecutionPrice, exactExecutionPrice, trigger)
         triggeredTrades.push({ trade: result.trade, trigger, pnl: result.realizedPnl })
       }
     }
