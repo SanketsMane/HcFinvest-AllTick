@@ -1,51 +1,7 @@
-import { API_URL } from '../config/api';
+import { canonicalSymbol } from './symbolUtils';
 
-/**
- * ============================================================
- * TradeLineManager v7.52 — Phase 68: THE PINNED ENTRY (FIXED)
- * ============================================================
- * v7.52 Pinned Entry (Fixed):
- * - cursor-independent price tracking (lastDragPrice)
- * - Immediate Snap-Back (Pin entry line during drag)
- * - Sync Lock (2.5s guard after commit to prevent flicker)
- * - Dynamic Precision (Instrument-aware decimal places)
- * - Absolute Entry Pinning (Snap-back refinement)
- * - State-Preserving Commits (Merge SL/TP)
- * ============================================================
- */
-// ─── Auth ────────────────────────────────────────────────────
-window.TRADE_ENGINE_VERSION = '7.51-PINNED';
-console.log('%c [TradeManager v7.60] PRODUCTION READY ENGINE ACTIVE ', 'background: #222; color: #4caf50; font-size: 20px;');
-
-const normalizeToken = (raw) => {
-  if (!raw || typeof raw !== 'string') return '';
-  const t = raw.trim();
-  if (!t || t === 'undefined' || t === 'null') return '';
-  return t.startsWith('Bearer ') ? t.slice(7).trim() : t;
-};
-
-const getAuthToken = () => {
-  const direct = normalizeToken(localStorage.getItem('token'));
-  if (direct) return direct;
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return normalizeToken(user?.token || user?.accessToken || user?.jwt);
-  } catch { return ''; }
-};
-
-// ─── Symbol normalization ─────────────────────────────────────
-const canonicalSymbol = (raw) => {
-  const v = String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!v) return '';
-  if (/^[A-Z]{6}/.test(v)) return v.slice(0, 6);
-  return v;
-};
-
-// ─── Price formatting ─────────────────────────────────────────
-const fmt = (price) => {
-  if (!Number.isFinite(price)) return '0.00';
-  return price > 100 ? price.toFixed(2) : price.toFixed(5);
-};
+const getAuthToken = () => localStorage.getItem('token');
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // ─── Debounce ─────────────────────────────────────────────────
 const debounce = (fn, ms) => {
@@ -58,20 +14,20 @@ export class TradeLineManager {
   constructor(chartRef, onTradeModify) {
     this.chartRef = chartRef;
     this.onTradeModify = onTradeModify;
-    this.lines = {}; // tradeId -> { entry, sl, tp, ghost }
+    this.lines = {}; // tradeId -> { entry, sl, tp, ghost, entryGhost }
     this.tvIdMap = {}; // tvId -> { tradeId, type }
     this.trades = [];
     this.lastSync = 0;
     this.isCommitBlocked = false;
-    this.lastDragPrice = 0; // 🛡️ v7.52 Tracking cursor independently of shape position
+    this.lastDragPrice = 0; 
     
     // Ghost tracking
     this.activeDragId = null;
     this.dragStartPrice = 0;
     this.isUpdatingGhost = false;
-    this.syncLockUntil = 0; // v7.28 Anti-Flicker lock
+    this.syncLockUntil = 0; 
 
-    console.log('[TradeManager v7.50] Production Ready Engine Initialized');
+    console.log('[TradeManager v7.66] Stationary Ghost Engine Active');
   }
 
   initialize(widget) {
@@ -98,21 +54,16 @@ export class TradeLineManager {
 
       const action = String(status?.status || status || '').toLowerCase();
       
-      // Stop logging spammy points_changed and move events
       if (action !== 'points_changed' && action !== 'move' && action !== 'remove') {
           console.log(`[TradeManager] EVENT: ${tvId} (${meta.type}) status="${action}"`);
       }
 
-      // 🛡️ Prevent manual deletion of Entry/SL/TP lines by the user
-      // If action is remove or deleted, we forcefully recreate the line if the trade is still open
       if (action === 'remove' || action === 'deleted') {
          if (meta.tradeId && this.lines[meta.tradeId]?.[meta.type]) {
-            console.log(`[TradeManager] Blocked deletion of ${meta.type.toUpperCase()} line for trade ${meta.tradeId}`);
-            // Remove the shape tracking reference so syncTrades redraws it immediately
+            console.log(`[TradeManager] Blocked deletion of ${meta.type.toUpperCase()} line`);
             this.lines[meta.tradeId][meta.type] = null;
-            
             setTimeout(() => {
-                this.syncLockUntil = 0; // Bypass sync lock
+                this.syncLockUntil = 0;
                 this.syncTrades(this.trades, this.currentSymbol);
             }, 50);
          }
@@ -126,14 +77,13 @@ export class TradeLineManager {
         this.dragStartPrice = Number.isFinite(p) ? p : 0;
       }
 
-      // 🛡️ v7.32 Track BOTH move and points_changed to guarantee we never miss a final drag endpoint!
       if (action === 'points_changed' || action === 'move') {
-          if (meta.type === 'entry') this._onNativeMove(tvId, meta); // spawn ghost
+          if (meta.type === 'entry') this._onNativeMove(tvId, meta);
 
           if (this.commitTimers[tvId]) clearTimeout(this.commitTimers[tvId]);
           this.commitTimers[tvId] = setTimeout(() => {
               this._onNativeStop(tvId, meta);
-          }, 50); // 🛡️ v7.33 Ultra-fast 200ms user interaction response
+          }, 50);
       }
     };
     widget.subscribe('drawing_event', this._handler);
@@ -145,30 +95,30 @@ export class TradeLineManager {
     const price = shape?.getPoints?.()?.[0]?.price;
     if (!price || !Number.isFinite(price) || this.isUpdatingGhost) return;
 
-    // ─── MT5 Ghosting (Spawn Logic) ─────────────────────────────
     if (meta.type === 'entry') {
         const trade = this.getTradeById(meta.tradeId);
         if (!trade) return;
 
-        // 🛡️ v7.52 Store the incoming raw price before we snap the line back.
-        // This ensures the ghost and the final drop price are accurate.
-        this.lastDragPrice = price;
-
-        // 🛡️ v7.52 DUAL PINNING: Force the entry line back immediately.
         const realEntry = Number(trade.openPrice || trade.price);
-        if (realEntry && Math.abs(price - realEntry) > 0.000001) {
-            this._updateShape(tvId, realEntry);
-            // Re-force after micro-task to combat internal TV drag loops
-            Promise.resolve().then(() => this._updateShape(tvId, realEntry));
+        const tid = String(meta.tradeId);
+
+        if (!this.lines[tid].entryGhost) {
+            const ghostId = await this._createShape(meta.tradeId, `entry-ghost`, realEntry, {
+                color: '#2196F3',
+                style: 2,
+                width: 1,
+                text: 'ENTRY'
+            });
+            if (ghostId) this.lines[tid].entryGhost = { tvId: ghostId.tvId, price: realEntry };
+            this._updateShape(tvId, price, 'DRAG TO SET SL/TP');
         }
 
         const side = String(trade.side || trade.type || '').toLowerCase();
         const isBuy = side.includes('buy') || side.includes('long');
-        const entry = realEntry;
-        
-        let ghostType = isBuy ? (price > entry ? 'tp' : 'sl') : (price > entry ? 'sl' : 'tp');
+        let ghostType = isBuy ? (price > realEntry ? 'tp' : 'sl') : (price > realEntry ? 'sl' : 'tp');
 
-        // Serialized ghost update
+        this._updateShape(tvId, price, `NEW ${ghostType.toUpperCase()}`);
+
         this.isUpdatingGhost = true;
         try {
             await this._updateSpawnGhost(meta.tradeId, ghostType, price);
@@ -183,7 +133,6 @@ export class TradeLineManager {
     if (!this.lines[tid]) return;
     const set = this.lines[tid];
 
-    // Destroy existing ghost if type changed (crossed the entry line)
     if (set.ghost && set.ghost.type !== type) {
         this._destroyShape(set.ghost.tvId);
         set.ghost = null;
@@ -193,7 +142,7 @@ export class TradeLineManager {
         const color = type === 'tp' ? '#4caf50' : '#f44336';
         const ghostId = await this._createShape(tradeId, `ghost-${type}`, price, {
             color,
-            style: 2, // Dotted
+            style: 2,
             width: 1,
             text: `NEW ${type.toUpperCase()}`
         });
@@ -209,13 +158,8 @@ export class TradeLineManager {
     const shape = chart.getShapeById(tvId);
     let price = shape?.getPoints?.()?.[0]?.price;
     
-    // 🛡️ v7.52 If this was an entry drag, use our tracked cursor price instead of the (possibly snapped) shape price.
-    if (meta.type === 'entry' && this.lastDragPrice) {
-        price = this.lastDragPrice;
-        this.lastDragPrice = 0; // Reset
-    }
-
-    console.log(`[TradeManager] Drag Stop [200ms final]: ${meta.type} (TV:${tvId}) price=${price}`);
+    const tid = String(meta.tradeId);
+    console.log(`[TradeManager] Drag Stop: ${meta.type} (TV:${tvId}) price=${price}`);
 
     if (!price || !meta.tradeId) {
         this.activeDragId = null;
@@ -224,80 +168,57 @@ export class TradeLineManager {
 
     if (meta.type === 'entry') {
       const trade = this.getTradeById(meta.tradeId);
-      const tid = String(meta.tradeId);
+      
+      if (this.lines[tid]?.entryGhost) {
+          this._destroyShape(this.lines[tid].entryGhost.tvId);
+          delete this.lines[tid].entryGhost;
+      }
       
       const ghost = this.lines[tid]?.ghost;
       if (ghost) {
           this._destroyShape(ghost.tvId);
           this.lines[tid].ghost = null;
           
-          // 🛡️ v7.35 Absolute Final Target Verification
-          // Recalculating the drop classification here completely bypasses any visual lag or frame-drops 
-          // that might have caused the temporary Ghost shape to misread the ultimate destination.
           const side = String(trade.side || trade.type || '').toLowerCase();
           const isBuy = side.includes('buy') || side.includes('long');
           const entryPrice = Number(trade.openPrice || trade.price);
           const t = isBuy ? (price > entryPrice ? 'tp' : 'sl') : (price < entryPrice ? 'tp' : 'sl');
 
-          console.log(`[TradeManager] Confirming EXACT SPAWN: ${t.toUpperCase()} -> ${price} (Targeted)`);
-          
-          // ✨ OPTIMISTIC RAW PLOT
-          if (this.lines[tid][t]) {
-              this._updateShape(this.lines[tid][t].tvId, price);
-          } else {
-              const color = t === 'tp' ? '#4caf50' : '#f44336';
-              const shapeRef = await this._createShape(tid, t, price, {
-                  color, style: 1, width: 2, text: `${t.toUpperCase()}`
-              });
-              this.lines[tid][t] = shapeRef;
-          }
-
-          await this._commitTrade(tid, t, price); // Network execution
-      }
-
-      // 🛡️ v7.25 Forced Snap-Back: The Entry line never moves on the chart.
-      const realEntry = Number(trade?.openPrice || trade?.price);
-      if (shape && realEntry) {
-          this._updateShape(tvId, realEntry);
+          this._updateShape(tvId, entryPrice, 'ENTRY');
+          console.log(`[TradeManager] Confirming EXACT SPAWN: ${t.toUpperCase()} -> ${price}`);
+          await this._commitTrade(tid, t, price);
+      } else {
+          const realPrice = Number(trade?.openPrice || trade?.price);
+          if (realPrice) this._updateShape(tvId, realPrice, 'ENTRY');
       }
       
       setTimeout(() => { this.activeDragId = null; }, 100); 
-      return;
-    }
-
-    if (meta.type === 'sl' || meta.type === 'tp') {
-        console.log(`[TradeManager] Confirming ${meta.type.toUpperCase()} DROP -> ${price}`);
+    } else {
         this._updateShape(tvId, price);
         await this._commitTrade(meta.tradeId, meta.type, price);
+        setTimeout(() => { this.activeDragId = null; }, 200);
     }
-    
-    setTimeout(() => { this.activeDragId = null; }, 200);
   }
 
   async syncTrades(trades, symbol = null) {
-    if (this.activeDragId) return; // Locked during interaction
-    if (Date.now() < this.syncLockUntil) return; // v7.28 Sync Lock (Prevent flickering during commit)
+    if (this.activeDragId) return; 
+    if (Date.now() < this.syncLockUntil) return; 
 
     this.trades = trades || [];
-    this.currentSymbol = symbol; // Track current symbol for the redraw handler
+    this.currentSymbol = symbol; 
     const curSym = canonicalSymbol(symbol);
     const visible = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym && !String(t._id || t.id).startsWith('temp_'));
     const visibleIds = new Set(visible.map(t => String(t._id || t.id)));
 
     if (!this.widget) return;
     const chart = this.widget.chart();
-    const now = Date.now();
 
-    // ─── Instant Orphan Cleanup ──────────────────────────────────────────
-    // Trades missing from the Redux store instantly have their lines deleted.
     Object.keys(this.lines).forEach(tid => {
         if (!visibleIds.has(tid)) {
-            console.log(`[TradeManager] Trade ${tid} closed/missing. Instant cleanup.`);
             this.removeTradeLines(tid);
         }
     });
 
-    // Sync active trades
     for (const trade of visible) {
       await this._syncTradeShapes(chart, trade);
     }
@@ -314,14 +235,12 @@ export class TradeLineManager {
     if (!this.lines[tid]) this.lines[tid] = { entry: null, sl: null, tp: null };
     const set = this.lines[tid];
 
-    // ENTRY (Fixed position, but draggable to spawn ghosts)
     if (!set.entry) {
       set.entry = await this._createShape(tid, 'entry', entry, { color: '#2196F3', style: 1, width: 2, text: `ENTRY` });
     } else {
       this._updateShape(set.entry.tvId, entry);
     }
 
-    // SL
     if (Number.isFinite(sl) && sl > 0) {
       if (!set.sl) {
         set.sl = await this._createShape(tid, 'sl', sl, { color: '#f44336', style: 1, width: 2, text: `SL` });
@@ -330,7 +249,6 @@ export class TradeLineManager {
       }
     } else if (set.sl) { this._destroyShape(set.sl.tvId); set.sl = null; }
 
-    // TP
     if (Number.isFinite(tp) && tp > 0) {
       if (!set.tp) {
         set.tp = await this._createShape(tid, 'tp', tp, { color: '#4caf50', style: 1, width: 2, text: `TP` });
@@ -348,7 +266,7 @@ export class TradeLineManager {
             {
                 shape: 'horizontal_line',
                 lock: false,
-                disableSelection: true, // 🛡️ v7.53 Hide floating properties toolbar for trade lines
+                disableSelection: true,
                 disableSave: true,
                 disableUndo: true,
                 overrides: {
@@ -358,7 +276,7 @@ export class TradeLineManager {
                     linestyle: cfg.style,
                     showLabel: true,
                     text: cfg.text,
-                    horzLabelsAlign: 'left', // v7.33 Draw text on opposite side of Y-Axis
+                    horzLabelsAlign: 'left',
                 }
             }
         );
@@ -375,7 +293,6 @@ export class TradeLineManager {
         shape.setPoints([{ price }]);
         if (text) shape.setProperties({ overrides: { text } });
     } finally { 
-        // 50ms suffocation for stray TV points_changed echoes
         setTimeout(() => { this.isCommitBlocked = false; }, 50);
     }
   }
@@ -394,9 +311,9 @@ export class TradeLineManager {
     if (set.sl) this._destroyShape(set.sl.tvId);
     if (set.tp) this._destroyShape(set.tp.tvId);
     if (set.ghost) this._destroyShape(set.ghost.tvId);
+    if (set.entryGhost) this._destroyShape(set.entryGhost.tvId);
 
     delete this.lines[tid];
-    console.log(`[TradeManager] Cleaned up lines for trade ${tid}`);
   }
 
   getTradeById(tid) {
@@ -405,25 +322,18 @@ export class TradeLineManager {
 
   async _commitTrade(tradeId, type, price) {
     const tid = String(tradeId);
-    console.log(`[TradeManager] Native Commit: ${tid} ${type} -> ${price}`);
-    
-    // 🛡️ v7.25 State-Preserving Commit
     const trade = this.getTradeById(tid);
     if (!trade) return;
 
-    // 🛡️ v7.28 Precision Discovery
-    // Try to get instrument precision from chart to eliminate slippage
     let decimals = 5;
     try {
         const info = this.widget.activeChart().symbolInfo();
         if (info && info.pricescale) {
             decimals = Math.round(Math.log10(info.pricescale));
-            if (decimals < 0) decimals = 2; // Default to 2 for things like JPY
+            if (decimals < 0) decimals = 2;
         }
     } catch {}
 
-    // 🛡️ v7.36 Ultimate State Integrity
-    // Use physical TV shapes as the primary fallback to prevent asynchronous Redux lag from overwriting new lines with zeros!
     let fallbackSL = trade.stopLoss || trade.sl || 0;
     if (this.lines[tid]?.sl?.tvId) {
         try {
@@ -446,25 +356,11 @@ export class TradeLineManager {
     const currentSL = type === 'sl' ? roundedPrice : parseFloat(Number(fallbackSL).toFixed(decimals));
     const currentTP = type === 'tp' ? roundedPrice : parseFloat(Number(fallbackTP).toFixed(decimals));
 
-    console.log('%c [TradeManager] 🎯 ZERO-SLIPPAGE PAYLOAD ', 'background: #4caf50; color: white; padding: 2px 4px;', { 
-        action: type.toUpperCase(), 
-        rawDragValue: price, 
-        roundedPayloadSent: roundedPrice,
-        decimalsApplied: decimals 
-    });
-
-    const payload = { 
-        tradeId: tid,
-        sl: currentSL,
-        tp: currentTP
-    };
-
+    const payload = { tradeId: tid, sl: currentSL, tp: currentTP };
     const token = getAuthToken();
     if (!token) return;
 
-    // 🛡️ v7.28 Engage Sync Lock
     this.syncLockUntil = Date.now() + 2500; 
-
     try {
       const res = await fetch(`${API_URL}/trade/modify`, {
         method: 'PUT',
