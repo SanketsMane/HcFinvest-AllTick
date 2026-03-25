@@ -222,7 +222,7 @@ export class TradeLineManager {
 
     this.trades = trades || [];
     const curSym = canonicalSymbol(symbol);
-    const visible = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym);
+    const visible = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym && !String(t._id || t.id).startsWith('temp_'));
     const visibleIds = new Set(visible.map(t => String(t._id || t.id)));
 
     if (!this.widget) return;
@@ -379,8 +379,16 @@ export class TradeLineManager {
     } catch {}
 
     // Preserve existing value if not the one being modified
-    const currentSL = type === 'sl' ? parseFloat(price.toFixed(decimals)) : (trade.stopLoss || trade.sl || 0);
-    const currentTP = type === 'tp' ? parseFloat(price.toFixed(decimals)) : (trade.takeProfit || trade.tp || 0);
+    const roundedPrice = parseFloat(price.toFixed(decimals));
+    const currentSL = type === 'sl' ? roundedPrice : parseFloat(Number(trade.stopLoss || trade.sl || 0).toFixed(decimals));
+    const currentTP = type === 'tp' ? roundedPrice : parseFloat(Number(trade.takeProfit || trade.tp || 0).toFixed(decimals));
+
+    console.log('%c [TradeManager] 🎯 ZERO-SLIPPAGE PAYLOAD ', 'background: #4caf50; color: white; padding: 2px 4px;', { 
+        action: type.toUpperCase(), 
+        rawDragValue: price, 
+        roundedPayloadSent: roundedPrice,
+        decimalsApplied: decimals 
+    });
 
     const payload = { 
         tradeId: tid,
