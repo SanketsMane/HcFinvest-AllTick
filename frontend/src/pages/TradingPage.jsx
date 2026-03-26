@@ -11,6 +11,8 @@ import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
 import All_Tick_Chart from '../components/All_Tick_Chart.jsx'
 import WebSocketTest from '../components/WebSocketTest.jsx'
+import priceStreamService, { getPriceEvents } from '../services/priceStream'
+import marketDataApiService from '../services/marketDataApi'
 
 const TradingPage = () => {
   const navigate = useNavigate()
