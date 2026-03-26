@@ -925,26 +925,31 @@ const MobileTradingApp = () => {
 
   // MARKET TAB
   const renderMarket = () => (
-    <div className="flex flex-col h-full pb-16">
-      {/* Search */}
-      <div className="p-4 bg-dark-800 border-b border-gray-800">
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-          <input
-            type="text"
-            placeholder="Search instruments..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-dark-700 border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500"
-          />
+    <div className="flex flex-col h-full bg-[#0b0c10] pb-16">
+      {/* Search & Categories */}
+      <div className="bg-[#0b0c10] border-b border-gray-800/50 pt-2 px-1">
+        <div className="px-3 mb-2">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 transition-colors group-focus-within:text-blue-500" size={16} />
+            <input
+              type="text"
+              placeholder="Search markets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-[#1a1b1e] border border-gray-800 rounded-lg pl-9 pr-4 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
+            />
+          </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide px-2">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${
-                activeCategory === cat ? 'bg-accent-green text-black' : 'bg-dark-700 text-gray-400'
+              className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all shrink-0 border-b-2 ${
+                activeCategory === cat 
+                  ? 'border-blue-500 text-blue-500' 
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
               }`}
             >
               {cat}
@@ -954,15 +959,15 @@ const MobileTradingApp = () => {
       </div>
 
       {/* Instruments List */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto divide-y divide-gray-800/20">
         {filteredInstruments.map(inst => {
           const prices = getPrice(inst.symbol)
           return (
             <div
               key={inst.symbol}
-              className="flex items-center justify-between p-4 border-b border-gray-800"
+              className="px-4 py-3 flex items-center justify-between active:bg-blue-500/5 transition-colors"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -970,28 +975,38 @@ const MobileTradingApp = () => {
                       i.symbol === inst.symbol ? { ...i, starred: !i.starred } : i
                     ))
                   }}
-                  className="p-1"
+                  className="shrink-0 opacity-40"
                 >
-                  <Star size={18} className={inst.starred ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600'} />
+                  <Star size={16} className={inst.starred ? 'text-yellow-500 fill-yellow-500 opacity-100' : 'text-gray-600'} />
                 </button>
-                <div className="text-left">
-                  <p className="text-white font-medium">{inst.symbol}</p>
-                  <p className="text-gray-500 text-xs">{inst.name}</p>
+                
+                <div className="min-w-0" onClick={() => openOrderPanel(inst)}>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-gray-100 font-bold text-sm tracking-tight">{inst.symbol}</span>
+                    <span className={`text-[9px] font-bold ${prices.change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {prices.change >= 0 ? '+' : ''}{prices.change?.toFixed(2)}%
+                    </span>
+                  </div>
+                  <p className="text-gray-500 text-[9px] uppercase font-bold tracking-wider opacity-60 truncate">{inst.name}</p>
                 </div>
               </div>
-              <button
-                onClick={() => openOrderPanel(inst)}
-                className="flex items-center gap-3 active:bg-dark-700 rounded-lg p-2"
-              >
+
+              <div className="flex items-center gap-4" onClick={() => openOrderPanel(inst)}>
                 <div className="text-right">
-                  <p className="text-red-500 text-sm">{prices.bid?.toFixed(inst.category === 'Forex' ? 5 : 2) || '-'}</p>
-                  <p className="text-gray-600 text-xs">Bid</p>
+                  <p className="text-gray-200 font-mono font-bold text-sm leading-none mb-1">
+                    {prices.bid?.toFixed(inst.category === 'Forex' ? 5 : 2) || '0.00'}
+                  </p>
+                  <p className="text-[8px] uppercase font-bold text-gray-600 tracking-tighter">Bid</p>
                 </div>
+                
                 <div className="text-right">
-                  <p className="text-green-500 text-sm">{prices.ask?.toFixed(inst.category === 'Forex' ? 5 : 2) || '-'}</p>
-                  <p className="text-gray-600 text-xs">Ask</p>
+                  <p className="text-gray-200 font-mono font-bold text-sm leading-none mb-1">
+                    {prices.ask?.toFixed(inst.category === 'Forex' ? 5 : 2) || '0.00'}
+                  </p>
+                  <p className="text-[8px] uppercase font-bold text-gray-600 tracking-tighter">Ask</p>
                 </div>
-              </button>
+              </div>
+
               <button
                 onClick={() => {
                   const existingTab = chartTabs.find(t => t.symbol === inst.symbol)
@@ -1001,9 +1016,9 @@ const MobileTradingApp = () => {
                   setActiveChartTab(inst.symbol)
                   setActiveTab('chart')
                 }}
-                className="p-2 bg-dark-700 rounded-lg"
+                className="ml-4 p-2 bg-gray-800/40 rounded-lg text-blue-500/60 active:text-blue-500"
               >
-                <LineChart size={18} className="text-accent-green" />
+                <LineChart size={18} />
               </button>
             </div>
           )
