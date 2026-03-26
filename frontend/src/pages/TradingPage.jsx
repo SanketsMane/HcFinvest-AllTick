@@ -195,7 +195,7 @@
 //         if (priceData && priceData.bid && priceData.bid > 0) {
 //           const bid = priceData.bid
 //           const ask = priceData.ask || priceData.bid
-//           const spread = Math.abs(ask - bid) 
+//           const spread = Math.abs(ask - bid) || (bid * 0.0001)
 //           return { ...inst, bid, ask, spread }
 //         }
 //         return inst
@@ -372,7 +372,7 @@
 //             // Use bid for both if ask not provided, add small spread
 //             const bid = priceData.bid
 //             const ask = priceData.ask || priceData.bid
-//             const spread = Math.abs(ask - bid)  // Default spread if same
+//             const spread = Math.abs(ask - bid) || (bid * 0.0001) // Default spread if same
 //             return {
 //               ...inst,
 //               bid: bid,
@@ -393,7 +393,7 @@
 //               ...prev,
 //               bid: bid,
 //               ask: ask,
-//               spread: Math.abs(ask - bid) 
+//               spread: Math.abs(ask - bid) || (bid * 0.0001)
 //             }
 //           }
 //           return prev
@@ -409,7 +409,7 @@
 //               ...tab,
 //               bid: bid,
 //               ask: ask,
-//               spread: Math.abs(ask - bid) 
+//               spread: Math.abs(ask - bid) || (bid * 0.0001)
 //             }
 //           }
 //           return tab
@@ -3042,14 +3042,13 @@
 
 // ---------------------------------------------------------------------------------------------------------------------------
 
+
 import { API_URL } from '../config/api'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon, Clock, ChevronDown, Check } from 'lucide-react'
 import marketDataApiService from '../services/marketDataApi'
 import priceStreamService, { getPriceEvents } from '../services/priceStream'
-import { getAdminMarkupValue, getRetailPrice } from '../utils/priceUtils';
-import Datafeed from '../services/datafeed';
 import { useTheme } from '../context/ThemeContext'
 import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
@@ -3092,16 +3091,7 @@ const TradingPage = () => {
   const [challengeRules, setChallengeRules] = useState(null)
   const [loading, setLoading] = useState(true)
   const [chartLoading, setChartLoading] = useState(false)
-  const [selectedInstrument, setSelectedInstrument] = useState(() => {
-    try {
-      const savedActiveTab = localStorage.getItem('activeTab') || 'XAUUSD.i'
-      const savedOpenTabs = JSON.parse(localStorage.getItem('openTabs') || '[]')
-      const activeTabData = savedOpenTabs.find(t => t.symbol === savedActiveTab)
-      return activeTabData || { symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }
-    } catch {
-      return { symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }
-    }
-  })
+  const [selectedInstrument, setSelectedInstrument] = useState({ symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 })
   const [showInstruments, setShowInstruments] = useState(window.innerWidth >= 768)
   const [showOrderPanel, setShowOrderPanel] = useState(window.innerWidth >= 768)
   const [orderTab, setOrderTab] = useState('Market')
@@ -3110,23 +3100,10 @@ const TradingPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [activePositionTab, setActivePositionTab] = useState('Positions')
-  const [isBottomPanelMinimized, setIsBottomPanelMinimized] = useState(false)
   const [oneClickTrading, setOneClickTrading] = useState(false)
   const [selectedSide, setSelectedSide] = useState('BUY') // BUY or SELL
-  const [openTabs, setOpenTabs] = useState(() => {
-    try {
-      const saved = localStorage.getItem('openTabs')
-      return saved ? JSON.parse(saved) : [
-        { symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 },
-        { symbol: 'EURUSD.i', name: 'Euro vs US Dollar', bid: 0, ask: 0, spread: 0 }
-      ]
-    } catch { return [{ symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }] }
-  })
-  const [activeTab, setActiveTab] = useState(() => {
-    try { return localStorage.getItem('activeTab') || 'XAUUSD.i' } catch { return 'XAUUSD.i' }
-  })
-  const [showSymbolPicker, setShowSymbolPicker] = useState(false)
-  const [pickerSearch, setPickerSearch] = useState('')
+  const [openTabs, setOpenTabs] = useState([{ symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }])
+  const [activeTab, setActiveTab] = useState('XAUUSD.i')
   const [showTakeProfit, setShowTakeProfit] = useState(false)
   const [showStopLoss, setShowStopLoss] = useState(false)
   const [takeProfit, setTakeProfit] = useState('')
@@ -3183,7 +3160,6 @@ const TradingPage = () => {
     { symbol: 'US500.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'US100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'UK100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
-    { symbol: 'ES35.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
   ])
   const [loadingInstruments, setLoadingInstruments] = useState(false) // Don't block UI on prices
   const [starredSymbols, setStarredSymbols] = useState(['XAUUSD.i', 'EURUSD.i', 'GBPUSD.i'])
@@ -3253,34 +3229,6 @@ const TradingPage = () => {
       marketDataApiService.disconnect()
     }
   }, [accountId])
-
-  // Persist open tabs + active tab to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('openTabs', JSON.stringify(openTabs.map(t => ({ 
-        symbol: t.symbol, 
-        name: t.name || t.symbol, 
-        bid: 0, 
-        ask: 0, 
-        spread: 0 
-      }))))
-      localStorage.setItem('activeTab', activeTab)
-    } catch (err) {
-      console.error('[TradingPage] Failed to save tabs to localStorage:', err)
-    }
-  }, [openTabs, activeTab])
-
-  // Auto-refresh History and Account Summary when a trade closes (detect length decrease)
-  const prevOpenTradesLength = useRef(openTrades.length)
-  useEffect(() => {
-    // If openTrades length decreased and wasn't 0 previously, a trade was closed (either manually or by SL/TP)
-    if (openTrades.length < prevOpenTradesLength.current && prevOpenTradesLength.current > 0) {
-      // User requested NOT to auto-redirect. Just silently refresh the history so it's ready.
-      fetchTradeHistory()
-      fetchAccountSummary()
-    }
-    prevOpenTradesLength.current = openTrades.length;
-  }, [openTrades.length])
 
   // Fetch all supported symbols from backend
   const fetchSymbolsFromBackend = async () => {
@@ -3403,24 +3351,8 @@ const TradingPage = () => {
       }
     })
     
-    // Fallback: also fetch via HTTP for initial load
-    fetchLivePrices()
-
-    // ✅ Reactive Trade Sync (v7.69)
-    // Instantly refresh UI when backend emits tradeClosed or tradeUpdated
-    priceStreamService.subscribeToAccount(accountId);
-    const untrade = priceStreamService.subscribeToTrades('tradingPage', (trade, status) => {
-        console.log(`[TradingPage] Reactive Trade ${status}:`, trade._id || trade.id);
-        fetchOpenTrades();
-        fetchAccountSummary();
-        if (status === 'closed') fetchTradeHistory();
-    });
-    
-    return () => {
-        unsubscribe();
-        untrade();
-    }
-  }, [selectedInstrument?.symbol, accountId])
+    return () => unsubscribe()
+  }, [selectedInstrument?.symbol])
 
   useEffect(() => {
     if (!selectedInstrument?.symbol) return
@@ -3467,16 +3399,6 @@ const TradingPage = () => {
           localStorage.removeItem('user')
           navigate('/user/login')
           return
-        }
-        
-        // Hydrate starred symbols from user profile
-        if (data.user && data.user.favoriteInstruments) {
-          setStarredSymbols(data.user.favoriteInstruments)
-          // Update mapped instruments
-          setInstruments(prev => prev.map(inst => ({
-            ...inst,
-            starred: data.user.favoriteInstruments.includes(inst.symbol)
-          })))
         }
       } catch (error) {
         console.error('Auth check error:', error)
@@ -3611,7 +3533,7 @@ const TradingPage = () => {
             // Use bid for both if ask not provided, add small spread
             const bid = priceData.bid
             const ask = priceData.ask || priceData.bid
-            const spread = Math.abs(ask - bid)  // Default spread if same
+            const spread = Math.abs(ask - bid) || (bid * 0.0001) // Default spread if same
             return {
               ...inst,
               bid: bid,
@@ -3632,7 +3554,7 @@ const TradingPage = () => {
               ...prev,
               bid: bid,
               ask: ask,
-              spread: Math.abs(ask - bid) 
+              spread: Math.abs(ask - bid) || (bid * 0.0001)
             }
           }
           return prev
@@ -3648,7 +3570,7 @@ const TradingPage = () => {
               ...tab,
               bid: bid,
               ask: ask,
-              spread: Math.abs(ask - bid) 
+              spread: Math.abs(ask - bid) || (bid * 0.0001)
             }
           }
           return tab
@@ -3712,11 +3634,43 @@ const TradingPage = () => {
     return price.toFixed(decimals)
   }
 
-  // Calculate display price with admin spread applied (Retail Lens)
+  // Calculate display price with admin spread applied
+  // This shows users the actual execution price they'll get
   const getDisplayPrice = (symbol, side, rawBid, rawAsk) => {
-    // Standardize price for markup calculation
-    const basePrice = side === 'BUY' ? rawAsk : rawBid;
-    return getRetailPrice(basePrice, symbol, side, adminSpreads);
+    const spreadConfig = getSpreadConfig(symbol)
+    if (!spreadConfig || !spreadConfig.spread) {
+      // No admin spread configured, return raw price
+      return side === 'BUY' ? rawAsk : rawBid
+    }
+    
+    const spreadValue = spreadConfig.spread
+    const spreadType = spreadConfig.spreadType || 'FIXED'
+    
+    let spread = spreadValue
+    if (spreadType === 'PERCENTAGE') {
+      spread = (rawAsk - rawBid) * (spreadValue / 100)
+    } else {
+      // FIXED spread - convert from pips/cents to actual price units
+      // Forex: 1 pip = 0.0001 (or 0.01 for JPY pairs)
+      // Metals (Gold/Silver): value is in cents, so divide by 100
+      // Crypto: value is in USD, use as-is
+      if (isJpyPair(symbol)) {
+        spread = spreadValue * 0.01 // JPY pairs: 1 pip = 0.01
+      } else if (isMetalSymbol(symbol)) {
+        spread = spreadValue / 100 // Metals: cents to dollars
+      } else if (isCryptoSymbol(symbol)) {
+        spread = spreadValue // Crypto: USD value as-is
+      } else {
+        spread = spreadValue * 0.0001 // Standard Forex: 1 pip = 0.0001
+      }
+    }
+    
+    // Apply spread: BUY gets higher price, SELL gets lower price
+    if (side === 'BUY') {
+      return rawAsk + spread
+    } else {
+      return rawBid - spread
+    }
   }
 
   // Fetch admin-set spreads for instruments (based on user's account type)
@@ -3732,9 +3686,6 @@ const TradingPage = () => {
       const data = await res.json()
       if (data.success) {
         setAdminSpreads(data.spreads || {})
-        if (typeof Datafeed?.setAdminSpreads === 'function') {
-           Datafeed.setAdminSpreads(data.spreads || {});
-        }
       }
     } catch (error) {
       console.error('Error fetching admin spreads:', error)
@@ -4200,9 +4151,7 @@ const TradingPage = () => {
       const data = await res.json()
 
       if (data.success) {
-        setTradeSuccess(`Trade closed! P/L: $${data.realizedPnl?.toFixed(2)}`)
-        // Instantly refresh local state even before fetch
-        setOpenTrades(prev => prev.filter(t => t._id !== tradeId && t.id !== tradeId))
+        setTradeSuccess(`Trade closed. P/L: $${data.realizedPnl?.toFixed(2)}`)
         fetchOpenTrades()
         fetchTradeHistory()
         fetchAccountSummary()
@@ -4452,52 +4401,15 @@ const TradingPage = () => {
 
   const filteredInstruments = instruments.filter(inst => {
     const matchesSearch = inst.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-    if (activeCategory === 'Starred') {
-      return matchesSearch && inst.starred
-    }
     const matchesCategory = activeCategory === 'All' || inst.category === activeCategory
     return matchesSearch && matchesCategory
   })
 
-  const toggleStar = async (e, symbol) => {
-    e.stopPropagation();
-    
-    // Optimistic UI update
-    setStarredSymbols(prev => {
-      const isStarred = prev.includes(symbol);
-      const next = isStarred ? prev.filter(s => s !== symbol) : [...prev, symbol];
-      
-      // Update mapped instruments
-      setInstruments(insts => insts.map(inst => 
-        inst.symbol === symbol ? { ...inst, starred: !isStarred } : inst
-      ));
-      
-      return next;
-    });
-
-    try {
-      const token = localStorage.getItem('token');
-      await fetch(`${API_URL}/auth/favorites/toggle`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ userId: user._id, symbol })
-      });
-    } catch (err) {
-      console.error('Error toggling favorite:', err);
-    }
-  }
-
   const handleInstrumentClick = (inst) => {
-    setOpenTabs(prevTabs => {
-      const existingTab = prevTabs.find(tab => tab.symbol === inst.symbol)
-      if (!existingTab) {
-        return [...prevTabs, inst]
-      }
-      return prevTabs
-    })
+    const existingTab = openTabs.find(tab => tab.symbol === inst.symbol)
+    if (!existingTab) {
+      setOpenTabs([...openTabs, inst])
+    }
     setActiveTab(inst.symbol)
     setSelectedInstrument(inst)
   }
@@ -4631,7 +4543,7 @@ const TradingPage = () => {
               <span className={`ml-3 text-xs ${accountType === 'challenge' ? 'text-yellow-500' : 'text-teal-400'}`}>
                 {accountType === 'challenge' ? 'Challenge' : (account?.accountTypeId?.name || 'Standard')} - {account?.accountId}
               </span>
-              <span className="text-gray-400 ml-3 text-xs">Balance: <span className="text-black">${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
+              <span className="text-gray-400 ml-3 text-xs">Balance: <span className="text-white">${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
             </>
           )}
           <div className="flex-1" />
@@ -4706,15 +4618,8 @@ const TradingPage = () => {
               
               {/* Category Tabs */}
               <div className={`flex items-center gap-1 px-3 py-2 border-b overflow-x-auto scrollbar-hide ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <button 
-                  onClick={() => setActiveCategory('Starred')} 
-                  className={`px-2 py-1 rounded text-xs font-medium transition-colors shrink-0 ${
-                    activeCategory === 'Starred' 
-                      ? 'bg-yellow-500 text-white' 
-                      : 'text-gray-400 hover:text-yellow-500'
-                  }`}
-                >
-                  <Star size={14} className={activeCategory === 'Starred' ? 'fill-white' : ''} />
+                <button className="text-gray-600 hover:text-yellow-500 shrink-0">
+                  <Star size={14} />
                 </button>
                 {categories.map(cat => (
                   <button
@@ -4752,9 +4657,7 @@ const TradingPage = () => {
                           : (isDarkMode ? 'border-gray-700 hover:border-gray-600 hover:bg-[#1a1a1a]' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50')
                       }`}
                     >
-                      <div onClick={(e) => toggleStar(e, inst.symbol)} className="cursor-pointer hover:scale-110 transition-transform">
-                        <Star size={12} className={`shrink-0 mr-2 ${inst.starred ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500 hover:text-yellow-400'}`} />
-                      </div>
+                      <Star size={12} className={`shrink-0 mr-2 ${inst.starred ? 'text-yellow-500 fill-yellow-500' : 'text-gray-700'}`} />
                       <div className="text-left min-w-[55px]">
                         <div className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{inst.symbol}</div>
                         <div className="text-green-500 text-[10px]">+{inst.change?.toFixed(2) || '0.00'}%</div>
@@ -4827,50 +4730,9 @@ const TradingPage = () => {
                 )}
               </div>
             ))}
-            <button 
-              onClick={() => { setShowSymbolPicker(v => !v); setPickerSearch('') }}
-              className={`ml-1 p-1.5 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-[#1a1a1a]' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}
-              title="Add chart tab"
-            >
+            <button className={`ml-1 p-1.5 rounded ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-[#1a1a1a]' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}>
               <Plus size={16} />
             </button>
-            {/* Symbol Picker Dropdown */}
-            {showSymbolPicker && (
-              <div className={`absolute top-10 left-2 z-50 w-72 rounded-lg shadow-2xl border overflow-hidden ${
-                isDarkMode ? 'bg-[#151515] border-gray-700' : 'bg-white border-gray-200'
-              }`}>
-                <div className="px-3 py-2 border-b border-gray-700">
-                  <input
-                    autoFocus
-                    type="text"
-                    placeholder="Search symbol..."
-                    value={pickerSearch}
-                    onChange={e => setPickerSearch(e.target.value)}
-                    onKeyDown={e => e.key === 'Escape' && setShowSymbolPicker(false)}
-                    className={`w-full text-sm rounded px-2 py-1.5 focus:outline-none border ${
-                      isDarkMode ? 'bg-[#1a1a1a] border-gray-600 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-300 text-gray-900'
-                    }`}
-                  />
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {instruments
-                    .filter(i => i.symbol.toLowerCase().includes(pickerSearch.toLowerCase()))
-                    .map(i => (
-                      <button
-                        key={i.symbol}
-                        onClick={() => { handleInstrumentClick(i); setShowSymbolPicker(false); setPickerSearch('') }}
-                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
-                          isDarkMode ? 'hover:bg-[#1a1a1a] text-gray-200' : 'hover:bg-gray-50 text-gray-800'
-                        } ${openTabs.find(t => t.symbol === i.symbol) ? 'opacity-40 cursor-default' : ''}`}
-                      >
-                        <span className="font-medium">{i.symbol}</span>
-                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{i.category}</span>
-                      </button>
-                    ))
-                  }
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Chart - Lightweight Charts with real-time updates */}
@@ -4891,56 +4753,25 @@ const TradingPage = () => {
               symbol={selectedInstrument?.symbol} 
               trades={openTrades} 
               onTradeModify={handleTradeModify}
-              isDarkMode={isDarkMode}
-              adminSpreads={adminSpreads}
-              onSymbolChange={(newSym) => {
-                // 🔄 Sync chart's internal search with parent tabs
-                const cleanSym = newSym.replace(/\.i$/i, '').toUpperCase();
-                
-                // If it's already the active tab, ignore (this fires on initial load)
-                if (cleanSym === activeTab) return;
-
-                setOpenTabs(prevTabs => {
-                  const existingTabIndex = prevTabs.findIndex(t => t.symbol === cleanSym);
-                  
-                  if (existingTabIndex >= 0) {
-                    // Symbol already has a tab open somewhere, just switch to it (will force chart to re-render but keeps state clean)
-                    setTimeout(() => {
-                      setActiveTab(cleanSym);
-                      setSelectedInstrument(prevTabs[existingTabIndex]);
-                    }, 0);
-                    return prevTabs;
-                  } else {
-                    // Replace the CURRENT active tab with the new symbol! 
-                    // (because the user changed the symbol of the current chart widget)
-                    const inst = instruments.find(i => i.symbol === cleanSym) || { symbol: cleanSym, name: cleanSym };
-                    setTimeout(() => {
-                      setActiveTab(cleanSym);
-                      setSelectedInstrument(inst);
-                    }, 0);
-                    return prevTabs.map(tab => tab.symbol === activeTab ? inst : tab);
-                  }
-                });
-              }}
             />
             {/* Live Price Status Indicator */}
             <div className="flex items-center justify-between px-2 py-1 text-xs">
               <div className="flex items-center gaps-2">
-                {/* <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div> */}
+                <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                  {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
+                  {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'}
                 </span>
               </div>
               {livePrices[selectedInstrument.symbol] && (
                 <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                  {/* Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()} */}
+                  Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()}
                 </div>
               )}
             </div>
           </div>
 
           {/* Positions Panel - Expanded height for History tab */}
-          <div className={`${isBottomPanelMinimized ? 'h-10' : (isMobile ? 'h-48' : (activePositionTab === 'History' ? 'h-80' : 'h-44'))} border-t flex flex-col shrink-0 overflow-hidden ${isDarkMode ? 'bg-[#0d0d0d] border-gray-800' : 'bg-white border-gray-200'} transition-all duration-300`}>
+          <div className={`${isMobile ? 'h-48' : (activePositionTab === 'History' ? 'h-80' : 'h-44')} border-t flex flex-col shrink-0 overflow-hidden ${isDarkMode ? 'bg-[#0d0d0d] border-gray-800' : 'bg-white border-gray-200'}`}>
             <div className={`h-10 flex items-center justify-between px-2 sm:px-4 border-b overflow-x-auto ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
               <div className="flex gap-2 sm:gap-6">
                 {[
@@ -4951,10 +4782,7 @@ const TradingPage = () => {
                 ].map(tab => (
                   <button
                     key={tab.name}
-                    onClick={() => {
-                      if (isBottomPanelMinimized) setIsBottomPanelMinimized(false);
-                      setActivePositionTab(tab.name);
-                    }}
+                    onClick={() => setActivePositionTab(tab.name)}
                     className={`text-xs sm:text-sm whitespace-nowrap ${activePositionTab === tab.name ? (isDarkMode ? 'text-white' : 'text-gray-900') : 'text-gray-500 hover:text-white'}`}
                   >
                     {isMobile ? `${tab.name.split(' ')[0]}(${tab.count})` : `${tab.name}(${tab.count})`}
@@ -4997,18 +4825,11 @@ const TradingPage = () => {
                     )}
                   </>
                 )}
-                <span className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">P/L: <span className={accountSummary.floatingPnl >= 0 ? 'text-green-500 font-medium' : 'text-red-500 font-medium'}>{accountSummary.floatingPnl >= 0 ? '+' : ''}${Math.abs(accountSummary.floatingPnl || 0).toFixed(2)}</span></span>
-                <button
-                  onClick={() => setIsBottomPanelMinimized(!isBottomPanelMinimized)}
-                  className={`ml-1 p-1 rounded-md transition-all duration-300 ${isDarkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-200'} ${isBottomPanelMinimized ? 'rotate-180' : ''}`}
-                  title={isBottomPanelMinimized ? "Expand Panel" : "Minimize Panel"}
-                >
-                  <ChevronDown size={18} />
-                </button>
+                <span className="text-xs sm:text-sm text-gray-500">P/L: <span className={accountSummary.floatingPnl >= 0 ? 'text-green-500' : 'text-red-500'}>{accountSummary.floatingPnl >= 0 ? '+' : ''}${accountSummary.floatingPnl?.toFixed(2) || '0.00'}</span></span>
               </div>
             </div>
             
-            <div className={`flex-1 overflow-auto transition-opacity duration-300 ${isBottomPanelMinimized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <div className="flex-1 overflow-auto">
               {activePositionTab === 'Positions' && (
               <table className="w-full text-sm">
                 <thead className={`text-gray-500 border-b sticky top-0 ${isDarkMode ? 'border-gray-800 bg-[#0d0d0d]' : 'border-gray-200 bg-white'}`}>

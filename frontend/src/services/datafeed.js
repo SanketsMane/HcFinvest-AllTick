@@ -1,6 +1,5 @@
 import { API_URL } from "../config/api";
 import priceStreamService from "./priceStream";
-import { wrapOHLC } from "../utils/priceUtils";
 
 /**
  * Custom Datafeed for TradingView Charting Library
@@ -71,97 +70,21 @@ const normalizeBars = (candles = []) => {
   return [...barsByTime.values()].sort((a, b) => a.time - b.time);
 };
 
-// All supported symbols for the built-in TV symbol search
-const ALL_SYMBOLS = [
-  // Forex
-  { symbol: 'EURUSD.i', description: 'Euro / US Dollar', type: 'forex' },
-  { symbol: 'GBPUSD.i', description: 'Great British Pound / US Dollar', type: 'forex' },
-  { symbol: 'USDJPY.i', description: 'US Dollar / Japanese Yen', type: 'forex' },
-  { symbol: 'USDCHF.i', description: 'US Dollar / Swiss Franc', type: 'forex' },
-  { symbol: 'AUDUSD.i', description: 'Australian Dollar / US Dollar', type: 'forex' },
-  { symbol: 'NZDUSD.i', description: 'New Zealand Dollar / US Dollar', type: 'forex' },
-  { symbol: 'USDCAD.i', description: 'US Dollar / Canadian Dollar', type: 'forex' },
-  { symbol: 'EURGBP.i', description: 'Euro / Great British Pound', type: 'forex' },
-  { symbol: 'EURJPY.i', description: 'Euro / Japanese Yen', type: 'forex' },
-  { symbol: 'GBPJPY.i', description: 'Great British Pound / Japanese Yen', type: 'forex' },
-  { symbol: 'EURAUD.i', description: 'Euro / Australian Dollar', type: 'forex' },
-  { symbol: 'EURCAD.i', description: 'Euro / Canadian Dollar', type: 'forex' },
-  { symbol: 'EURCHF.i', description: 'Euro / Swiss Franc', type: 'forex' },
-  { symbol: 'AUDJPY.i', description: 'Australian Dollar / Japanese Yen', type: 'forex' },
-  { symbol: 'CADJPY.i', description: 'Canadian Dollar / Japanese Yen', type: 'forex' },
-  { symbol: 'CHFJPY.i', description: 'Swiss Franc / Japanese Yen', type: 'forex' },
-  { symbol: 'GBPAUD.i', description: 'Great British Pound / Australian Dollar', type: 'forex' },
-  { symbol: 'GBPCAD.i', description: 'Great British Pound / Canadian Dollar', type: 'forex' },
-  { symbol: 'AUDCAD.i', description: 'Australian Dollar / Canadian Dollar', type: 'forex' },
-  { symbol: 'NZDJPY.i', description: 'New Zealand Dollar / Japanese Yen', type: 'forex' },
-  // Metals
-  { symbol: 'XAUUSD.i', description: 'CFDs on Gold (US$ / OZ)', type: 'commodity' },
-  { symbol: 'XAGUSD.i', description: 'CFDs on Silver (US$ / OZ)', type: 'commodity' },
-  // Indices
-  { symbol: 'US30.i',  description: 'US Wall Street 30', type: 'index' },
-  { symbol: 'US500.i', description: 'US S&P 500', type: 'index' },
-  { symbol: 'US100.i', description: 'US NASDAQ 100', type: 'index' },
-  { symbol: 'UK100.i', description: 'UK FTSE 100', type: 'index' },
-  { symbol: 'ES35.i',  description: 'Spain 35', type: 'index' },
-  // Crypto
-  { symbol: 'BTCUSD.i', description: 'Bitcoin / US Dollar', type: 'crypto' },
-  { symbol: 'ETHUSD.i', description: 'Ethereum / US Dollar', type: 'crypto' },
-];
-
 const Datafeed = {
   interval: null,
-  _adminSpreads: {},
-
-  setAdminSpreads: (spreads) => {
-    Datafeed._adminSpreads = spreads || {};
-    console.log('[DATAFEED] Admin spreads updated', Object.keys(Datafeed._adminSpreads).length);
-  },
 
   onReady: (callback) => {
     setTimeout(() => callback(configurationData));
   },
 
-  // 🛡️ v7.52 Sync with server time to ensure candle countdown is accurate
-  getServerTime: (callback) => {
-    fetch(`${API_URL}/prices/time`)
-      .then(res => res.json())
-      .then(json => {
-        if (json.success && json.time) {
-          callback(json.time);
-        }
-      })
-      .catch(() => { /* Fallback to local time if API fails */ });
-  },
-
-  // Required by TradingView — powers the built-in symbol search dialog
-  searchSymbols: (userInput, _exchange, _symbolType, onResult) => {
-    const query = (userInput || '').toUpperCase();
-    const results = ALL_SYMBOLS
-      .filter(s => s.symbol.toUpperCase().includes(query) || s.description.toUpperCase().includes(query))
-      .map(s => ({
-        symbol: s.symbol,
-        full_name: s.symbol,
-        description: s.description,
-        exchange: 'AllTick',
-        type: s.type,
-        ticker: s.symbol,
-      }));
-    onResult(results);
-  },
-
   resolveSymbol: async (symbolName, onSymbolResolvedCallback) => {
-    // Determine pricescale based on actual asset type and precision requirements
-    let pricescale = 100000; // Default 5 decimals (Forex)
+    // //sanket - Determine pricescale based on symbol (BTC, XAU, JPY usually have 2-3 decimals, Forex has 5)
+    let pricescale = 100000;
     const s = symbolName.toUpperCase();
-    
-    if (s.includes("US30") || s.includes("US100") || s.includes("UK100") || s.includes("GER40") || s.includes("FRA40") || s.includes("SPA35") || s.includes("ES35")) {
-      pricescale = 10; // 1 decimal (e.g., 18000.5)
-    } else if (s.includes("US500") || s.includes("XAU") || s.includes("BTC") || s.includes("ETH") || s.includes("BNB") || s.includes("SOL") || s.includes("LTC")) {
-      pricescale = 100; // 2 decimals (e.g., 2150.50, 65000.00)
-    } else if (s.includes("JPY") || s.includes("XAG") || s.includes("NGAS") || s.includes("OIL")) {
-      pricescale = 1000; // 3 decimals (e.g., 150.123, 30.550)
-    } else if (s.includes("XRP") || s.includes("ADA") || s.includes("DOGE")) {
-      pricescale = 100000; // 5 decimals (Crypto micros)
+    if (s.includes("JPY") || s.includes("XAU") || s.includes("BTC") || s.includes("ETH") || s.includes("USDT")) {
+      pricescale = 100;
+    } else if (s.includes("XAG")) {
+      pricescale = 1000;
     }
 
     const symbolInfo = {
@@ -182,7 +105,7 @@ const Datafeed = {
       volume_precision: 2,
       data_status: "streaming"
     };
-    console.log(`[v7.50] resolveSymbol: ${symbolName} using pricescale ${pricescale}`);
+    console.log(`[sanket] resolveSymbol: ${symbolName} using pricescale ${pricescale}`);
     setTimeout(() => onSymbolResolvedCallback(symbolInfo), 0);
   },
 
@@ -227,9 +150,7 @@ const Datafeed = {
 
       let bars = [];
       if (result.success && result.candles && result.candles.length > 0) {
-        // Apply Retail Lens Markup to historical bars
-        const rawBars = normalizeBars(result.candles);
-        bars = rawBars.map(bar => wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads));
+        bars = normalizeBars(result.candles);
       }
 
       if (bars.length === 0) {
@@ -280,7 +201,7 @@ const Datafeed = {
     let lastUpdateTime = 0;
     let tickCount = 0;
     let lastTickTime = 0;
-    const throttleMs = 50;
+    const throttleMs = 300;
     let isActive = true;
 
     // Seed real-time aggregation from the last historical bar so refresh during a forming
@@ -365,6 +286,8 @@ const Datafeed = {
       // Resolution match (only process bars for the resolution we are watching)
       if (incomingTimeframe !== timeframe) return;
 
+      if (!candle || !Number.isFinite(candle.time)) return;
+
       const bar = {
         time: candle.time,
         open: candle.open,
@@ -374,10 +297,7 @@ const Datafeed = {
         volume: candle.volume
       };
 
-      // Apply Retail Lens Markup to AUTHORITATIVE bar
-      const authoritativeBar = wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads);
-
-      currentBar = { ...authoritativeBar };
+      currentBar = { ...bar };
       lastBarTime = bar.time;
       lastUpdateTime = Date.now();
 

@@ -195,7 +195,7 @@ class AllTickWebSocket {
       if (!this.pollingInterval) {
         this.pollingInterval = setInterval(() => {
           this.pollForData()
-        }, 50)
+        }, 300)
       }
       // Initial poll for this symbol
       this.pollForData()

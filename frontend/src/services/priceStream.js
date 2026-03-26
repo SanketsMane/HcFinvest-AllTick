@@ -177,7 +177,7 @@ class PriceStreamService {
       this._lastTickKeyBySymbol.set(symbol, tickKey)
       this._lastTickTsBySymbol.set(symbol, now)
       
-      // console.log(`[PriceStream] 📍 Tick received: ${symbol} bid=${bid} ask=${ask}`)
+      console.log(`[PriceStream] 📍 Tick received: ${symbol} bid=${bid} ask=${ask}`)
       
       // ✅ Dispatch priceUpdate event for the chart datafeed to aggregate into candles
       try {
@@ -323,15 +323,6 @@ class PriceStreamService {
     // Disconnect if no subscribers
     if (this.subscribers.size === 0 && this.categorySubscribers.size === 0 && this.tradeSubscribers.size === 0) {
       this._scheduleDisconnectIfIdle()
-    }
-  }
-
-  // ✅ Account-room subscription (v7.69)
-  subscribeToAccount(accountId) {
-    if (this.socket?.connected) {
-      this.socket.emit('subscribe', { tradingAccountId: accountId })
-    } else if (!this.socket) {
-      this.connect()
     }
   }
 

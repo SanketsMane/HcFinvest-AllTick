@@ -30,7 +30,6 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import Sidebar from '../components/Sidebar'
-import NavbarClient from '../components/NavbarClient'
 
 const OrderBook = () => {
   const navigate = useNavigate()
@@ -448,14 +447,76 @@ const OrderBook = () => {
       )}
  */}
       {/* Main Content */}
-      <main className={`flex-1 p-6 overflow-auto ${isMobile ? 'pt-14' : ''}`}>
+      <main className={`flex-1 overflow-auto ${isMobile ? 'pt-14' : ''}`}>
         {!isMobile && (
+          // <header className="h-14 bg-[#2f3f74] flex items-center justify-between px-6 text-white">
+          //   <div>
+          //     <h1 className="text-lg font-semibold">Order Book</h1>
+          //     <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>View all your positions, history & pending orders</p>
+          //   </div>
+          // </header>
 
-          <NavbarClient title="Order Book" subtitle="Manage and track your buy and sell orders" />
+                        <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-3 sm:px-6 text-white">
+                <div className="font-semibold text-sm sm:text-base">
+                  Order Book
+                </div>
+      
+                <div className="flex items-center gap-4 sm:gap-5">
+                  <RefreshCw size={18} className="cursor-pointer" />
+      
+                  <div className="relative">
+                    <Settings
+                      size={20}
+                      className="cursor-pointer hover:text-blue-300 transition"
+                      onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                    />
+      
+                    {showSettingsMenu && (
+                      <div className="absolute right-0 mt-3 w-44 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
+                        {/* Profile */}
+                        <button
+                          onClick={() => navigate("/profile")}
+                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                        >
+                          <User size={16} />
+                          Profile
+                        </button>
+      
+                        {/* KYC */}
+                        <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                          <ShieldCheck size={16} />
+                          KYC
+                        </button>
+      
+                        {/* Theme */}
+                        <button
+                          onClick={toggleDarkMode}
+                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                        >
+                          {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                          Theme
+                        </button>
+      
+                        {/* Divider */}
+                        <div className="border-t border-gray-200"></div>
+      
+                        {/* Logout */}
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition"
+                        >
+                          <LogOut size={16} />
+                          Logout
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
         )}
 
-        <div className={`${isMobile ? 'p-4' : ''}`}>
+        <div className={`${isMobile ? 'p-4' : 'p-6'}`}>
           {/* Account Filter & Stats */}
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-4 gap-4'} mb-4`}>
             {/* Account Selector */}

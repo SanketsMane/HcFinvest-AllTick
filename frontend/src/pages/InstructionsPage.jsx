@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import Sidebar from '../components/Sidebar'
-import NavbarClient from '../components/NavbarClient'
 
 const InstructionsPage = () => {
   const navigate = useNavigate()
@@ -245,7 +244,7 @@ const InstructionsPage = () => {
     {!isMobile && <Sidebar activeMenu="Instructions" />}
 
     {/* MAIN CONTENT */}
-    <div className="flex-1 p-6 flex flex-col">
+    <div className="flex-1 flex flex-col">
 
       {/* TOP BAR */}
       {/* {!isMobile && (
@@ -253,10 +252,9 @@ const InstructionsPage = () => {
           <h1 className="text-lg font-semibold">Instructions & Guide</h1>
         </div>
       )} */}
-
-                    {/* <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-3 sm:px-6 text-white">
+                    <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-3 sm:px-6 text-white">
                       <div className="font-semibold text-sm sm:text-base">
-                        Instructions
+                        Support
                       </div>
             
                       <div className="flex items-center gap-4 sm:gap-5">
@@ -271,7 +269,7 @@ const InstructionsPage = () => {
             
                           {showSettingsMenu && (
                             <div className="absolute right-0 mt-3 w-44 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
-                            
+                              {/* Profile */}
                               <button
                                 onClick={() => navigate("/profile")}
                                 className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
@@ -280,13 +278,13 @@ const InstructionsPage = () => {
                                 Profile
                               </button>
             
-                         
+                              {/* KYC */}
                               <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
                                 <ShieldCheck size={16} />
                                 KYC
                               </button>
             
-                          
+                              {/* Theme */}
                               <button
                                 onClick={toggleDarkMode}
                                 className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
@@ -295,10 +293,10 @@ const InstructionsPage = () => {
                                 Theme
                               </button>
             
-                           
+                              {/* Divider */}
                               <div className="border-t border-gray-200"></div>
             
-                            
+                              {/* Logout */}
                               <button
                                 onClick={handleLogout}
                                 className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition"
@@ -310,12 +308,10 @@ const InstructionsPage = () => {
                           )}
                         </div>
                       </div>
-                    </div> */}
-
-      <NavbarClient title="Instructions"  subtitle="“Follow the guidelines to use the platform effectively"/>
+                    </div>
 
       {/* PAGE CONTENT */}
-      <div className="flex-1 sm:p-6 space-y-6 overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
 
         {/* Welcome Banner */}
         <div className="bg-white border rounded-xl p-6 flex items-center gap-4">
