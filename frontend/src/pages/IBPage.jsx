@@ -1,4 +1,3 @@
-
 // ib.jsx
 
 import { API_URL } from "../config/api";
@@ -18,10 +17,11 @@ import {
   Crown,
   Share2,
   Sun,
-  Moon, Settings,  User, ShieldCheck,  LogOut, RefreshCw,
+  Moon,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
+import NavbarClient from "../components/NavbarClient";
 
 const IBPage = () => {
   const navigate = useNavigate();
@@ -37,8 +37,6 @@ const IBPage = () => {
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [levelProgress, setLevelProgress] = useState(null);
-    // const { isDarkMode, toggleDarkMode } = useTheme();
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -236,495 +234,297 @@ const IBPage = () => {
       </div>
     ));
   };
-/* 
-  return (
-    <div
-      className={`min-h-screen flex flex-col md:flex-row transition-colors duration-300 ${isDarkMode ? "bg-dark-900" : "bg-gray-100"}`}
-    >
-      {/* Mobile Header .*}
-      {isMobile && (
-        <header
-          className={`fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center gap-4 ${isDarkMode ? "bg-dark-800 border-b border-gray-800" : "bg-white border-b border-gray-200"}`}
-        >
-          <button
-            onClick={() => navigate("/mobile")}
-            className={`p-2 -ml-2 rounded-lg ${isDarkMode ? "hover:bg-dark-700" : "hover:bg-gray-100"}`}
-          >
-            <ArrowLeft
-              size={22}
-              className={isDarkMode ? "text-white" : "text-gray-900"}
-            />
-          </button>
-          <h1
-            className={`font-semibold text-lg flex-1 ${isDarkMode ? "text-white" : "text-gray-900"}`}
-          >
-            IB Program
-          </h1>
-          <button
-            onClick={toggleDarkMode}
-            className={`p-2 rounded-lg ${isDarkMode ? "text-yellow-400 hover:bg-dark-700" : "text-blue-500 hover:bg-gray-100"}`}
-          >
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-          <button
-            onClick={() => navigate("/mobile")}
-            className={`p-2 rounded-lg ${isDarkMode ? "hover:bg-dark-700" : "hover:bg-gray-100"}`}
-          >
-            <Home size={20} className="text-gray-400" />
-          </button>
-        </header>
-      )}
 
-      {/* Sidebar - Hidden on Mobile .*}
+  return (
+    <div className="min-h-screen flex bg-[#f4f6fb] text-gray-800">
+      {/* Sidebar */}
       {!isMobile && <Sidebar activeMenu="IB" />}
 
-      {/* Main Content .*}
-      <main className={`flex-1 overflow-auto ${isMobile ? "pt-14" : ""}`}>
-        {!isMobile && (
-          <header
-            className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? "border-gray-800" : "border-gray-200"}`}
-          >
-            <h1
-              className={`text-xl font-semibold ${isDarkMode ? "text-white" : "text-gray-900"}`}
-            >
-              Introducing Broker (IB)
-            </h1>
-          </header>
-        )}
+      {/* Main */}
+      <div className="flex-1 p-6 flex flex-col">
+        {/* Header */}
+        {/* <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-6 text-white">
+          <h1 className="text-lg font-semibold">Introducing Broker (IB)</h1>
+        </div> */}
 
-        <div className={`${isMobile ? "p-4" : "p-6"}`}>
+        <NavbarClient title="Introducing Broker (IB) Dashboard"  subtitle="Manage your referrals and earnings"/>
+
+        {/* Content */}
+        <main className="flex-1 overflow-auto ">
           {loading ? (
             <div className="text-center py-12 text-gray-500">Loading...</div>
           ) : !ibProfile ? (
-            /* Not an IB - Show Apply .*
-            <div
-              className={`${isMobile ? "" : "max-w-lg mx-auto"} text-center ${isMobile ? "py-6" : "py-12"}`}
-            >
-              <div
-                className={`${isMobile ? "w-16 h-16" : "w-20 h-20"} bg-accent-green/20 rounded-full flex items-center justify-center mx-auto mb-4`}
-              >
-                <Award
-                  size={isMobile ? 32 : 40}
-                  className="text-accent-green"
-                />
+            /* Apply IB */
+            <div className="max-w-lg mx-auto text-center py-12">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Award size={40} className="text-green-600" />
               </div>
-              <h2
-                className={`${isMobile ? "text-xl" : "text-2xl"} font-bold text-white mb-3`}
-              >
+
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
                 Become an Introducing Broker
               </h2>
-              <p className="text-gray-400 mb-4 text-sm">
-                Earn commissions by referring traders. Get up to 5 levels of
-                referral commissions!
+
+              <p className="text-gray-600 mb-6">
+                Earn commissions by referring traders and build your referral
+                network.
               </p>
-              <div
-                className={`bg-dark-800 rounded-xl ${isMobile ? "p-4" : "p-6"} mb-4 text-left`}
-              >
-                <h3 className="text-white font-semibold mb-3 text-sm">
-                  Benefits:
-                </h3>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                  <li className="flex items-center gap-2">
-                    <ChevronRight
-                      size={14}
-                      className="text-accent-green flex-shrink-0"
-                    />
-                    Earn commission on every trade your referrals make
+
+              <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6 text-left shadow-sm">
+                <h3 className="font-semibold mb-3">Benefits</h3>
+
+                <ul className="space-y-2 text-gray-600 text-sm">
+                  <li className="flex gap-2">
+                    <ChevronRight size={14} className="text-green-500" />
+                    Earn commission on every trade
                   </li>
-                  <li className="flex items-center gap-2">
-                    <ChevronRight
-                      size={14}
-                      className="text-accent-green flex-shrink-0"
-                    />
-                    Multi-level commissions (up to 5 levels)
+
+                  <li className="flex gap-2">
+                    <ChevronRight size={14} className="text-green-500" />
+                    Multi-level commissions
                   </li>
-                  <li className="flex items-center gap-2">
-                    <ChevronRight
-                      size={14}
-                      className="text-accent-green flex-shrink-0"
-                    />
+
+                  <li className="flex gap-2">
+                    <ChevronRight size={14} className="text-green-500" />
                     Real-time commission tracking
                   </li>
-                  <li className="flex items-center gap-2">
-                    <ChevronRight size={16} className="text-accent-green" />
-                    Easy withdrawal to your wallet
+
+                  <li className="flex gap-2">
+                    <ChevronRight size={14} className="text-green-500" />
+                    Easy withdrawal
                   </li>
                 </ul>
               </div>
+
               <button
                 onClick={handleApply}
                 disabled={applying}
-                className="bg-accent-green text-black px-8 py-3 rounded-lg font-semibold hover:bg-accent-green/90 disabled:opacity-50"
+                className="bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-600 disabled:opacity-50"
               >
                 {applying ? "Applying..." : "Apply Now"}
               </button>
             </div>
-          ) : ibProfile.status === "PENDING" ||
-            ibProfile.ibStatus === "PENDING" ? (
-            /* Pending Approval .*
-            <div
-              className={`${isMobile ? "" : "max-w-lg mx-auto"} text-center ${isMobile ? "py-6" : "py-12"}`}
-            >
-              <div
-                className={`${isMobile ? "w-16 h-16" : "w-20 h-20"} bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4`}
-              >
-                <Award size={isMobile ? 32 : 40} className="text-yellow-500" />
-              </div>
-              <h2
-                className={`${isMobile ? "text-xl" : "text-2xl"} font-bold text-white mb-3`}
-              >
-                Application Pending
-              </h2>
-              <p className="text-gray-400 text-sm">
-                Your IB application is under review. You will be notified once
-                approved.
-              </p>
-            </div>
-          ) : ibProfile.status === "REJECTED" ||
-            ibProfile.ibStatus === "REJECTED" ? (
-            /* Rejected .*
-            <div
-              className={`${isMobile ? "" : "max-w-lg mx-auto"} text-center ${isMobile ? "py-6" : "py-12"}`}
-            >
-              <div
-                className={`${isMobile ? "w-16 h-16" : "w-20 h-20"} bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4`}
-              >
-                <Award size={isMobile ? 32 : 40} className="text-red-500" />
-              </div>
-              <h2
-                className={`${isMobile ? "text-xl" : "text-2xl"} font-bold text-white mb-3`}
-              >
-                Application Rejected
-              </h2>
-              <p className="text-gray-400 mb-2 text-sm">
-                Unfortunately, your IB application was not approved.
-              </p>
-              {ibProfile.rejectionReason && (
-                <p className="text-red-400 text-sm">
-                  Reason: {ibProfile.rejectionReason}
-                </p>
-              )}
-            </div>
           ) : (
-            /* Active IB Dashboard .*
+            /* IB Dashboard */
             <div>
-              {/* Stats Cards .*}
-              <div
-                className={`grid ${isMobile ? "grid-cols-2 gap-3" : "grid-cols-4 gap-4"} mb-4`}
-              >
-                <div
-                  className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-3" : "p-5"} border`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className={`${isMobile ? "w-8 h-8" : "w-10 h-10"} bg-accent-green/20 rounded-lg flex items-center justify-center`}
-                    >
-                      <DollarSign
-                        size={isMobile ? 16 : 20}
-                        className="text-accent-green"
-                      />
-                    </div>
-                  </div>
-                  <p
-                    className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-600"}`}
-                  >
-                    Available Balance
-                  </p>
-                  <p
-                    className={`font-bold ${isMobile ? "text-lg" : "text-2xl"} ${isDarkMode ? "text-white" : "text-gray-900"}`}
-                  >
+              {/* Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
+                  <p className="text-sm text-gray-500">Available Balance</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
                     ${ibProfile.ibWalletBalance?.toFixed(2) || "0.00"}
                   </p>
                 </div>
-                <div
-                  className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-3" : "p-5"} border`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className={`${isMobile ? "w-8 h-8" : "w-10 h-10"} bg-blue-500/20 rounded-lg flex items-center justify-center`}
-                    >
-                      <TrendingUp
-                        size={isMobile ? 16 : 20}
-                        className="text-blue-500"
-                      />
-                    </div>
-                  </div>
-                  <p
-                    className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-600"}`}
-                  >
-                    Total Earned
-                  </p>
-                  <p
-                    className={`font-bold ${isMobile ? "text-lg" : "text-2xl"} ${isDarkMode ? "text-white" : "text-gray-900"}`}
-                  >
+
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
+                  <p className="text-sm text-gray-500">Total Earned</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
                     ${ibProfile.totalCommissionEarned?.toFixed(2) || "0.00"}
                   </p>
                 </div>
-                <div
-                  className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-3" : "p-5"} border`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className={`${isMobile ? "w-8 h-8" : "w-10 h-10"} bg-purple-500/20 rounded-lg flex items-center justify-center`}
-                    >
-                      <Users
-                        size={isMobile ? 16 : 20}
-                        className="text-purple-500"
-                      />
-                    </div>
-                  </div>
-                  <p
-                    className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-600"}`}
-                  >
-                    Direct Referrals
-                  </p>
-                  <p
-                    className={`font-bold ${isMobile ? "text-lg" : "text-2xl"} ${isDarkMode ? "text-white" : "text-gray-900"}`}
-                  >
+
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
+                  <p className="text-sm text-gray-500">Direct Referrals</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
                     {ibProfile.stats?.directReferrals || 0}
                   </p>
                 </div>
-                <div
-                  className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-3" : "p-5"} border`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className={`${isMobile ? "w-8 h-8" : "w-10 h-10"} bg-orange-500/20 rounded-lg flex items-center justify-center`}
-                    >
-                      <UserPlus
-                        size={isMobile ? 16 : 20}
-                        className="text-orange-500"
-                      />
-                    </div>
-                  </div>
-                  <p
-                    className={`text-xs ${isDarkMode ? "text-gray-500" : "text-gray-600"}`}
-                  >
-                    Total Downline
-                  </p>
-                  <p
-                    className={`font-bold ${isMobile ? "text-lg" : "text-2xl"} ${isDarkMode ? "text-white" : "text-gray-900"}`}
-                  >
+
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
+                  <p className="text-sm text-gray-500">Total Downline</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
                     {ibProfile.stats?.totalDownline || 0}
                   </p>
                 </div>
               </div>
 
-              {/* Commission Rate & Referral Link Row .*}
-              <div
-                className={`grid ${isMobile ? "grid-cols-1 gap-3" : "grid-cols-2 gap-4"} mb-4`}
-              >
-                {/* Your Commission Rate .*}
-                <div
-                  className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-4" : "p-5"} border`}
-                >
-                  <p
-                    className={`text-sm mb-2 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}
-                  >
-                    Your Commission Rate
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p
-                        className={`font-bold text-3xl ${isDarkMode ? "text-white" : "text-gray-900"}`}
-                      >
-                        ${levelProgress?.currentLevel?.commissionRate || 2}
-                        <span
-                          className={`text-lg font-normal ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
-                        >
-                          /lot
-                        </span>
+              <div className="">
+                {/* Commission Rate + Referral Link */}
+                {levelProgress && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {/* Commission Rate */}
+                    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
+                      <p className="text-sm text-gray-500 mb-2">
+                        Your Commission Rate
                       </p>
-                      <p
-                        className={`text-sm mt-1 ${isDarkMode ? "text-gray-500" : "text-gray-600"}`}
-                      >
-                        Level:{" "}
-                        <span
-                          className={
-                            isDarkMode ? "text-white" : "text-gray-900"
-                          }
-                        >
-                          {levelProgress?.currentLevel?.name || "Standard"}
-                        </span>
-                      </p>
-                    </div>
-                    <div
-                      className="w-14 h-14 rounded-xl flex items-center justify-center"
-                      style={{
-                        backgroundColor: `${levelProgress?.currentLevel?.color || "#10B981"}20`,
-                      }}
-                    >
-                      <DollarSign
-                        size={28}
-                        style={{
-                          color:
-                            levelProgress?.currentLevel?.color || "#10B981",
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <p
-                    className={`text-xs mt-3 ${isDarkMode ? "text-gray-600" : "text-gray-500"}`}
-                  >
-                    Earn commission on every trade your referrals make.
-                  </p>
-                </div>
 
-                {/* Referral Link .*}
-                <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-5">
-                  <p className="text-white/80 text-sm mb-1">
-                    Your Referral Link
-                  </p>
-                  <p className="text-white text-sm font-mono mb-1 truncate">
-                    {window.location.origin}/user/signup?ref=
-                    {ibProfile.referralCode}
-                  </p>
-                  <p className="text-white/60 text-xs mb-3">
-                    Code:{" "}
-                    <span className="text-white font-bold">
-                      {ibProfile.referralCode}
-                    </span>
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={copyReferralLink}
-                      className="flex-1 bg-white/20 hover:bg-white/30 text-white py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <Copy size={16} />
-                      Copy Link
-                    </button>
-                    <button className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
-                      <Share2 size={18} className="text-white" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-3xl font-bold text-gray-900">
+                            ${levelProgress?.currentLevel?.commissionRate || 0}
+                            <span className="text-sm text-gray-500"> /lot</span>
+                          </p>
 
-              {/* Commission Levels Section .*}
-              {levelProgress && (
-                <div
-                  className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-4" : "p-5"} border mb-4`}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Award size={20} className="text-accent-green" />
-                      <h3
-                        className={`font-semibold ${isDarkMode ? "text-white" : "text-gray-900"}`}
-                      >
-                        Commission Levels
-                      </h3>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        levelProgress.autoUpgradeEnabled
-                          ? "bg-accent-green/20 text-accent-green"
-                          : "bg-gray-700 text-gray-400"
-                      }`}
-                    >
-                      {levelProgress.autoUpgradeEnabled
-                        ? "Auto-Upgrade Enabled"
-                        : "Auto-Upgrade Disabled"}
-                    </span>
-                  </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Level:{" "}
+                            <span className="font-semibold text-gray-900">
+                              {levelProgress?.currentLevel?.name || "Standard"}
+                            </span>
+                          </p>
+                        </div>
 
-                  {/* Progress Bar .*}
-                  {levelProgress.nextLevel && (
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-gray-400 text-sm">
-                          Progress to{" "}
-                          <span className="text-white font-medium">
-                            {levelProgress.nextLevel.name}
-                          </span>
-                        </p>
-                        <p className="text-accent-green font-medium">
-                          {levelProgress.progressPercent}%
-                        </p>
-                      </div>
-                      <div
-                        className={`h-2 rounded-full overflow-hidden ${isDarkMode ? "bg-dark-700" : "bg-gray-200"}`}
-                      >
                         <div
-                          className="h-full rounded-full transition-all duration-500"
+                          className="w-12 h-12 rounded-lg flex items-center justify-center"
                           style={{
-                            width: `${levelProgress.progressPercent}%`,
-                            background: `linear-gradient(90deg, ${levelProgress.currentLevel.color}, ${levelProgress.nextLevel.color})`,
+                            backgroundColor: `${levelProgress?.currentLevel?.color || "#10B981"}20`,
                           }}
-                        />
+                        >
+                          <DollarSign
+                            size={22}
+                            style={{
+                              color:
+                                levelProgress?.currentLevel?.color || "#10B981",
+                            }}
+                          />
+                        </div>
                       </div>
-                      <p className="text-gray-500 text-xs mt-2">
-                        {levelProgress.referralsNeeded} more referrals needed
-                        for {levelProgress.nextLevel.name} (
-                        {levelProgress.nextLevel.referralTarget} total required)
-                      </p>
                     </div>
-                  )}
 
-                  {/* Level Cards .*}
-                  <div
-                    className={`grid ${isMobile ? "grid-cols-2 gap-2" : "grid-cols-5 gap-3"}`}
-                  >
-                    {levelProgress.allLevels?.map((level) => (
-                      <div
-                        key={level._id}
-                        className={`relative rounded-xl p-3 border-2 transition-all ${
-                          level.isCurrentLevel
-                            ? "border-accent-green bg-accent-green/10"
-                            : level.isUnlocked
-                              ? "border-gray-700 bg-dark-700"
-                              : "border-gray-800 bg-dark-900 opacity-60"
+                    {/* Referral Link */}
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-5 text-white">
+                      <p className="text-sm opacity-80 mb-1">
+                        Your Referral Link
+                      </p>
+
+                      <p className="text-sm font-mono truncate mb-2">
+                        {window.location.origin}/user/signup?ref=
+                        {ibProfile.referralCode}
+                      </p>
+
+                      <p className="text-xs mb-3 opacity-80">
+                        Code:{" "}
+                        <span className="font-bold">
+                          {ibProfile.referralCode}
+                        </span>
+                      </p>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={copyReferralLink}
+                          className="flex-1 bg-white/20 hover:bg-white/30 py-2 rounded-lg flex items-center justify-center gap-2"
+                        >
+                          <Copy size={16} />
+                          Copy
+                        </button>
+
+                        <button className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center">
+                          <Share2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Commission Levels */}
+                {levelProgress && (
+                  <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Award size={20} className="text-green-500" />
+                        <h3 className="font-semibold text-gray-900">
+                          Commission Levels
+                        </h3>
+                      </div>
+
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          levelProgress.autoUpgradeEnabled
+                            ? "bg-green-100 text-green-600"
+                            : "bg-gray-100 text-gray-500"
                         }`}
                       >
-                        {level.isCurrentLevel && (
-                          <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-accent-green text-black text-xs font-bold rounded">
-                            Current
+                        {levelProgress.autoUpgradeEnabled
+                          ? "Auto Upgrade ON"
+                          : "OFF"}
+                      </span>
+                    </div>
+
+                    {/* Progress */}
+                    {levelProgress.nextLevel && (
+                      <div className="mb-5">
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>
+                            Progress to {levelProgress.nextLevel.name}
                           </span>
-                        )}
-                        <div className="flex items-center gap-2 mb-2">
-                          <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${level.color}20` }}
-                          >
-                            {level.icon === "crown" ? (
-                              <Crown size={16} style={{ color: level.color }} />
-                            ) : level.icon === "trophy" ? (
-                              <Trophy
-                                size={16}
-                                style={{ color: level.color }}
-                              />
-                            ) : (
-                              <Award size={16} style={{ color: level.color }} />
-                            )}
-                          </div>
-                          <span className="text-white font-medium text-sm">
-                            {level.name}
+                          <span className="text-green-600 font-semibold">
+                            {levelProgress.progressPercent}%
                           </span>
                         </div>
-                        <p className="text-white font-bold text-lg mb-1">
-                          ${level.commissionRate}
-                          <span className="text-gray-500 text-xs font-normal">
-                            /lot
-                          </span>
-                        </p>
-                        <p className="text-gray-500 text-xs">
-                          {level.referralTarget === 0
-                            ? "Default"
-                            : `${level.referralTarget}+ referrals`}
-                        </p>
-                        {!level.isCurrentLevel && !level.isUnlocked && (
-                          <button className="w-full mt-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition-colors">
-                            Need{" "}
-                            {level.referralTarget - levelProgress.referralCount}{" "}
-                            more
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* Tabs .*}
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full"
+                            style={{
+                              width: `${levelProgress.progressPercent}%`,
+                              background: `linear-gradient(90deg, ${levelProgress.currentLevel.color}, ${levelProgress.nextLevel.color})`,
+                            }}
+                          />
+                        </div>
+
+                        <p className="text-xs text-gray-500 mt-1">
+                          {levelProgress.referralsNeeded} more referrals needed
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Levels */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {levelProgress.allLevels?.map((level) => (
+                        <div
+                          key={level._id}
+                          className={`rounded-xl p-3 border ${
+                            level.isCurrentLevel
+                              ? "border-green-500 bg-green-50"
+                              : level.isUnlocked
+                                ? "border-gray-200 bg-white"
+                                : "border-gray-200 bg-gray-50 opacity-60"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center"
+                              style={{ backgroundColor: `${level.color}20` }}
+                            >
+                              {level.icon === "crown" ? (
+                                <Crown
+                                  size={16}
+                                  style={{ color: level.color }}
+                                />
+                              ) : level.icon === "trophy" ? (
+                                <Trophy
+                                  size={16}
+                                  style={{ color: level.color }}
+                                />
+                              ) : (
+                                <Award
+                                  size={16}
+                                  style={{ color: level.color }}
+                                />
+                              )}
+                            </div>
+
+                            <span className="text-sm font-medium">
+                              {level.name}
+                            </span>
+                          </div>
+
+                          <p className="text-lg font-bold">
+                            ${level.commissionRate}
+                            <span className="text-xs text-gray-500"> /lot</span>
+                          </p>
+
+                          <p className="text-xs text-gray-500">
+                            {level.referralTarget === 0
+                              ? "Default"
+                              : `${level.referralTarget}+ referrals`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Tabs */}
               <div
                 className={`flex ${isMobile ? "gap-1 overflow-x-auto pb-2" : "gap-4"} mb-4`}
               >
@@ -750,7 +550,7 @@ const IBPage = () => {
                 ))}
               </div>
 
-              {/* Tab Content .*}
+              {/* Overview */}
               {activeTab === "overview" && (
                 <div
                   className={`grid ${isMobile ? "grid-cols-2 gap-2" : "grid-cols-5 gap-4"}`}
@@ -786,6 +586,7 @@ const IBPage = () => {
                 </div>
               )}
 
+              {/* Referrals */}
               {activeTab === "referrals" && (
                 <div
                   className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl border overflow-hidden`}
@@ -885,6 +686,8 @@ const IBPage = () => {
                   )}
                 </div>
               )}
+
+              {/* commissions */}
 
               {activeTab === "commissions" && (
                 <div
@@ -1029,6 +832,8 @@ const IBPage = () => {
                 </div>
               )}
 
+              {/* downline */}
+
               {activeTab === "downline" && (
                 <div
                   className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-3" : "p-5"} border`}
@@ -1045,6 +850,7 @@ const IBPage = () => {
                 </div>
               )}
 
+              {/* withdraw */}
               {activeTab === "withdraw" && (
                 <div className={isMobile ? "" : "max-w-md"}>
                   <div
@@ -1097,399 +903,10 @@ const IBPage = () => {
               )}
             </div>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
-   */
-
-  return (
-  <div className="min-h-screen flex bg-[#f4f6fb] text-gray-800">
-
-    {/* Sidebar */}
-    {!isMobile && <Sidebar activeMenu="IB" />}
-
-    {/* Main */}
-    <div className="flex-1 flex flex-col">
-
-      {/* Header */}
-      {/* <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-6 text-white">
-        <h1 className="text-lg font-semibold">Introducing Broker (IB)</h1>
-      </div> */}
-
-                    <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-3 sm:px-6 text-white">
-                      <div className="font-semibold text-sm sm:text-base">
-                        Order Book
-                      </div>
-            
-                      <div className="flex items-center gap-4 sm:gap-5">
-                        <RefreshCw size={18} className="cursor-pointer" />
-            
-                        <div className="relative">
-                          <Settings
-                            size={20}
-                            className="cursor-pointer hover:text-blue-300 transition"
-                            onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-                          />
-            
-                          {showSettingsMenu && (
-                            <div className="absolute right-0 mt-3 w-44 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
-                              {/* Profile */}
-                              <button
-                                onClick={() => navigate("/profile")}
-                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                              >
-                                <User size={16} />
-                                Profile
-                              </button>
-            
-                              {/* KYC */}
-                              <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
-                                <ShieldCheck size={16} />
-                                KYC
-                              </button>
-            
-                              {/* Theme */}
-                              <button
-                                onClick={toggleDarkMode}
-                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                              >
-                                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-                                Theme
-                              </button>
-            
-                              {/* Divider */}
-                              <div className="border-t border-gray-200"></div>
-            
-                              {/* Logout */}
-                              <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition"
-                              >
-                                <LogOut size={16} />
-                                Logout
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-      
-
-      {/* Content */}
-      <main className="flex-1 overflow-auto p-6">
-
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading...</div>
-        ) : !ibProfile ? (
-
-          /* Apply IB */
-          <div className="max-w-lg mx-auto text-center py-12">
-
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Award size={40} className="text-green-600" />
-            </div>
-
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              Become an Introducing Broker
-            </h2>
-
-            <p className="text-gray-600 mb-6">
-              Earn commissions by referring traders and build your referral network.
-            </p>
-
-            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6 text-left shadow-sm">
-              <h3 className="font-semibold mb-3">Benefits</h3>
-
-              <ul className="space-y-2 text-gray-600 text-sm">
-
-                <li className="flex gap-2">
-                  <ChevronRight size={14} className="text-green-500" />
-                  Earn commission on every trade
-                </li>
-
-                <li className="flex gap-2">
-                  <ChevronRight size={14} className="text-green-500" />
-                  Multi-level commissions
-                </li>
-
-                <li className="flex gap-2">
-                  <ChevronRight size={14} className="text-green-500" />
-                  Real-time commission tracking
-                </li>
-
-                <li className="flex gap-2">
-                  <ChevronRight size={14} className="text-green-500" />
-                  Easy withdrawal
-                </li>
-
-              </ul>
-            </div>
-
-            <button
-              onClick={handleApply}
-              disabled={applying}
-              className="bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-600 disabled:opacity-50"
-            >
-              {applying ? "Applying..." : "Apply Now"}
-            </button>
-
-          </div>
-
-        ) : (
-
-          /* IB Dashboard */
-          <div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-
-              <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
-                <p className="text-sm text-gray-500">Available Balance</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ${ibProfile.ibWalletBalance?.toFixed(2) || "0.00"}
-                </p>
-              </div>
-
-              <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
-                <p className="text-sm text-gray-500">Total Earned</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ${ibProfile.totalCommissionEarned?.toFixed(2) || "0.00"}
-                </p>
-              </div>
-
-              <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
-                <p className="text-sm text-gray-500">Direct Referrals</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {ibProfile.stats?.directReferrals || 0}
-                </p>
-              </div>
-
-              <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5">
-                <p className="text-sm text-gray-500">Total Downline</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {ibProfile.stats?.totalDownline || 0}
-                </p>
-              </div>
-
-            </div>
-
-            {/* Referral Link */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-6 text-white mb-6">
-
-              <p className="text-sm opacity-80 mb-1">Your Referral Link</p>
-
-              <p className="text-sm font-mono truncate mb-2">
-                {window.location.origin}/user/signup?ref={ibProfile.referralCode}
-              </p>
-
-              <div className="flex gap-2">
-
-                <button
-                  onClick={copyReferralLink}
-                  className="flex-1 bg-white/20 hover:bg-white/30 py-2 rounded-lg flex items-center justify-center gap-2"
-                >
-                  <Copy size={16} />
-                  Copy
-                </button>
-
-                <button className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center">
-                  <Share2 size={18} />
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* Tabs */}
-            <div className={`flex ${isMobile ? 'gap-1 overflow-x-auto pb-2' : 'gap-4'} mb-4`}>
-                {['overview', 'referrals', 'commissions', 'downline', 'withdraw'].map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`${isMobile ? 'px-3 py-1.5 text-xs whitespace-nowrap' : 'px-4 py-2'} rounded-lg font-medium capitalize transition-colors ${
-                      activeTab === tab ? 'bg-accent-green text-black' : isDarkMode ? 'bg-dark-800 text-gray-400 hover:text-white' : 'bg-white text-gray-600 hover:text-gray-900 border border-gray-200'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              {/* Overview */}
-              {activeTab === 'overview' && (
-                <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-5 gap-4'}`}>
-                  {[1, 2, 3, 4, 5].map(level => (
-                    <div key={level} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-3' : 'p-4'} border text-center`}>
-                      <p className={`text-xs mb-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Level {level} Commissions</p>
-                      <p className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{ibProfile.stats?.[`level${level}Count`] || 0}</p>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-600' : 'text-gray-500'}`}>trades</p>
-                      <p className="text-accent-green text-sm mt-1">${(ibProfile.stats?.[`level${level}Commission`] || 0).toFixed(2)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            {/* Referrals */}
-            {activeTab === 'referrals' && (
-                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border overflow-hidden`}>
-                  {referrals.length === 0 ? (
-                    <div className={`text-center ${isMobile ? 'py-8' : 'py-12'} text-gray-500 text-sm`}>No referrals yet</div>
-                  ) : isMobile ? (
-                    <div className={`divide-y ${isDarkMode ? 'divide-gray-800' : 'divide-gray-200'}`}>
-                      {referrals.map(ref => (
-                        <div key={ref._id} className="p-3">
-                          <div className="flex justify-between items-start mb-1">
-                            <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{ref.firstName} {ref.lastName}</p>
-                            <p className="text-gray-500 text-xs">{new Date(ref.createdAt).toLocaleDateString()}</p>
-                          </div>
-                          <p className="text-gray-400 text-xs">{ref.email}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <table className="w-full">
-                      <thead className={isDarkMode ? 'bg-dark-700' : 'bg-gray-50'}>
-                        <tr>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>User</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Email</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Joined</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Volume</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {referrals.map(ref => (
-                          <tr key={ref._id} className={`border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{ref.firstName} {ref.lastName}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{ref.email}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{new Date(ref.createdAt).toLocaleDateString()}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>-</td>
-                            <td className="px-4 py-3 text-accent-green text-sm">-</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-
-              {/* commissions */}
-
-              {activeTab === 'commissions' && (
-                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border overflow-hidden`}>
-                  {commissions.length === 0 ? (
-                    <div className={`text-center ${isMobile ? 'py-8' : 'py-12'} text-gray-500 text-sm`}>No commissions yet</div>
-                  ) : isMobile ? (
-                    <div className={`divide-y ${isDarkMode ? 'divide-gray-800' : 'divide-gray-200'}`}>
-                      {commissions.map(comm => (
-                        <div key={comm._id} className="p-3">
-                          <div className="flex justify-between items-start mb-1">
-                            <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{comm.symbol}</p>
-                            <p className="text-accent-green text-sm font-medium">${comm.commissionAmount?.toFixed(2)}</p>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <p className="text-gray-400 text-xs">Level {comm.level} • {comm.tradeLotSize?.toFixed(2)} lots</p>
-                            <span className={`px-2 py-0.5 rounded text-xs ${
-                              comm.status === 'CREDITED' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
-                            }`}>{comm.status}</span>
-                          </div>
-                          <p className="text-gray-500 text-xs mt-1">{new Date(comm.createdAt).toLocaleDateString()}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <table className="w-full">
-                      <thead className={isDarkMode ? 'bg-dark-700' : 'bg-gray-50'}>
-                        <tr>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Date</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Trader</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Symbol</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Level</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Lots</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {commissions.map(comm => (
-                          <tr key={comm._id} className={`border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{new Date(comm.createdAt).toLocaleDateString()}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{comm.traderUserId?.firstName || 'Unknown'}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{comm.symbol}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Level {comm.level}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{comm.tradeLotSize?.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-accent-green text-sm">${comm.commissionAmount?.toFixed(2)}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                comm.status === 'CREDITED' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
-                              }`}>
-                                {comm.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-
-              {/* downline */}
-
-              {activeTab === 'downline' && (
-                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-3' : 'p-5'} border`}>
-                  {downline.length === 0 ? (
-                    <div className={`text-center ${isMobile ? 'py-8' : 'py-12'} text-gray-500 text-sm`}>No downline yet</div>
-                  ) : (
-                    <div>{renderDownlineTree(downline)}</div>
-                  )}
-                </div>
-              )}
-
-              {/* withdraw */}
-              {activeTab === 'withdraw' && (
-                <div className={isMobile ? '' : 'max-w-md'}>
-                  <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-4' : 'p-6'} border`}>
-                    <h3 className={`font-semibold ${isMobile ? 'mb-3 text-sm' : 'mb-4'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Withdraw Commission</h3>
-                    <div className="mb-3">
-                      <p className="text-gray-400 text-xs mb-1">Available Balance</p>
-                      <p className={`text-accent-green font-bold ${isMobile ? 'text-xl' : 'text-2xl'}`}>${ibProfile.ibWalletBalance?.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div className="mb-3">
-                      <label className="text-gray-400 text-xs mb-1 block">Amount</label>
-                      <input
-                        type="number"
-                        value={withdrawAmount}
-                        onChange={(e) => setWithdrawAmount(e.target.value)}
-                        placeholder="Enter amount"
-                        className={`w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white ${isMobile ? 'text-sm' : ''}`}
-                      />
-                    </div>
-                    <button
-                      onClick={handleWithdraw}
-                      disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
-                      className={`w-full bg-accent-green text-black py-2 rounded-lg font-medium hover:bg-accent-green/90 disabled:opacity-50 ${isMobile ? 'text-sm' : ''}`}
-                    >
-                      Request Withdrawal
-                    </button>
-                    {ibProfile.pendingWithdrawal > 0 && (
-                      <p className="text-yellow-500 text-sm mt-3">
-                        Pending withdrawal: ${ibProfile.pendingWithdrawal.toFixed(2)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-          </div>
-
-        )}
-
-      </main>
-
-    </div>
-  </div>
-)
 };
 
 export default IBPage;
