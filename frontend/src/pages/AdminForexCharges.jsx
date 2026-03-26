@@ -27,6 +27,7 @@ const AdminForexCharges = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [selectedAccountType, setSelectedAccountType] = useState(null)
+  const [supportedSymbols, setSupportedSymbols] = useState([])
   const [form, setForm] = useState({
     level: 'SEGMENT',
     segment: 'Forex',
@@ -48,7 +49,20 @@ const AdminForexCharges = () => {
     fetchCharges()
     fetchUsers()
     fetchAccountTypes()
+    fetchSupportedSymbols()
   }, [])
+
+  const fetchSupportedSymbols = async () => {
+    try {
+      const res = await fetch(`${API_URL}/prices/symbols`)
+      const data = await res.json()
+      if (data.success) {
+        setSupportedSymbols(data.symbols || [])
+      }
+    } catch (error) {
+      console.error('Error fetching symbols:', error)
+    }
+  }
 
   const fetchAccountTypes = async () => {
     try {
@@ -75,7 +89,8 @@ const AdminForexCharges = () => {
   const fetchCharges = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/charges?segment=Forex`)
+      // Remove segment=Forex filter to show all pairs
+      const res = await fetch(`${API_URL}/charges`)
       const data = await res.json()
       if (data.success) {
         setCharges(data.charges || [])
@@ -214,6 +229,39 @@ const AdminForexCharges = () => {
     if (charge.level === 'SEGMENT') return charge.segment
     if (charge.level === 'GLOBAL') return 'Global'
     return charge.level
+  }
+
+  const renderSymbolOptions = () => {
+    // Categorize symbols
+    const categories = {
+      'Forex': [],
+      'Metals': [],
+      'Crypto': [],
+      'Indices': [],
+      'Commodities': [],
+      'Other': []
+    }
+
+    supportedSymbols.forEach(sym => {
+      const s = sym.toUpperCase()
+      if (s.startsWith('XAU') || s.startsWith('XAG')) categories['Metals'].push(sym)
+      else if (s.startsWith('BTC') || s.startsWith('ETH') || s.startsWith('LTC') || s.startsWith('XRP') || s.startsWith('SOL') || s.startsWith('ADA') || s.startsWith('BNB') || s.startsWith('DOGE') || s.includes('USDT')) categories['Crypto'].push(sym)
+      else if (s.includes('OIL') || s.includes('GAS') || s.includes('COPPER')) categories['Commodities'].push(sym)
+      else if (s.includes('US30') || s.includes('US500') || s.includes('US100') || s.includes('UK100') || s.includes('GER30') || s.includes('FRA40') || s.includes('SPA35') || s.includes('NAS100')) categories['Indices'].push(sym)
+      else if (s.includes('USD') || s.includes('JPY') || s.includes('EUR') || s.includes('GBP') || s.includes('AUD') || s.includes('CAD') || s.includes('CHF') || s.includes('NZD')) categories['Forex'].push(sym)
+      else categories['Other'].push(sym)
+    })
+
+    return Object.entries(categories).map(([name, syms]) => {
+      if (syms.length === 0) return null
+      return (
+        <optgroup key={name} label={name}>
+          {syms.sort().map(s => (
+            <option key={s} value={s.replace('.i', '')}>{s}</option>
+          ))}
+        </optgroup>
+      )
+    })
   }
 
   return (
@@ -397,41 +445,7 @@ const AdminForexCharges = () => {
                 <label className="block text-gray-400 text-xs mb-1">3. Instrument <span className="text-gray-600">(optional{form.segment ? ` - showing ${form.segment} only` : ''})</span></label>
                 <select value={form.instrumentSymbol} onChange={(e) => setForm({ ...form, instrumentSymbol: e.target.value, level: e.target.value ? 'INSTRUMENT' : form.level })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm">
                   <option value="">All Instruments</option>
-                  {(!form.segment || form.segment === 'Forex') && (
-                    <optgroup label="Forex">
-                      <option value="EURUSD">EURUSD</option>
-                      <option value="GBPUSD">GBPUSD</option>
-                      <option value="USDJPY">USDJPY</option>
-                      <option value="USDCHF">USDCHF</option>
-                      <option value="AUDUSD">AUDUSD</option>
-                      <option value="NZDUSD">NZDUSD</option>
-                      <option value="USDCAD">USDCAD</option>
-                      <option value="EURGBP">EURGBP</option>
-                      <option value="EURJPY">EURJPY</option>
-                      <option value="GBPJPY">GBPJPY</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Metals') && (
-                    <optgroup label="Metals">
-                      <option value="XAUUSD">XAUUSD (Gold)</option>
-                      <option value="XAGUSD">XAGUSD (Silver)</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Crypto') && (
-                    <optgroup label="Crypto">
-                      <option value="BTCUSD">BTCUSD</option>
-                      <option value="ETHUSD">ETHUSD</option>
-                      <option value="LTCUSD">LTCUSD</option>
-                      <option value="XRPUSD">XRPUSD</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Indices') && (
-                    <optgroup label="Indices">
-                      <option value="US30">US30 (Dow Jones)</option>
-                      <option value="US500">US500 (S&P 500)</option>
-                      <option value="NAS100">NAS100 (Nasdaq)</option>
-                    </optgroup>
-                  )}
+                  {renderSymbolOptions()}
                 </select>
               </div>
 
@@ -568,41 +582,7 @@ const AdminForexCharges = () => {
                 <label className="block text-gray-400 text-xs mb-1">3. Instrument <span className="text-gray-600">(optional{form.segment ? ` - showing ${form.segment} only` : ''})</span></label>
                 <select value={form.instrumentSymbol} onChange={(e) => setForm({ ...form, instrumentSymbol: e.target.value, level: e.target.value ? 'INSTRUMENT' : form.level })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm">
                   <option value="">All Instruments</option>
-                  {(!form.segment || form.segment === 'Forex') && (
-                    <optgroup label="Forex">
-                      <option value="EURUSD">EURUSD</option>
-                      <option value="GBPUSD">GBPUSD</option>
-                      <option value="USDJPY">USDJPY</option>
-                      <option value="USDCHF">USDCHF</option>
-                      <option value="AUDUSD">AUDUSD</option>
-                      <option value="NZDUSD">NZDUSD</option>
-                      <option value="USDCAD">USDCAD</option>
-                      <option value="EURGBP">EURGBP</option>
-                      <option value="EURJPY">EURJPY</option>
-                      <option value="GBPJPY">GBPJPY</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Metals') && (
-                    <optgroup label="Metals">
-                      <option value="XAUUSD">XAUUSD (Gold)</option>
-                      <option value="XAGUSD">XAGUSD (Silver)</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Crypto') && (
-                    <optgroup label="Crypto">
-                      <option value="BTCUSD">BTCUSD</option>
-                      <option value="ETHUSD">ETHUSD</option>
-                      <option value="LTCUSD">LTCUSD</option>
-                      <option value="XRPUSD">XRPUSD</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Indices') && (
-                    <optgroup label="Indices">
-                      <option value="US30">US30 (Dow Jones)</option>
-                      <option value="US500">US500 (S&P 500)</option>
-                      <option value="NAS100">NAS100 (Nasdaq)</option>
-                    </optgroup>
-                  )}
+                  {renderSymbolOptions()}
                 </select>
               </div>
 
@@ -719,41 +699,7 @@ const AdminForexCharges = () => {
                 <label className="block text-gray-400 text-xs mb-1">3. Instrument <span className="text-gray-600">(optional{form.segment ? ` - showing ${form.segment} only` : ''})</span></label>
                 <select value={form.instrumentSymbol} onChange={(e) => setForm({ ...form, instrumentSymbol: e.target.value, level: e.target.value ? 'INSTRUMENT' : form.level })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm">
                   <option value="">All Instruments</option>
-                  {(!form.segment || form.segment === 'Forex') && (
-                    <optgroup label="Forex">
-                      <option value="EURUSD">EURUSD</option>
-                      <option value="GBPUSD">GBPUSD</option>
-                      <option value="USDJPY">USDJPY</option>
-                      <option value="USDCHF">USDCHF</option>
-                      <option value="AUDUSD">AUDUSD</option>
-                      <option value="NZDUSD">NZDUSD</option>
-                      <option value="USDCAD">USDCAD</option>
-                      <option value="EURGBP">EURGBP</option>
-                      <option value="EURJPY">EURJPY</option>
-                      <option value="GBPJPY">GBPJPY</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Metals') && (
-                    <optgroup label="Metals">
-                      <option value="XAUUSD">XAUUSD (Gold)</option>
-                      <option value="XAGUSD">XAGUSD (Silver)</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Crypto') && (
-                    <optgroup label="Crypto">
-                      <option value="BTCUSD">BTCUSD</option>
-                      <option value="ETHUSD">ETHUSD</option>
-                      <option value="LTCUSD">LTCUSD</option>
-                      <option value="XRPUSD">XRPUSD</option>
-                    </optgroup>
-                  )}
-                  {(!form.segment || form.segment === 'Indices') && (
-                    <optgroup label="Indices">
-                      <option value="US30">US30 (Dow Jones)</option>
-                      <option value="US500">US500 (S&P 500)</option>
-                      <option value="NAS100">NAS100 (Nasdaq)</option>
-                    </optgroup>
-                  )}
+                  {renderSymbolOptions()}
                 </select>
               </div>
 

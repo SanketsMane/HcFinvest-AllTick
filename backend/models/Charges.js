@@ -149,35 +149,15 @@ chargesSchema.statics.getChargesForTrade = async function(userId, symbol, segmen
     return false
   })
   
-  // Deduplicate charges at the same level - prefer ones with non-zero values
-  const chargesByLevel = {}
-  for (const charge of applicableCharges) {
-    const key = `${charge.level}-${charge.segment || ''}-${charge.instrumentSymbol || ''}-${charge.accountTypeId || ''}`
-    const existing = chargesByLevel[key]
-    
-    if (!existing) {
-      chargesByLevel[key] = charge
-    } else {
-      // Prefer charge with non-zero commission or spread
-      const existingScore = (existing.commissionValue || 0) + (existing.spreadValue || 0) + Math.abs(existing.swapLong || 0) + Math.abs(existing.swapShort || 0)
-      const newScore = (charge.commissionValue || 0) + (charge.spreadValue || 0) + Math.abs(charge.swapLong || 0) + Math.abs(charge.swapShort || 0)
-      
-      if (newScore > existingScore) {
-        chargesByLevel[key] = charge
-      }
-    }
-  }
-  
-  applicableCharges = Object.values(chargesByLevel)
-  console.log(`Found ${applicableCharges.length} applicable charges after deduplication`)
-  
-  // Priority order for merging
-  const priorityOrder = { 'USER': 1, 'INSTRUMENT': 2, 'ACCOUNT_TYPE': 3, 'SEGMENT': 4, 'GLOBAL': 5 }
-  
-  // Sort by priority (most specific first)
+  // Sort by priority (least specific first: GLOBAL -> SEGMENT -> ACCOUNT_TYPE -> INSTRUMENT -> USER)
+  const priorityOrder = { 'GLOBAL': 1, 'SEGMENT': 2, 'ACCOUNT_TYPE': 3, 'INSTRUMENT': 4, 'USER': 5 }
   applicableCharges.sort((a, b) => priorityOrder[a.level] - priorityOrder[b.level])
   
-  // Merge charges - most specific wins for each field
+  console.log(`Found ${applicableCharges.length} applicable charges for merging`)
+  
+  // We iterate through all applicable charges from LEAST specific to MOST specific.
+  // This allows more specific levels to overwrite less specific ones.
+  // Within the same level, we accumulate non-zero values to support split documents (e.g., one for spread, one for commission).
   const result = {
     spreadType: 'FIXED',
     spreadValue: 0,
@@ -191,28 +171,52 @@ chargesSchema.statics.getChargesForTrade = async function(userId, symbol, segmen
     swapType: 'POINTS'
   }
   
-  // Apply charges from least specific to most specific (so most specific overwrites)
-  for (let i = applicableCharges.length - 1; i >= 0; i--) {
-    const charge = applicableCharges[i]
-    
-    // FIXED: Use explicit null/undefined check instead of > 0 
-    // to allow '0' values from higher priority levels to override global defaults.
+  // Track which fields were set by which priority level
+  const levelsSet = { spread: 0, commission: 0, swap: 0 }
+
+  for (const charge of applicableCharges) {
+    const chargeLevelPriority = priorityOrder[charge.level]
+
+    // Spread Merging
     if (charge.spreadValue !== undefined && charge.spreadValue !== null) {
-      result.spreadValue = charge.spreadValue
-      result.spreadType = charge.spreadType
+      const isNewerPriority = chargeLevelPriority > levelsSet.spread
+      const isFillingEmpty = chargeLevelPriority === levelsSet.spread && charge.spreadValue !== 0
+      
+      if (isNewerPriority || isFillingEmpty) {
+        result.spreadValue = charge.spreadValue
+        result.spreadType = charge.spreadType
+        levelsSet.spread = chargeLevelPriority
+      }
     }
+
+    // Commission Merging
     if (charge.commissionValue !== undefined && charge.commissionValue !== null) {
-      result.commissionValue = charge.commissionValue
-      result.commissionType = charge.commissionType
-      result.commissionOnBuy = charge.commissionOnBuy
-      result.commissionOnSell = charge.commissionOnSell
-      result.commissionOnClose = charge.commissionOnClose
+      const isNewerPriority = chargeLevelPriority > levelsSet.commission
+      const isFillingEmpty = chargeLevelPriority === levelsSet.commission && charge.commissionValue !== 0
+      
+      if (isNewerPriority || isFillingEmpty) {
+        result.commissionValue = charge.commissionValue
+        result.commissionType = charge.commissionType
+        result.commissionOnBuy = charge.commissionOnBuy
+        result.commissionOnSell = charge.commissionOnSell
+        result.commissionOnClose = charge.commissionOnClose
+        levelsSet.commission = chargeLevelPriority
+      }
     }
+
+    // Swap Merging
     if ((charge.swapLong !== undefined && charge.swapLong !== null) || 
         (charge.swapShort !== undefined && charge.swapShort !== null)) {
-      result.swapLong = charge.swapLong || 0
-      result.swapShort = charge.swapShort || 0
-      result.swapType = charge.swapType
+      const hasValue = (charge.swapLong || 0) !== 0 || (charge.swapShort || 0) !== 0
+      const isNewerPriority = chargeLevelPriority > levelsSet.swap
+      const isFillingEmpty = chargeLevelPriority === levelsSet.swap && hasValue
+      
+      if (isNewerPriority || isFillingEmpty) {
+        result.swapLong = charge.swapLong || 0
+        result.swapShort = charge.swapShort || 0
+        result.swapType = charge.swapType
+        levelsSet.swap = chargeLevelPriority
+      }
     }
   }
 
