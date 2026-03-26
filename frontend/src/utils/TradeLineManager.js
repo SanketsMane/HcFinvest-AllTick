@@ -29,6 +29,21 @@ export class TradeLineManager {
     this.isUpdatingGhost = false;
     this.isCommitBlocked = false; // Keep this for _updateShape
 
+    // Sanket v2.0 - drag state machine: prevents overlapping operations
+    this.dragState = {
+        active: false,           // Is user currently dragging?
+        tradeId: null,           // Which trade is being dragged?
+        type: null,              // 'entry', 'sl', 'tp'
+        startPrice: 0,           // Price at drag start
+        currentPrice: 0,         // Current drag position
+        operation: null,         // 'creating-ghost', 'updating', 'committing'
+    };
+
+    // Sanket v2.0 - adaptive sync lock based on network speed
+    this.syncLockDuration = 1200;      // Base lock duration
+    this.lastCommitTime = 0;           // Track response speeds
+    this.avgResponseTime = 0;          // Rolling average
+
     console.log('[TradeManager v7.70] Retail Lens Synchronization Active');
     this._adminSpreads = {};
   }
@@ -51,6 +66,104 @@ export class TradeLineManager {
     Object.keys(this.lines).forEach(tid => this.removeTradeLines(tid));
   }
 
+  // ─── Support Methods (Sanket v2.0) ──────────────────────────
+
+  // Determine if dragged price should be SL or TP
+  _determineLineType(trade, draggedPrice, realEntry) {
+    const side = String(trade.side || trade.type || '').toLowerCase();
+    const isBuy = side.includes('buy') || side.includes('long');
+    
+    // For BUY price > entry = TP, for SELL price < entry = TP
+    if (isBuy) {
+        return draggedPrice > realEntry ? 'tp' : 'sl';
+    } else {
+        // SELL: price BELOW entry = TP (closing profit), price ABOVE entry = SL (closing loss)
+        return draggedPrice < realEntry ? 'tp' : 'sl';
+    }
+  }
+
+  // Calculate PnL impact for dragged SL/TP price
+  _calculateDragPnL(trade, newPrice, lineType) {
+    const entry = Number(trade.openPrice || trade.price);
+    const quantity = Number(trade.quantity || 1);
+    const contractSize = Number(trade.contractSize || 1);
+    const side = String(trade.side || trade.type || '').toLowerCase();
+    const isBuy = side.includes('buy') || side.includes('long');
+    
+    let pnl = 0;
+    let pnlPercent = 0;
+    
+    let impactPrice = newPrice;
+    
+    if (isBuy) {
+        pnl = (impactPrice - entry) * quantity * contractSize;
+    } else {
+        pnl = (entry - impactPrice) * quantity * contractSize;
+    }
+    
+    // Subtract known costs
+    pnl = pnl - (trade.commission || 0) - (trade.swap || 0);
+    
+    // Calculate percentage based on account balance
+    const accountBalance = trade.accountBalance || 10000; // Fallback to avoid division by zero
+    pnlPercent = (pnl / accountBalance) * 100;
+    
+    return { pnl, pnlPercent, impactPrice };
+  }
+
+  // Cleanup all temporary ghost lines
+  _cleanupAllGhosts(tradeId) {
+    const tid = String(tradeId);
+    if (!this.lines[tid]) return;
+    
+    const set = this.lines[tid];
+    
+    if (set.entryGhost) {
+        this._destroyShape(set.entryGhost.tvId);
+        set.entryGhost = null;
+    }
+    
+    if (set.ghost) {
+        this._destroyShape(set.ghost.tvId);
+        set.ghost = null;
+    }
+  }
+
+  _beginDrag(tradeId, type, startPrice) {
+    if (this.dragState.active && this.dragState.tradeId !== tradeId) {
+        console.warn('[TradeManager] Drag already in progress for different trade');
+        return false;
+    }
+    
+    this.dragState.active = true;
+    this.dragState.tradeId = tradeId;
+    this.dragState.type = type;
+    this.dragState.startPrice = startPrice;
+    this.activeDragId = tradeId; 
+    
+    return true;
+  }
+
+  _endDrag() {
+    if (this.dragState.tradeId) {
+        this._cleanupAllGhosts(this.dragState.tradeId);
+    }
+    this.dragState.active = false;
+    this.dragState.tradeId = null;
+    this.dragState.type = null;
+    this.activeDragId = null;
+    this.dragMarkupCache = null; // Clear markup cache
+  }
+
+  _isDragActive() {
+    return this.dragState.active && !!this.dragState.tradeId;
+  }
+
+  _calculateAdaptiveLockDuration() {
+    const estimatedWait = Math.min(this.avgResponseTime + 200, 2000);
+    return Math.max(estimatedWait, 800); 
+  }
+
   // ─── Events ──────────────────────────────────────────────────
 
   _attachEvents(widget) {
@@ -63,31 +176,36 @@ export class TradeLineManager {
 
       const action = String(status?.status || status || '').toLowerCase();
       
-      if (action !== 'points_changed' && action !== 'move' && action !== 'remove') {
-          console.log(`[TradeManager] EVENT: ${tvId} (${meta.type}) status="${action}"`);
+      // Sanket v2.0 - Only allow interaction on real lines, block preview ghosts
+      if (meta.type === 'ghost-sl' || meta.type === 'ghost-tp' || meta.type === 'entry-ghost') {
+          return;
       }
 
       if (action === 'remove' || action === 'deleted') {
-         if (meta.tradeId && this.lines[meta.tradeId]?.[meta.type]) {
-            console.log(`[TradeManager] Blocked deletion of ${meta.type.toUpperCase()} line`);
-            this.lines[meta.tradeId][meta.type] = null;
-            setTimeout(() => {
-                this.syncLockUntil = 0;
-                this.syncTrades(this.trades, this.currentSymbol);
-            }, 50);
-         }
-         return;
+          if (meta.tradeId && this.lines[meta.tradeId]?.[meta.type]) {
+             console.log(`[TradeManager] Blocked deletion of ${meta.type.toUpperCase()} line`);
+             this.lines[meta.tradeId][meta.type] = null;
+             setTimeout(() => {
+                 this.syncLockUntil = 0;
+                 this.syncTrades(this.trades, this.currentSymbol);
+             }, 50);
+          }
+          return;
       }
 
       if (action === 'started') {
-        this.activeDragId = meta.tradeId;
         const shape = widget.chart().getShapeById(tvId);
         const p = shape?.getPoints?.()?.[0]?.price;
         this.dragStartPrice = Number.isFinite(p) ? p : 0;
+        
+        // Initialize drag state
+        this._beginDrag(meta.tradeId, meta.type, this.dragStartPrice);
       }
 
       if (action === 'points_changed' || action === 'move') {
-          if (meta.type === 'entry') this._onNativeMove(tvId, meta);
+          if (this._isDragActive()) {
+              this._onNativeMove(tvId, meta);
+          }
 
           if (this.commitTimers[tvId]) clearTimeout(this.commitTimers[tvId]);
           this.commitTimers[tvId] = setTimeout(() => {
@@ -99,17 +217,27 @@ export class TradeLineManager {
   }
 
   async _onNativeMove(tvId, meta) {
+    if (!this._isDragActive()) return;
+
     const chart = this.widget.chart();
     const shape = chart.getShapeById(tvId);
     const price = shape?.getPoints?.()?.[0]?.price;
     if (!price || !Number.isFinite(price) || this.isUpdatingGhost) return;
 
-    if (meta.type === 'entry') {
-        const trade = this.getTradeById(meta.tradeId);
-        if (!trade) return;
+    this.dragState.currentPrice = price;
+    this.dragState.operation = 'updating';
 
+    const trade = this.getTradeById(meta.tradeId);
+    if (!trade) return;
+
+    if (!this.dragMarkupCache) {
+        this.dragMarkupCache = getAdminMarkupValue(trade.symbol, this._adminSpreads);
+    }
+
+    const tid = String(meta.tradeId);
+
+    if (meta.type === 'entry') {
         const realEntry = Number(trade.openPrice || trade.price);
-        const tid = String(meta.tradeId);
 
         if (!this.lines[tid].entryGhost) {
             const ghostId = await this._createShape(meta.tradeId, `entry-ghost`, realEntry, {
@@ -119,14 +247,12 @@ export class TradeLineManager {
                 text: 'ENTRY'
             });
             if (ghostId) this.lines[tid].entryGhost = { tvId: ghostId.tvId, price: realEntry };
-            this._updateShape(tvId, price, 'DRAG TO SET SL/TP');
         }
 
-        const side = String(trade.side || trade.type || '').toLowerCase();
-        const isBuy = side.includes('buy') || side.includes('long');
-        let ghostType = isBuy ? (price > realEntry ? 'tp' : 'sl') : (price > realEntry ? 'sl' : 'tp');
-
-        this._updateShape(tvId, price, `NEW ${ghostType.toUpperCase()}`);
+        const ghostType = this._determineLineType(trade, price, realEntry);
+        const pnlData = this._calculateDragPnL(trade, price, ghostType);
+        
+        this._updateShape(tvId, price, `NEW ${ghostType.toUpperCase()}`, pnlData);
 
         this.isUpdatingGhost = true;
         try {
@@ -134,6 +260,10 @@ export class TradeLineManager {
         } finally {
             this.isUpdatingGhost = false;
         }
+    } else if (meta.type === 'sl' || meta.type === 'tp') {
+        const pnlData = this._calculateDragPnL(trade, price, meta.type);
+        const label = `${meta.type.toUpperCase()}: ${pnlData.pnl.toFixed(2)} USD`;
+        this._updateShape(tvId, price, label, pnlData);
     }
   }
 
@@ -147,6 +277,9 @@ export class TradeLineManager {
         set.ghost = null;
     }
 
+    const trade = this.getTradeById(tradeId);
+    const pnlData = trade ? this._calculateDragPnL(trade, price, type) : null;
+
     if (!set.ghost) {
         const color = type === 'tp' ? '#4caf50' : '#f44336';
         const ghostId = await this._createShape(tradeId, `ghost-${type}`, price, {
@@ -155,14 +288,19 @@ export class TradeLineManager {
             width: 1,
             text: `NEW ${type.toUpperCase()}`
         });
-        if (ghostId) set.ghost = { tvId: ghostId.tvId, type, price };
+        if (ghostId) {
+            set.ghost = { tvId: ghostId.tvId, type, price };
+            if (pnlData) this._updateShape(ghostId.tvId, price, null, pnlData);
+        }
     } else {
         set.ghost.price = price;
-        this._updateShape(set.ghost.tvId, price);
+        this._updateShape(set.ghost.tvId, price, null, pnlData);
     }
   }
 
   async _onNativeStop(tvId, meta) {
+    if (!this._isDragActive()) return;
+
     const chart = this.widget.chart();
     const shape = chart.getShapeById(tvId);
     let price = shape?.getPoints?.()?.[0]?.price;
@@ -170,49 +308,69 @@ export class TradeLineManager {
     const tid = String(meta.tradeId);
     console.log(`[TradeManager] Drag Stop: ${meta.type} (TV:${tvId}) price=${price}`);
 
-    if (!price || !meta.tradeId) {
-        this.activeDragId = null;
-        return;
+    try {
+        if (!price || !meta.tradeId) return;
+
+        if (meta.type === 'entry') {
+            const trade = this.getTradeById(meta.tradeId);
+            const ghost = this.lines[tid]?.ghost;
+
+            if (ghost) {
+                const entryPrice = Number(trade.openPrice || trade.price);
+                const t = this._determineLineType(trade, price, entryPrice);
+
+                this._updateShape(tvId, entryPrice, 'ENTRY');
+                console.log(`[TradeManager] Confirming EXACT SPAWN: ${t.toUpperCase()} -> ${price}`);
+                await this._commitTrade(tid, t, price);
+            } else {
+                const realPrice = Number(trade?.openPrice || trade?.price);
+                if (realPrice) this._updateShape(tvId, realPrice, 'ENTRY');
+            }
+        } else if (meta.type === 'sl' || meta.type === 'tp') {
+            this._updateShape(tvId, price);
+            await this._commitTrade(meta.tradeId, meta.type, price);
+        }
+    } catch (e) {
+        console.error('[TradeManager] Error in drag stop:', e);
+    } finally {
+        // ALWAYS cleanup ghosts and end drag
+        this._endDrag();
+        this.dragMarkupCache = null; // Clear cache
     }
+  }
 
-    // 🛡️ v7.67 BUG BASH: Ignore ghost interaction
-    if (meta.type.includes('ghost')) {
-        this.activeDragId = null;
-        return;
-    }
-
-    if (meta.type === 'entry') {
-      const trade = this.getTradeById(meta.tradeId);
-      
-      if (this.lines[tid]?.entryGhost) {
-          this._destroyShape(this.lines[tid].entryGhost.tvId);
-          delete this.lines[tid].entryGhost;
-      }
-      
-      const ghost = this.lines[tid]?.ghost;
-      if (ghost) {
-          this._destroyShape(ghost.tvId);
-          this.lines[tid].ghost = null;
-          
-          const side = String(trade.side || trade.type || '').toLowerCase();
-          const isBuy = side.includes('buy') || side.includes('long');
-          const entryPrice = Number(trade.openPrice || trade.price);
-          const t = isBuy ? (price > entryPrice ? 'tp' : 'sl') : (price < entryPrice ? 'tp' : 'sl');
-
-          this._updateShape(tvId, entryPrice, 'ENTRY');
-          console.log(`[TradeManager] Confirming EXACT SPAWN: ${t.toUpperCase()} -> ${price}`);
-          await this._commitTrade(tid, t, price);
-      } else {
-          const realPrice = Number(trade?.openPrice || trade?.price);
-          if (realPrice) this._updateShape(tvId, realPrice, 'ENTRY');
-      }
-      
-      setTimeout(() => { this.activeDragId = null; }, 100); 
+  // Sanket v2.0 - validate SL and TP are on correct sides and have minimum spread
+  _validateSLTPPrices(trade, newSL, newTP, newEntry) {
+    const side = String(trade.side || trade.type || '').toLowerCase();
+    const isBuy = side.includes('buy') || side.includes('long');
+    const minSpread = 0.00001; 
+    
+    const errors = [];
+    
+    if (isBuy) {
+        if (newSL && newSL >= newEntry) {
+            errors.push(`SL must be below entry for BUY`);
+        }
+        if (newTP && newTP <= newEntry) {
+            errors.push(`TP must be above entry for BUY`);
+        }
     } else {
-        this._updateShape(tvId, price);
-        await this._commitTrade(meta.tradeId, meta.type, price);
-        setTimeout(() => { this.activeDragId = null; }, 200);
+        if (newSL && newSL <= newEntry) {
+            errors.push(`SL must be above entry for SELL`);
+        }
+        if (newTP && newTP >= newEntry) {
+            errors.push(`TP must be below entry for SELL`);
+        }
     }
+    
+    if (newSL && newTP) {
+        const spread = Math.abs(newTP - newSL);
+        if (spread < minSpread) {
+            errors.push(`Minimum spread required between SL and TP`);
+        }
+    }
+    
+    return { valid: errors.length === 0, errors };
   }
 
   /**
@@ -315,13 +473,28 @@ export class TradeLineManager {
     } catch (e) { return null; }
   }
 
-  _updateShape(tvId, price, text = null) {
+  _updateShape(tvId, price, text = null, pnlData = null) {
     const shape = this.widget.chart().getShapeById(tvId);
     if (!shape) return;
     this.isCommitBlocked = true;
     try {
         shape.setPoints([{ price }]);
-        if (text) shape.setProperties({ overrides: { text } });
+        
+        if (text || pnlData) {
+            let label = text || '';
+            if (pnlData) {
+                const sign = pnlData.pnl >= 0 ? '+' : '';
+                const pnlText = `${sign}${pnlData.pnl.toFixed(2)} USD (${pnlData.pnlPercent.toFixed(2)}%)`;
+                label = text ? `${text}: ${pnlText}` : pnlText;
+            }
+            
+            shape.setProperties({ 
+                overrides: { 
+                    text: label,
+                    textcolor: pnlData ? (pnlData.pnl >= 0 ? '#4caf50' : '#f44336') : undefined
+                } 
+            });
+        }
     } finally { 
         setTimeout(() => { this.isCommitBlocked = false; }, 50);
     }
@@ -351,7 +524,6 @@ export class TradeLineManager {
   }
 
   async _commitTrade(tradeId, type, price) {
-    // 🛡️ v7.67 BUG BASH: Explicitly block ghost commits
     if (!type || type.includes('ghost')) return;
     if (type !== 'sl' && type !== 'tp') return;
 
@@ -359,25 +531,26 @@ export class TradeLineManager {
     const t = this.getTradeById(tid);
     if (!t) return;
 
-    // v7.69: Enforce strict decimals based on chart pricescale to prevent drift
     const pricescale = this.chart?.symbolExt?.()?.pricescale || 100;
     const decimals = Math.max(0, Math.round(Math.log10(pricescale)));
-    
-    // Exact rounding to prevent "applied on 4560" jumps caused by floating point drift
     const roundedPrice = parseFloat(price.toFixed(decimals));
     
-    const isBuy = String(t.side || t.type || '').toLowerCase().includes('buy') || String(t.side || t.type || '').toLowerCase().includes('long');
-    
-    let currentSL = parseFloat(Number(t.stopLoss || t.sl || 0).toFixed(decimals));
-    let currentTP = parseFloat(Number(t.takeProfit || t.tp || 0).toFixed(decimals));
+    // Sanket v2.0 - use cached markup or fallback
+    const markup = this.dragMarkupCache || getAdminMarkupValue(t.symbol, this._adminSpreads);
+    const rawPrice = roundedPrice + markup;
 
-    const markup = getAdminMarkupValue(t.symbol, this._adminSpreads);
-    const rawPrice = roundedPrice + markup; // Translate visual positioning back to raw interbank price
+    const entry = Number(t.openPrice || t.price);
+    let currentSL = type === 'sl' ? rawPrice : Number(t.stopLoss || t.sl || 0);
+    let currentTP = type === 'tp' ? rawPrice : Number(t.takeProfit || t.tp || 0);
 
-    if (type === 'sl') {
-        currentSL = rawPrice;
-    } else if (type === 'tp') {
-        currentTP = rawPrice;
+    // Sanket v2.0 - validate SL and TP positions
+    const validation = this._validateSLTPPrices(t, currentSL, currentTP, entry);
+    if (!validation.valid) {
+        console.warn(`[TradeManager] ❌ Validation Failed:`, validation.errors);
+        // We snap back line visually by syncing trades immediately
+        this.syncLockUntil = 0;
+        this.syncTrades(this.trades, this.currentSymbol);
+        return;
     }
 
     const payload = { tradeId: tid, sl: currentSL, tp: currentTP };
@@ -387,7 +560,9 @@ export class TradeLineManager {
     const url = `${API_URL}/trade/modify`;
     console.log(`[TradeManager] Committing to: ${url}`, payload);
 
-    this.syncLockUntil = Date.now() + this.syncLockDuration; 
+    const startTime = performance.now();
+    this.syncLockUntil = Date.now() + 5000; // Preliminary lock
+
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -395,28 +570,33 @@ export class TradeLineManager {
         body: JSON.stringify(payload)
       });
       
-      console.log(`[TradeManager] Response status: ${res.status}`);
+      const responseTime = performance.now() - startTime;
+      this.avgResponseTime = this.avgResponseTime === 0 ? responseTime : (this.avgResponseTime * 0.7) + (responseTime * 0.3);
+      
+      const newLock = this._calculateAdaptiveLockDuration();
+      this.syncLockUntil = Date.now() + newLock;
+      
       const data = await res.json();
       
       if (data.success && this.onTradeModify) {
         console.log(`[TradeManager] ✅ Modification SUCCESS`);
-        
-        // 🚀 v7.69 OPTIMISTIC UPDATE
-        // Manually update the local trade object so the next syncTrades (even during lock)
-        // doesn't "jump" the lines back to old positions.
         if (this.lines[tid] && this.lines[tid].trade) {
             this.lines[tid].trade.sl = currentSL;
             this.lines[tid].trade.tp = currentTP;
             this.lines[tid].trade.stopLoss = currentSL;
             this.lines[tid].trade.takeProfit = currentTP;
         }
-
         this.onTradeModify({ tradeId: tid, sl: currentSL, tp: currentTP });
       } else {
         console.warn(`[TradeManager] ❌ Modification FAILED:`, data.message);
+        if (window.showToast) window.showToast(data.message || 'Modification failed', 'error');
+        this.syncLockUntil = 0;
+        this.syncTrades(this.trades, this.currentSymbol);
       }
     } catch (e) {
       console.error('[TradeManager] ❌ Commit execution error:', e);
+      this.syncLockUntil = 0;
+      this.syncTrades(this.trades, this.currentSymbol);
     }
   }
 }
