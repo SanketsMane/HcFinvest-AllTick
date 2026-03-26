@@ -3701,7 +3701,22 @@ const TradingPage = () => {
   const getSymbolCategory = (symbol) => {
     if (isMetalSymbol(symbol)) return 'Metals'
     if (isCryptoSymbol(symbol)) return 'Crypto'
-    return 'Forex'
+    const s = normalizeSymbol(symbol).replace(/\.I$/i, '');
+    
+    // Explicit list of known indices/commodities
+    const indicesAndCommodities = ['US30', 'US100', 'US500', 'UK100', 'GER40', 'JP225', 'HK50', 'AUS200', 'FRA40', 'ESP35', 'EUSTX50', 'WTI', 'BRENT', 'NGAS', 'OIL', 'USOJ', 'UKO'];
+    if (indicesAndCommodities.some(idx => s.includes(idx))) return 'Indices';
+    
+    // Improved Forex detection: 6 chars and contains at least one major currency code
+    if (s.length === 6) {
+      const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'NZD', 'CAD', 'SGD', 'HKD', 'ZAR', 'MXN', 'INR', 'TRY', 'CNH', 'CNY'];
+      if (currencies.includes(s.substring(0, 3)) || currencies.includes(s.substring(3, 6))) {
+        return 'Forex';
+      }
+    }
+    
+    // Defaults for anything else
+    return s.length === 6 ? 'Forex' : 'Indices';
   }
 
   // Format price with correct decimal places based on symbol

@@ -75,7 +75,29 @@ const MobileTradingApp = () => {
   const isCryptoSymbol = (symbol = '') => cryptoSymbols.has(getBaseSymbol(symbol))
   const getSpreadConfig = (symbol = '') => adminSpreads[symbol] || adminSpreads[getBaseSymbol(symbol)] || null
 
-  const categories = ['All', 'Starred', 'Forex', 'Metals', 'Crypto']
+  const getSymbolCategory = (symbol) => {
+    if (isMetalSymbol(symbol)) return 'Metals'
+    if (isCryptoSymbol(symbol)) return 'Crypto'
+    
+    const s = normalizeSymbol(symbol).replace(/\.I$/i, '');
+    
+    // Explicit list of known indices/commodities
+    const indicesAndCommodities = ['US30', 'US100', 'US500', 'UK100', 'GER40', 'JP225', 'HK50', 'AUS200', 'FRA40', 'ESP35', 'EUSTX50', 'WTI', 'BRENT', 'NGAS', 'OIL', 'USOJ', 'UKO'];
+    if (indicesAndCommodities.some(idx => s.includes(idx))) return 'Indices';
+    
+    // Improved Forex detection: 6 chars and contains at least one major currency code
+    if (s.length === 6) {
+      const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'NZD', 'CAD', 'SGD', 'HKD', 'ZAR', 'MXN', 'INR', 'TRY', 'CNH', 'CNY'];
+      if (currencies.includes(s.substring(0, 3)) || currencies.includes(s.substring(3, 6))) {
+        return 'Forex';
+      }
+    }
+    
+    // Defaults for anything else
+    return s.length === 6 ? 'Forex' : 'Indices';
+  }
+
+  const categories = ['All', 'Starred', 'Forex', 'Metals', 'Crypto', 'Indices']
 
   // Same instruments as TradingPage
   const defaultInstruments = [
