@@ -366,16 +366,8 @@ const MobileTradingApp = () => {
     if (spreadType === 'PERCENTAGE') {
       spread = (rawAsk - rawBid) * (spreadValue / 100)
     } else {
-      // FIXED spread - convert from pips/cents to actual price units
-      if (isJpyPair(symbol)) {
-        spread = spreadValue * 0.01 // JPY pairs: 1 pip = 0.01
-      } else if (isMetalSymbol(symbol)) {
-        spread = spreadValue / 100 // Metals: cents to dollars
-      } else if (isCryptoSymbol(symbol)) {
-        spread = spreadValue // Crypto: USD value as-is
-      } else {
-        spread = spreadValue * 0.0001 // Standard Forex: 1 pip = 0.0001
-      }
+      // FIXED spread - already in exact price units
+      spread = parseFloat(spreadValue);
     }
     
     if (side === 'BUY') {

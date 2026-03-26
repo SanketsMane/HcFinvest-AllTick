@@ -20,16 +20,8 @@ export const getAdminMarkupValue = (symbol, adminSpreads) => {
     return 0;
   }
 
-  // FIXED spread - convert from pips/cents/USD to actual price units
-  if (symbol.includes('JPY')) {
-    return spreadValue * 0.01; // JPY pairs: 1 pip = 0.01
-  } else if (['XAUUSD', 'XAGUSD'].includes(symbol)) {
-    return spreadValue / 100; // Metals: cents to dollars
-  } else if (['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'BNBUSD', 'SOLUSD', 'ADAUSD', 'DOGEUSD', 'DOTUSD', 'MATICUSD', 'AVAXUSD', 'LINKUSD'].includes(symbol)) {
-    return spreadValue; // Crypto: USD value as-is
-  } else {
-    return spreadValue * 0.0001; // Standard Forex: 1 pip = 0.0001
-  }
+  // FIXED spread - already in exact price units (e.g. 0.00018)
+  return spreadValue;
 };
 
 /**

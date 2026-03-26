@@ -19,7 +19,7 @@ GITHUB REMOTES:
 ├── origin  → https://github.com/Hc-Finvest/hcfinvest.com   (main company repo)
 └── alltick → https://github.com/SanketsMane/HcFinvest-AllTick.git  (teammate's fork)
 VPS (Production)
-└── hcfinvest@206.189.142.175 → ~/hc-finvest/
+└── hcfinvest@206.189.142.175 → ~/hcfinvest/
     └── pulls from: alltick/main (GitHub)
 Step-by-Step: Full Deployment Flow
 Step 1 — Make Code Changes Locally
@@ -59,7 +59,7 @@ pm2 restart all                # restart backend + serve new frontend
 Or as a one-liner from Windows:
 
 powershell
-ssh hcfinvest@206.189.142.175 "cd ~/hc-finvest ; git pull alltick main ; cd frontend ; npm run build ; pm2 restart all"
+ssh hcfinvest@206.189.142.175 "cd ~/hcfinvest ; git pull alltick main ; cd frontend ; npm run build ; pm2 restart all"
 Branch Strategy
 Branch	Purpose
 main (local)	Active development branch
@@ -82,7 +82,7 @@ git add . ; git commit -m "fix: my change v7.XX"
 git push origin main
 git push alltick main
 # 3. Deploy to VPS
-ssh hcfinvest@206.189.142.175 "cd ~/hc-finvest ; git pull alltick main ; cd frontend ; npm run build ; pm2 restart all"
+ssh hcfinvest@206.189.142.175 "cd ~/hcfinvest ; git pull alltick main ; cd frontend ; npm run build ; pm2 restart all"
 # 4. Monitor logs on VPS
 ssh hcfinvest@206.189.142.175 "pm2 logs --lines 50"
 Common Issues & Fixes

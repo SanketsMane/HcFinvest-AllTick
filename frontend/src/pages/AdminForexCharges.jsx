@@ -515,7 +515,7 @@ const AdminForexCharges = () => {
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Value</label>
-                  <input type="number" step="any" min="0" value={form.commissionValue === 0 ? '' : form.commissionValue} onChange={(e) => setForm({ ...form, commissionValue: e.target.value === '' ? 0 : parseFloat(e.target.value) })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. 7 per lot" />
+                  <input type="number" step="any" min="0" value={form.commissionValue} onChange={(e) => setForm({ ...form, commissionValue: e.target.value })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. 7 per lot" />
                 </div>
               </div>
               
@@ -643,17 +643,17 @@ const AdminForexCharges = () => {
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Spread Type</label>
                   <select value={form.spreadType} onChange={(e) => setForm({ ...form, spreadType: e.target.value })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm">
-                    <option value="FIXED">Fixed (Pips/Cents)</option>
+                    <option value="FIXED">Fixed (Exact Price Deviation)</option>
                     <option value="PERCENTAGE">Percentage (%)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Spread Value</label>
-                  <input type="number" step="any" min="0" value={form.spreadValue === 0 ? '' : form.spreadValue} onChange={(e) => setForm({ ...form, spreadValue: e.target.value === '' ? 0 : parseFloat(e.target.value) })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. 50 for gold, 1.5 for forex" />
+                  <input type="number" step="any" min="0" value={form.spreadValue} onChange={(e) => setForm({ ...form, spreadValue: e.target.value })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. 0.00018 for forex, 0.50 for gold" />
                 </div>
               </div>
               
-              <p className="text-gray-500 text-xs">Forex: pips (e.g., 1.5) | Gold: cents (e.g., 50) | Crypto: USD (e.g., 10)</p>
+              <p className="text-gray-500 text-xs">Note: Enter exact price deviation (e.g., 0.00018 for Forex, 0.50 for Gold, 10 for Crypto)</p>
               
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setModalType(null)} className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg text-sm">Cancel</button>
@@ -759,11 +759,11 @@ const AdminForexCharges = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Swap Long (points)</label>
-                  <input type="number" step="any" value={form.swapLong === 0 ? '' : form.swapLong} onChange={(e) => setForm({ ...form, swapLong: e.target.value === '' ? 0 : parseFloat(e.target.value) })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. -2.5" />
+                  <input type="number" step="any" value={form.swapLong} onChange={(e) => setForm({ ...form, swapLong: e.target.value })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. -2.5" />
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Swap Short (points)</label>
-                  <input type="number" step="any" value={form.swapShort === 0 ? '' : form.swapShort} onChange={(e) => setForm({ ...form, swapShort: e.target.value === '' ? 0 : parseFloat(e.target.value) })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. 1.5" />
+                  <input type="number" step="any" value={form.swapShort} onChange={(e) => setForm({ ...form, swapShort: e.target.value })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="e.g. 1.5" />
                 </div>
               </div>
               
