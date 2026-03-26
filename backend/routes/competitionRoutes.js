@@ -9,26 +9,42 @@ const router = express.Router();
 
 // Calculate competition status
 
+// const getCompetitionStatus = (startDate, endDate) => {
+
+//   const now = new Date();
+
+//   const start = new Date(startDate);
+//   const end = new Date(endDate);
+
+//   // Completed
+//   if (end < now) {
+//     return "completed";
+//   }
+
+//   // Upcoming
+//   if (start > now) {
+//     return "upcoming";
+//   }
+
+//   // Ongoing
+//   return "live";
+
+// };
+
 const getCompetitionStatus = (startDate, endDate) => {
-
   const now = new Date();
-
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  // Completed
-  if (end < now) {
-    return "completed";
-  }
+  // 🔥 Convert to DATE ONLY (ignore time completely)
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
 
-  // Upcoming
-  if (start > now) {
-    return "upcoming";
-  }
+  if (endDay < today) return "completed";
+  if (startDay > today) return "upcoming";
 
-  // Ongoing
   return "live";
-
 };
 
 // DELETE COMPETITION
@@ -100,26 +116,66 @@ router.post("/join/:competitionId", async (req, res) => {
 
 
 // GET ALL COMPETITIONS
+// router.get("/getall", async (req, res) => {
+
+//   try {
+
+//     const competitions = await Competition.find();
+
+//     res.json({
+//       success: true,
+//       data: competitions
+//     });
+
+//   } catch (error) {
+
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error"
+//     });
+
+//   }
+
+// });
+
 router.get("/getall", async (req, res) => {
-
   try {
-
+    // 🔥 STEP 1: Fetch all competitions
     const competitions = await Competition.find();
 
+    // 🔥 STEP 2: Update status using your function
+    const updatedCompetitions = await Promise.all(
+      competitions.map(async (comp) => {
+
+        const newStatus = getCompetitionStatus(
+          comp.startDate,
+          comp.endDate
+        );
+
+        // ✅ Only update if status changed
+        if (comp.competitionStatus !== newStatus) {
+          comp.competitionStatus = newStatus;
+          await comp.save();
+        }
+
+        return comp;
+      })
+    );
+
+    // 🔥 STEP 3: Return updated data
     res.json({
       success: true,
-      data: competitions
+      data: updatedCompetitions
     });
 
   } catch (error) {
+    console.error("GET ALL ERROR:", error);
 
     res.status(500).json({
       success: false,
       message: "Server error"
     });
-
   }
-
 });
   
 

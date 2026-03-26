@@ -1909,22 +1909,19 @@ const [tab, setTab] = useState("active");
     const [successDialogOpen, setSuccessDialogOpen] = useState(false);
     const [enrollmentData, setEnrollmentData] = useState(null);
       const { isDarkMode, toggleDarkMode } = useTheme();
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+    const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
-  const [selectedBannerComp, setSelectedBannerComp] = useState(null);
+    const [selectedBannerComp, setSelectedBannerComp] = useState(null);
+    const [bestRank, setBestRank] = useState(null);
+    const [competitionProfit, setCompetitionProfit] = useState(0);
   
   
-    // const traders = [
-    //   { rank: 1, name: "Trader 1", avatar: "https://i.pravatar.cc/150?img=12", profit: "$0" },
-    //   { rank: 2, name: "Trader 2", avatar: "https://i.pravatar.cc/150?img=32", profit: "$0" },
-    //   { rank: 3, name: "Trader 3", avatar: "https://i.pravatar.cc/150?img=5", profit: "$0" }
-    // ];
+    const top3 = leaderboard.slice(0, 3);
+  
 
-      const top3 = leaderboard.slice(0, 3);
-  
+    // Fetch All Cometitions
     useEffect(() => {
-  
-  const fetchCompetitions = async () => {
+      const fetchCompetitions = async () => {
   
     try {
   
@@ -1956,11 +1953,114 @@ const [tab, setTab] = useState("active");
       console.error("Error fetching competitions:", error);
     }
   
-  };
+      };
       fetchCompetitions();
   
     }, []);
-  
+
+    // Fetching the best rank 
+    useEffect(() => {
+        const fetchBestRank = async () => {
+          try {
+            const user = JSON.parse(localStorage.getItem("user"));
+            const clientId = user?._id;
+
+            if (!clientId || competitions.length === 0) return;
+
+            // ✅ Get joined competitions
+            const joined = competitions.filter(
+              (comp) =>
+                comp.participants &&
+                comp.participants.includes(clientId)
+            );
+
+            let ranks = [];
+
+            for (const comp of joined) {
+              try {
+                const res = await axios.get(
+                  `${API_URL}/competition/leaderboard/${comp._id}`
+                );
+
+                const leaderboard = res.data.leaderboard || [];
+
+                const userEntry = leaderboard.find(
+                  (u) => u.userId === clientId
+                );
+
+                if (userEntry && userEntry.rank) {
+                  ranks.push(userEntry.rank);
+                }
+
+              } catch (err) {
+                console.error("Leaderboard error:", err);
+              }
+            }
+
+            // ✅ Find best rank (minimum)
+            if (ranks.length > 0) {
+              setBestRank(Math.min(...ranks));
+            }
+
+          } catch (error) {
+            console.error("Best Rank Error:", error);
+          }
+        };
+
+        fetchBestRank();
+      }, [competitions]); 
+    
+
+      // Fetch the profit as per the competition
+      useEffect(() => {
+  const fetchCompetitionProfit = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      const clientId = user?._id;
+
+      if (!clientId || competitions.length === 0) return;
+
+      // ✅ Get joined competitions
+      const joined = competitions.filter(
+        (comp) =>
+          comp.participants &&
+          comp.participants.includes(clientId)
+      );
+
+      let totalProfit = 0;
+
+      for (const comp of joined) {
+        try {
+          const res = await axios.get(
+            `${API_URL}/competition/leaderboard/${comp._id}`
+          );
+
+          const leaderboard = res.data.leaderboard || [];
+
+          const userEntry = leaderboard.find(
+            (u) => u.userId === clientId
+          );
+
+          if (userEntry && userEntry.profitLoss) {
+            totalProfit += userEntry.profitLoss;
+          }
+
+        } catch (err) {
+          console.error("Leaderboard error:", err);
+        }
+      }
+
+      setCompetitionProfit(totalProfit);
+
+    } catch (error) {
+      console.error("Competition Profit Error:", error);
+    }
+  };
+
+  fetchCompetitionProfit();
+}, [competitions]);
+
+    
     useEffect(() => {
   
       const timer = setInterval(() => {
@@ -1970,6 +2070,7 @@ const [tab, setTab] = useState("active");
       return () => clearInterval(timer);
   
     }, []);
+
 
       useEffect(() => {
     if (!selectedCompId) return;
@@ -2247,12 +2348,27 @@ const [tab, setTab] = useState("active");
     }
   };
 
-  useEffect(() => {
-  if (filteredCompetitions.length > 0 && !selectedBannerComp) {
-    setSelectedBannerComp(filteredCompetitions[0]);
-    setSelectedCompId(filteredCompetitions[0]._id); // for leaderboard
-  }
-}, [filteredCompetitions]);
+        useEffect(() => {
+        if (filteredCompetitions.length > 0 && !selectedBannerComp) {
+          setSelectedBannerComp(filteredCompetitions[0]);
+          setSelectedCompId(filteredCompetitions[0]._id); // for leaderboard
+        }
+      }, [filteredCompetitions]);
+
+
+      const joinedCount = joinedCompetitions.length;
+
+        const activeCount = competitions.filter(
+          (comp) => comp.competitionStatus === "live"
+        ).length;
+
+        const upcomingCount = competitions.filter(
+          (comp) => comp.competitionStatus === "upcoming"
+        ).length;
+
+        // const pastCount = competitions.filter(
+        //   (comp) => comp.competitionStatus === "completed"
+        // ).length;
 
 
   return (
@@ -2337,7 +2453,7 @@ const [tab, setTab] = useState("active");
             <div className="flex justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Competitions Joined</p>
-                <h2 className="text-xl font-bold mt-1">2</h2>
+                <h2 className="text-xl font-bold mt-1">{joinedCount}</h2>
               </div>
               <Trophy className="text-yellow-400" />
             </div>
@@ -2347,7 +2463,7 @@ const [tab, setTab] = useState("active");
             <div className="flex justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Best Rank</p>
-                <h2 className="text-xl font-bold mt-1 text-blue-600">#12</h2>
+                <h2 className="text-xl font-bold mt-1 text-blue-600">{bestRank}</h2>
               </div>
               <Medal className="text-blue-700" />
             </div>
@@ -2368,7 +2484,7 @@ const [tab, setTab] = useState("active");
               <div>
                 <p className="text-gray-400 text-sm">Competition Profit</p>
                 <h2 className="text-xl font-bold mt-1 text-blue-700">
-                  +$5,095.00
+                  {competitionProfit}
                 </h2>
               </div>
               <TrendingUp className="text-blue-700" />
@@ -2392,7 +2508,7 @@ const [tab, setTab] = useState("active");
                   : "text-gray-900 hover:text-blue-700"
               }`}
             >
-              Active (2)
+              Active ({activeCount})
             </button>
 
             {/* UPCOMING */}
@@ -2405,7 +2521,7 @@ const [tab, setTab] = useState("active");
                   : "text-gray-900 hover:text-blue-700"
               }`}
             >
-              Upcoming (2)
+              Upcoming ({upcomingCount})
             </button>
 
             {/* PAST */}
@@ -2523,7 +2639,7 @@ const [tab, setTab] = useState("active");
             </div>
 
             {/* 🔥 LEADERBOARD HEADER */}
-            <div className="border border-gray-200 shadow-sm  rounded-2xl p-5 bg-white">
+            {/* <div className="border border-gray-200 shadow-sm  rounded-2xl p-5 bg-white">
               <div className="flex justify-between items-center flex-wrap gap-3">
                 <div>
                   <h2 className="font-semibold">
@@ -2549,7 +2665,7 @@ const [tab, setTab] = useState("active");
                   </button>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* 🔥 PODIUM */}
             <div className="border  shadow-sm  rounded-2xl p-5 bg-white border-gray-200">
