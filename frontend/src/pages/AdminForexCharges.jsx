@@ -35,14 +35,14 @@ const AdminForexCharges = () => {
     userId: '',
     accountTypeId: '',
     spreadType: 'FIXED',
-    spreadValue: 0,
+    spreadValue: '',
     commissionType: 'PER_LOT',
-    commissionValue: 0,
+    commissionValue: '',
     commissionOnBuy: true,
     commissionOnSell: true,
     commissionOnClose: false,
-    swapLong: 0,
-    swapShort: 0
+    swapLong: '',
+    swapShort: ''
   })
 
   useEffect(() => {
@@ -108,10 +108,17 @@ const AdminForexCharges = () => {
         : `${API_URL}/charges`
       const method = editingCharge ? 'PUT' : 'POST'
 
+      const payload = {
+        ...form,
+        spreadValue: form.spreadValue !== '' ? parseFloat(form.spreadValue) : 0,
+        commissionValue: form.commissionValue !== '' ? parseFloat(form.commissionValue) : 0,
+        swapLong: form.swapLong !== '' ? parseFloat(form.swapLong) : 0,
+        swapShort: form.swapShort !== '' ? parseFloat(form.swapShort) : 0,
+      }
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify(payload)
       })
       const data = await res.json()
       if (data.success) {
@@ -156,14 +163,14 @@ const AdminForexCharges = () => {
       userId: charge.userId?._id || charge.userId || '',
       accountTypeId: charge.accountTypeId?._id || charge.accountTypeId || '',
       spreadType: charge.spreadType || 'FIXED',
-      spreadValue: charge.spreadValue || 0,
+      spreadValue: charge.spreadValue != null ? String(charge.spreadValue) : '',
       commissionType: charge.commissionType || 'PER_LOT',
-      commissionValue: charge.commissionValue || 0,
+      commissionValue: charge.commissionValue != null ? String(charge.commissionValue) : '',
       commissionOnBuy: charge.commissionOnBuy !== false,
       commissionOnSell: charge.commissionOnSell !== false,
       commissionOnClose: charge.commissionOnClose || false,
-      swapLong: charge.swapLong || 0,
-      swapShort: charge.swapShort || 0
+      swapLong: charge.swapLong != null ? String(charge.swapLong) : '',
+      swapShort: charge.swapShort != null ? String(charge.swapShort) : ''
     })
     if (charge.level === 'USER' && charge.userId) {
       const user = users.find(u => u._id === (charge.userId?._id || charge.userId))
