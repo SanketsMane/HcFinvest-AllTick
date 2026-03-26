@@ -1,3 +1,11 @@
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { 
+  X, Sun, Moon, Search, Star, Settings, Clock, Plus, Minus, 
+  ChevronDown, Check, Pencil, AlertTriangle, Home, LayoutGrid, 
+  Trophy, Wallet 
+} from 'lucide-react'
+import { API_URL } from '../config/api'
 import { useTheme } from '../context/ThemeContext'
 import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'

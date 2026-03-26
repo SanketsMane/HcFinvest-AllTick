@@ -3,6 +3,9 @@ import Sidebar from "../components/Sidebar";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from '../context/ThemeContext'
 import NavbarClient from "../components/NavbarClient";
+import { Trophy, Users, Clock, Medal, DollarSign, TrendingUp } from 'lucide-react'
+import axios from 'axios'
+import { API_URL } from '../config/api'
 
 export default function New_Compition() {
 
