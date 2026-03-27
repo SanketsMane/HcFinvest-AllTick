@@ -11,7 +11,7 @@ const tradeWorker = new Worker('trade-execution-queue', async (job) => {
 
   try {
     // 1. Fetch exact CURRENT price from Redis (Preventing stale prices)
-    const livePriceString = await redisClient.hget('live_prices', data.symbol);
+    const livePriceString = await redisClient.hget('live_prices', data.symbol.toUpperCase());
     if (!livePriceString) {
         throw new Error(`No live price feed available for ${data.symbol}`);
     }

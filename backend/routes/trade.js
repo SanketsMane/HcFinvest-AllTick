@@ -60,7 +60,7 @@ router.post('/open', async (req, res) => {
 
     // ≡ƒ¢í∩╕Å Price Freshness Guard (60s Rule)
     try {
-      const priceStr = await redisClient.hget('live_prices', symbol);
+      const priceStr = await redisClient.hget('live_prices', symbol.toUpperCase());
       if (priceStr) {
         const cachedPrice = JSON.parse(priceStr);
         if (!isPriceFresh(cachedPrice.time, 60)) {
@@ -116,7 +116,7 @@ router.post('/open', async (req, res) => {
 
     // ≡ƒ¢í∩╕Å Fetch server-side source of truth from Redis
     try {
-      const priceStr = await redisClient.hget('live_prices', symbol);
+      const priceStr = await redisClient.hget('live_prices', symbol.toUpperCase());
       if (priceStr) {
         const cachedPrice = JSON.parse(priceStr);
         // Prioritize raw values from Redis for backend math
@@ -260,14 +260,15 @@ router.post('/close', async (req, res) => {
       })
     }
 
-    // ≡ƒ¢í∩╕Å Closing Price Freshness Guard
+    // ≡ƒ¢í∩╕Å Closing Price Freshness Guard (Relaxed to 600s for exits)
     try {
       const tradeObj = await Trade.findById(tradeId);
       if (tradeObj) {
-        const priceStr = await redisClient.hget('live_prices', tradeObj.symbol);
+        const priceStr = await redisClient.hget('live_prices', tradeObj.symbol.toUpperCase());
         if (priceStr) {
           const cachedPrice = JSON.parse(priceStr);
-          if (!isPriceFresh(cachedPrice.time, 120)) { // Slightly more lenient 120s for closing
+          if (!isPriceFresh(cachedPrice.time, 600)) { // Relaxed 600s for closing
+            console.warn(`[Trade Route] Stale price detected on CLOSE for ${tradeObj.symbol}: ${cachedPrice.time}`);
             return res.status(400).json({
               success: false,
               message: 'Cannot close trade: Market data is too old/stale.',
@@ -295,7 +296,7 @@ router.post('/close', async (req, res) => {
 
     // Fetch server-side source of truth from Redis
     try {
-      const priceStr = await redisClient.hget('live_prices', tradeObj.symbol);
+      const priceStr = await redisClient.hget('live_prices', tradeObj.symbol.toUpperCase());
       if (priceStr) {
         const cachedPrice = JSON.parse(priceStr);
         // Prioritize high-precision raw values from Redis for closing
