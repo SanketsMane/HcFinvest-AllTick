@@ -3699,6 +3699,10 @@ const TradingPage = () => {
             // Silent fail for SL/TP check
           }
         }
+      } else {
+        // ✅ ELITE Recovery: Retry if prices are empty (v7.77)
+        console.warn('[TradingPage] No live prices received, retrying in 5s...')
+        setTimeout(() => fetchLivePrices(), 5000)
       }
     } catch (e) {
       console.error('Live prices error:', e)

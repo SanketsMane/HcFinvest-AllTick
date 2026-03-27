@@ -508,12 +508,19 @@ class AllTickApiService {
 
   async getLivePrice(symbol) {
     try {
+      if (!symbol) return null;
       const targetSymbol = String(symbol);
       const data = await redisClient.hget('live_prices', targetSymbol);
-      return data ? JSON.parse(data) : null;
+      
+      if (data) return JSON.parse(data);
+      
+      // ✅ ELITE Fallback: Memory cache (v7.77 Resilience)
+      if (this.prices[targetSymbol]) return this.prices[targetSymbol];
+      
+      return null;
     } catch (err) {
       console.error('[Redis] Failed to get live price:', err.message);
-      return null;
+      return this.prices[symbol] || null;
     }
   }
 

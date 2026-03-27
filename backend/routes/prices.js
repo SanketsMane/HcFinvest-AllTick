@@ -399,22 +399,23 @@ router.post('/batch', async (req, res) => {
     
     const prices = {}
     
-    // Get all prices from AllTick api service
-    for (const symbol of symbols) {
+    // ✅ ELITE: Batch Await Price Lookups (Fix v7.77 "Smoking Gun")
+    // We must await each price lookup to avoid returning empty Promise objects.
+    await Promise.all(symbols.map(async (symbol) => {
       if (alltickApiService.isSymbolSupported(symbol)) {
-        const price = alltickApiService.getPrice(symbol)
+        const price = await alltickApiService.getPrice(symbol) // AWAIT FIXED
         const symbolInfo = alltickApiService.getSymbolInfo(symbol)
         if (price && price.bid) {
           prices[symbol] = {
             bid: price.bid,
             ask: price.ask,
-            spread: price.spread,
-            time: price.time,
+            spread: price.spread || 0,
+            time: price.time || new Date().toISOString(),
             ...symbolInfo
           }
         }
       }
-    }
+    }))
     
     res.json({ 
       success: true, 
