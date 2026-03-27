@@ -1,3 +1,6 @@
+
+// AdminUserManagement.jsx
+
 import { API_URL } from '../config/api'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -2030,14 +2033,14 @@ const AdminUserManagement = () => {
                     </td> */}
                     <td className="py-3 px-4">
                       <span className="px-2 py-1 rounded text-xs font-medium" style={{
-                        backgroundColor: user.kycVerified 
+                        backgroundColor: user.kycApproved 
                           ? 'rgba(34, 197, 94, 0.1)' 
                           : 'rgba(245, 158, 11, 0.1)',
-                        color: user.kycVerified 
+                        color: user.kycApproved 
                           ? '#22C55E' 
                           : '#F59E0B'
                       }}>
-                        {user.kycVerified ? 'Verified' : 'Pending'}
+                        {user.kycApproved ? 'Verified' : 'Pending'}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -2351,4 +2354,4 @@ const AdminUserManagement = () => {
   )
 }
 
-export default AdminUserManagement
+export default AdminUserManagement;

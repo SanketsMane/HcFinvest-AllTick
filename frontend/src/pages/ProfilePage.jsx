@@ -4,19 +4,9 @@ import { API_URL } from "../config/api";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
   User,
-  Wallet,
-  Users,
-  Copy,
-  UserCircle,
-  HelpCircle,
-  FileText,
-  LogOut,
   Mail,
   Phone,
-  MapPin,
-  Calendar,
   Shield,
   Edit2,
   Save,
@@ -25,21 +15,13 @@ import {
   Building2,
   Smartphone,
   CreditCard,
-  Trophy,
-  ArrowLeft,
-  Home,
   Upload,
   CheckCircle,
   Clock,
   XCircle,
   FileCheck,
-  Sun,
-  Moon,
-  Eye,
-  EyeOff,
-  AlertCircle,
   Check,
-  ArrowRightLeft,
+  
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
@@ -50,7 +32,7 @@ const fadeInUp = "animate-[fadeInUp_0.5s_ease-out_forwards]";
 const fadeIn = "animate-[fadeIn_0.3s_ease-out_forwards]";
 const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
 
-const ProfilePage = () => {
+ const ProfilePage = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [currentUser, setCurrentUser] = useState(
@@ -144,15 +126,16 @@ const ProfilePage = () => {
         setCurrentUser(userData);
         // Update profile state
         if (!editing) {
-  setProfile({
-    fullName: `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim(),
-    email: data.user.email || "",
-    phone: data.user.phone || "",
-    city: data.user.city || "",
-    bankDetails: data.user.bankDetails || {},
-    upiId: data.user.upiId || "",
-  });
-}
+          setProfile({
+            fullName:
+              `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim(),
+            email: data.user.email || "",
+            phone: data.user.phone || "",
+            city: data.user.city || "",
+            bankDetails: data.user.bankDetails || {},
+            upiId: data.user.upiId || "",
+          });
+        }
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -439,82 +422,79 @@ const ProfilePage = () => {
   });
 
   const handleSave = async () => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    // ✅ Split fullName into firstName & lastName
-    const [firstName, ...rest] = profile.fullName.trim().split(" ");
-    const lastName = rest.join(" ");
+    try {
+      // ✅ Split fullName into firstName & lastName
+      const firstName = profile.fullName.trim(); // store full name here
 
-    console.log("Sending:", {
-      userId: currentUser._id,
-      firstName,
-      lastName,
-      phone: profile.phone,
-      city: profile.city,
-      bankDetails: profile.bankDetails,
-      upiId: profile.upiId,
-    });
-
-    const res = await fetch(`${API_URL}/auth/update-profile`, {
-  method: "PUT",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
+      console.log("Sending:", {
         userId: currentUser._id,
         firstName,
-        lastName,
         phone: profile.phone,
         city: profile.city,
         bankDetails: profile.bankDetails,
         upiId: profile.upiId,
-      }),
-});
+      });
 
-if (!res.ok) {
-  const errText = await res.text();
-  console.error("Server error:", errText);
-  alert("Server error");
-  return;
-}
+      const res = await fetch(`${API_URL}/auth/update-profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+  userId: currentUser._id,
+  firstName,   // full name goes here
+  phone: profile.phone,
+  city: profile.city,
+  bankDetails: profile.bankDetails,
+  upiId: profile.upiId,
+})
+      });
 
-const data = await res.json();
-console.log("Final Data:", data);
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Server error:", errText);
+        alert("Server error");
+        return;
+      }
 
-    if (data.user) {
-      // ✅ Update localStorage
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const data = await res.json();
+      console.log("Final Data:", data);
 
-      // ✅ Update state immediately
-      setCurrentUser(data.user);
+      if (data.user) {
+        // ✅ Update localStorage
+        localStorage.setItem("user", JSON.stringify(data.user));
 
-      // ✅ Update profile UI
-      setProfile({
-  fullName: `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim(),
-  email: data.user.email || "",
-  phone: data.user.phone || "",
-  city: data.user.city || "",
-  bankDetails: data.user.bankDetails || {},
-  upiId: data.user.upiId || "",
-});
+        // ✅ Update state immediately
+        setCurrentUser(data.user);
 
-      setEditing(false);
+        // ✅ Update profile UI
+        setProfile({
+          fullName:
+            `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim(),
+          email: data.user.email || "",
+          phone: data.user.phone || "",
+          city: data.user.city || "",
+          bankDetails: data.user.bankDetails || {},
+          upiId: data.user.upiId || "",
+        });
 
-      alert("Profile updated successfully!");
-    } else {
-      alert(data.message || "Failed to update profile");
+        setEditing(false);
+
+        alert("Profile updated successfully!");
+      } else {
+        alert(data.message || "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Failed to update profile");
     }
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    alert("Failed to update profile");
-  }
 
-  setLoading(false);
+    setLoading(false);
 
-  await fetchUserData();
-
-};
+    await fetchUserData();
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -583,7 +563,6 @@ console.log("Final Data:", data);
         <main
           className={`flex-1 p-6 overflow-y-auto ${isMobile ? "pt-14" : ""}`}
         >
-
           <div className={`${isMobile ? "p-4" : ""} space-y-6`}>
             {/* Success/Error Messages */}
             {success && (
@@ -610,14 +589,12 @@ console.log("Final Data:", data);
               </p>
             </div> */}
 
-
-         {!isMobile && (
-            <NavbarClient
-              title="Wallet"
-              subtitle="Manage your funds and transactions"
-            />
-          )} 
-
+            {!isMobile && (
+              <NavbarClient
+                title="Profile"
+                subtitle="Manage your account settings and verification status."
+              />
+            )}
 
             {/* Profile Card */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md hover:shadow-green-100 transition">
@@ -748,9 +725,9 @@ console.log("Final Data:", data);
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
-  setEditing(false);
-  fetchUserData();
-}}
+                            setEditing(false);
+                            fetchUserData();
+                          }}
                           className="flex items-center gap-2 bg-dark-700 text-white px-4 py-2 rounded-lg hover:bg-dark-600"
                         >
                           <X size={16} />
@@ -1285,11 +1262,11 @@ console.log("Final Data:", data);
                       className="w-full bg-gray-100 border border-gray-600 rounded-lg px-4 py-3 text-gray-900"
                     >
                       <option value="">Goverment Id</option>
-                      <option value="aadhaar">Aadhaar Card</option>
+                      {/* <option value="aadhaar">Aadhaar Card</option> */}
                       <option value="passport">Passport</option>
                       <option value="driving_license">Driving License</option>
                       <option value="voter_id">Voter ID</option>
-                      <option value="national_id">National ID</option>
+                      {/* <option value="national_id">National ID</option> */}
                     </select>
                   </div>
 
@@ -1954,6 +1931,5 @@ console.log("Final Data:", data);
     </>
   );
 };
-
 
 export default ProfilePage;

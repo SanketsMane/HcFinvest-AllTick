@@ -1362,11 +1362,7 @@ const WalletPage = () => {
                   <button
                     key={method._id}
                     onClick={() => setSelectedPaymentMethod(method)}
-                    className={`p-4 rounded-lg border transition-colors flex flex-col items-center justify-center gap-2 h-full min-h-[80px] ${
-                      selectedPaymentMethod?._id === method._id
-                        ? "border-accent-green bg-accent-green/10"
-                        : "border-gray-200 bg-dark-700 hover:border-gray-600"
-                    }`}
+                    className={`p-4 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-2 h-full min-h-[80px] ${ selectedPaymentMethod?._id === method._id ? "border-green-500 bg-green-50 shadow-sm" : "border-gray-300 bg-white hover:border-blue-400 hover:bg-gray-50" }`}
                   >
                     {getPaymentIcon(method.type)}
                     <span className="text-gray-900 text-sm text-center">
@@ -1454,7 +1450,7 @@ const WalletPage = () => {
                     value={oxapayAmount}
                     onChange={(e) => setOxapayAmount(e.target.value)}
                     placeholder={`Min: $${oxapayConfig?.minDeposit || 10}`}
-                    className="w-full bg-dark-700 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-orange-500"
                   />
                   {oxapayConfig && (
                     <p className="text-gray-500 text-xs mt-1">
@@ -1464,7 +1460,7 @@ const WalletPage = () => {
                   )}
                 </div>
 
-                <div className="mb-4 p-3 bg-dark-700 rounded-lg">
+                <div className="mb-4 p-3 bg-white rounded-lg">
                   <p className="text-gray-500 text-sm mb-2">
                     Supported Cryptocurrencies:
                   </p>
@@ -1479,7 +1475,7 @@ const WalletPage = () => {
                     ).map((crypto) => (
                       <span
                         key={crypto}
-                        className="px-2 py-1 bg-dark-600 text-gray-900 text-xs rounded"
+                        className="px-2 py-1 bg-white text-gray-900 text-xs rounded"
                       >
                         {crypto}
                       </span>
@@ -1494,7 +1490,7 @@ const WalletPage = () => {
                       setOxapayAmount("");
                       setError("");
                     }}
-                    className="flex-1 bg-dark-700 text-gray-900 py-3 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 bg-white text-gray-900 py-3 rounded-lg hover:bg-dark-600 transition-colors"
                   >
                     Cancel
                   </button>

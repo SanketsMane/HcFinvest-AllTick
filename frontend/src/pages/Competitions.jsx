@@ -1614,14 +1614,14 @@ const [tab, setTab] = useState("active");
         {tab === "past" && (
           <div className="mt-6 space-y-6">
             {/* 🔥 COMPETITION LIST */}
-            <div className="space-y-4">
+            {/* <div className="space-y-4">
               
 
               
-            </div>
+            </div> */}
 
             {/* 🔥 LEADERBOARD HEADER */}
-            <div className="border border-gray-200 shadow-sm  rounded-2xl p-5 bg-white">
+            {/* <div className="border border-gray-200 shadow-sm  rounded-2xl p-5 bg-white">
               <div className="flex justify-between items-center flex-wrap gap-3">
                 <div>
                   <h2 className="font-semibold">
@@ -1647,16 +1647,16 @@ const [tab, setTab] = useState("active");
                   </button>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* 🔥 PODIUM */}
-            <div className="border  shadow-sm  rounded-2xl p-5 bg-white border-gray-200">
+            {/* <div className="border  shadow-sm  rounded-2xl p-5 bg-white border-gray-200">
               <p className="text-xs text-gray-400 mb-4">ELITE PODIUM</p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* 🥈 2nd Winner - ADVANCED UI */}
+               
                 <div className="group relative min-h-[300px] overflow-hidden rounded-2xl border px-4 pb-6 pt-5 text-center transition-all duration-500 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] border border-green-200 border-[#29466c]">
-                  {/* BOTTOM CARD */}
+                  
                   <div className="absolute bottom-8 left-1/2 h-[106px] w-[88%] -translate-x-1/2 rounded-t-xl border border-[#2f4c70] bg-[linear-gradient(180deg,rgba(24,52,92,0.7),rgba(10,23,44,0.95))]">
                     <div className="flex h-full flex-col items-center justify-start px-3 pt-5">
                       <p className="text-sm font-semibold text-slate-100">
@@ -1671,17 +1671,17 @@ const [tab, setTab] = useState("active");
                     </div>
                   </div>
 
-                  {/* TOP GRAPHIC */}
+                  
                   <div className="relative z-10 flex justify-center">
                     <div className="relative h-[168px] w-[276px]">
-                      {/* LEFT SHAPES */}
+                      
                       <span className="absolute left-[28px] top-[45px] h-[44px] w-[100px] -skew-x-[34deg] border bg-gradient-to-b from-[#cfd5e8] to-[#8893b8] border-[#d9def0]" />
                       <span className="absolute left-[50px] top-[66px] h-[28px] w-[68px] -skew-x-[20deg] border bg-gradient-to-b from-[#e5e9f7] to-[#9aa5ca] border-[#e9edfb]" />
 
-                      {/* RIGHT SHAPES */}
+                      
                       <span className="absolute right-[28px] top-[45px] h-[44px] w-[100px] skew-x-[34deg] border bg-gradient-to-b from-[#cfd5e8] to-[#8893b8] border-[#d9def0]" />
 
-                      {/* CENTER HEX */}
+                      
                       <span
                         className="absolute left-1/2 top-[31px] h-[94px] w-[112px] -translate-x-1/2 border bg-gradient-to-b from-[#d7dced] via-[#a6b0cf] to-[#7e87a8] border-[#dde3f6]"
                         style={{
@@ -1690,14 +1690,14 @@ const [tab, setTab] = useState("active");
                         }}
                       />
 
-                      {/* AVATAR */}
+                      
                       <img
                         src="/icon2.png"
                         alt="ByteX"
                         className="absolute left-1/2 top-[78px] h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full"
                       />
 
-                      {/* RANK */}
+                     
                       <span className="absolute left-1/2 top-[106px] inline-flex h-6 min-w-6 -translate-x-1/2 items-center justify-center rounded-full border border-[#3d6799] bg-[#10294e] px-1 text-[10px] font-semibold text-cyan-100">
                         2
                       </span>
@@ -1705,9 +1705,9 @@ const [tab, setTab] = useState("active");
                   </div>
                 </div>
 
-                {/* 🥇 1st Winner Premium */}
+                
                 <div className="group relative min-h-[300px] overflow-hidden rounded-2xl border px-4 pb-6 pt-5 text-center transition-all duration-500 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] border border-green-200 border-cyan-300/70 md:scale-105 shadow-[0_0_36px_rgba(34,211,238,0.18)]">
-                  {/* BOTTOM CARD */}
+                  
                   <div className="absolute bottom-8 left-1/2 h-[106px] w-[88%] -translate-x-1/2 rounded-t-xl border border-[#2f4c70] bg-[linear-gradient(180deg,rgba(24,52,92,0.7),rgba(10,23,44,0.95))]">
                     <div className="flex h-full flex-col items-center justify-start px-3 pt-5">
                       <p className="text-sm font-semibold text-slate-100">
@@ -1722,27 +1722,27 @@ const [tab, setTab] = useState("active");
                     </div>
                   </div>
 
-                  {/* TOP GRAPHIC */}
+                  
                   <div className="relative z-10 flex justify-center mt-2">
                     <div className="relative h-[168px] w-[276px] scale-105">
-                      {/* GOLD SHAPES */}
+                      
                       <span className="absolute left-[28px] top-[45px] h-[44px] w-[100px] -skew-x-[34deg] border bg-gradient-to-b from-[#ffd73f] to-[#e99a10] border-[#ffdd63]"></span>
                       <span className="absolute left-[50px] top-[66px] h-[28px] w-[68px] -skew-x-[20deg] border bg-gradient-to-b from-[#ffe05b] to-[#f6ae12] border-[#ffd66a]"></span>
 
                       <span className="absolute right-[28px] top-[45px] h-[44px] w-[100px] skew-x-[34deg] border bg-gradient-to-b from-[#ffd73f] to-[#e99a10] border-[#ffdd63]"></span>
                       <span className="absolute right-[50px] top-[66px] h-[28px] w-[68px] skew-x-[20deg] border bg-gradient-to-b from-[#ffe05b] to-[#f6ae12] border-[#ffd66a]"></span>
 
-                      {/* CENTER BADGE */}
+                      
                       <span className="absolute left-1/2 top-[31px] h-[94px] w-[112px] -translate-x-1/2 border bg-gradient-to-b from-[#ffcf38] via-[#f3a018] to-[#da790f] border-[#ffd86e] [clip-path:polygon(50%_0,87%_16%,92%_45%,73%_84%,50%_100%,27%_84%,8%_45%,13%_16%)]"></span>
 
-                      {/* AVATAR */}
+                      
                       <img
                         src="/icon1.png"
                         alt="Hawk"
                         className="absolute left-1/2 top-[78px] h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full"
                       />
 
-                      {/* RANK */}
+                     
                       <span className="absolute left-1/2 top-[106px] -translate-x-1/2 rounded-full border border-[#3d6799] bg-[#10294e] px-2 py-1 text-xs">
                         1
                       </span>
@@ -1750,9 +1750,9 @@ const [tab, setTab] = useState("active");
                   </div>
                 </div>
 
-                {/* 🔥 3rd (Advanced Podium Card) */}
+                
                 <div className="group relative min-h-[300px] overflow-hidden rounded-2xl border px-4 pb-6 pt-5 text-center transition-all duration-500 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] border border-green-200 border-[#29466c]">
-                  {/* BOTTOM INFO BOX */}
+                  
                   <div className="absolute bottom-8 left-1/2 h-[106px] w-[88%] -translate-x-1/2 rounded-t-xl border border-[#2f4c70] bg-[linear-gradient(180deg,rgba(24,52,92,0.7),rgba(10,23,44,0.95))]">
                     <div className="flex h-full flex-col items-center justify-start px-3 pt-5">
                       <p className="text-sm font-semibold text-slate-100">
@@ -1767,18 +1767,18 @@ const [tab, setTab] = useState("active");
                     </div>
                   </div>
 
-                  {/* TOP GRAPHIC */}
+                  
                   <div className="relative z-10">
                     <div className="flex items-center justify-center">
                       <div className="relative h-[168px] w-[276px]">
-                        {/* LEFT BLOCKS */}
+                       
                         <span className="absolute left-[28px] top-[45px] h-[44px] w-[100px] -skew-x-[34deg] border bg-gradient-to-b from-[#be5f2e] to-[#6b2f13] border-[#d0885e]" />
                         <span className="absolute left-[50px] top-[66px] h-[28px] w-[68px] -skew-x-[20deg] border bg-gradient-to-b from-[#d57b4b] to-[#8a3c1a] border-[#df9066]" />
 
-                        {/* RIGHT BLOCKS */}
+                       
                         <span className="absolute right-[28px] top-[45px] h-[44px] w-[100px] skew-x-[34deg] border bg-gradient-to-b from-[#be5f2e] to-[#6b2f13] border-[#d0885e]" />
 
-                        {/* CENTER SHAPE */}
+                        
                         <span
                           className="absolute left-1/2 top-[31px] h-[94px] w-[112px] -translate-x-1/2 border bg-gradient-to-b from-[#c76637] via-[#9a4824] to-[#6e3218] border-[#d88f68]"
                           style={{
@@ -1787,14 +1787,14 @@ const [tab, setTab] = useState("active");
                           }}
                         />
 
-                        {/* AVATAR */}
+                       
                         <img
                           src="/icon3.png"
                           alt="Voyager"
                           className="absolute left-1/2 top-[78px] h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full"
                         />
 
-                        {/* RANK */}
+                        
                         <span className="absolute left-1/2 top-[106px] -translate-x-1/2 bg-[#10294e] text-xs px-2 py-1 rounded-full border border-[#3d6799]">
                           3
                         </span>
@@ -1803,12 +1803,12 @@ const [tab, setTab] = useState("active");
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* 🔥 TOP USERS TABLE */}
             {/* 🔥 PREMIUM TOP USERS TABLE */}
-            <div className="rounded-xl border border-gray-200 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] p-3">
-              {/* HEADER */}
+            {/* <div className="rounded-xl border border-gray-200 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] p-3">
+
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-800">
                   Top Users
@@ -1819,10 +1819,10 @@ const [tab, setTab] = useState("active");
                 </button>
               </div>
 
-              {/* TABLE */}
+              
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  {/* HEADER */}
+                  
                   <thead>
                     <tr className="border-b border-[#1b2f4b] text-gray-800">
                       <th className="text-left p-2 w-14">Rank</th>
@@ -1832,7 +1832,7 @@ const [tab, setTab] = useState("active");
                     </tr>
                   </thead>
 
-                  {/* BODY */}
+                 
                   <tbody>
                     {[
                       {
@@ -1864,12 +1864,12 @@ const [tab, setTab] = useState("active");
                         key={i}
                         className="border-b border-[#1b2f4b] hover:bg-[#0d1d38] transition"
                       >
-                        {/* RANK */}
+                        
                         <td className="p-2 font-semibold text-blue-500">
                           {user.rank}
                         </td>
 
-                        {/* USER */}
+                       
                         <td className="p-2">
                           <div className="flex items-center gap-2">
                             <img
@@ -1889,19 +1889,19 @@ const [tab, setTab] = useState("active");
                           </div>
                         </td>
 
-                        {/* RETURN */}
+                        
                         <td className="p-2 text-blue-500 font-medium">
                           {user.return}
                         </td>
 
-                        {/* RATING */}
+                        
                         <td className="p-2 text-right font-semibold text-blue-500">
                           {user.rating}
                         </td>
                       </tr>
                     ))}
 
-                    {/* YOU ROW */}
+                    
                     <tr className="border-b border-[#1b2f4b] bg-[#12294a]">
                       <td className="p-2 font-semibold text-slate-100">#9</td>
 
@@ -1935,7 +1935,7 @@ const [tab, setTab] = useState("active");
                   </tbody>
                 </table>
               </div>
-            </div>
+            </div> */}
           </div>
         )}
       </div>

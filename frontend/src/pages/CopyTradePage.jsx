@@ -506,7 +506,7 @@ const CopyTradePage = () => {
                     } />
                   </div>
                   <div>
-                    <h3 className={`text-white font-semibold ${isMobile ? 'text-sm' : ''}`}>{myMasterProfile.displayName}</h3>
+                    <h3 className={`text-black font-semibold ${isMobile ? 'text-sm' : ''}`}>{myMasterProfile.displayName}</h3>
                     <p className="text-gray-400 text-xs">
                       <span className={
                         myMasterProfile.status === 'ACTIVE' ? 'text-green-500' :
@@ -518,7 +518,7 @@ const CopyTradePage = () => {
                 </div>
                 {myMasterProfile.status === 'ACTIVE' && (
                   <div className={isMobile ? '' : 'text-right'}>
-                    <p className="text-gray-400 text-xs">Commission: <span className="text-white font-semibold">{myMasterProfile.approvedCommissionPercentage}%</span></p>
+                    <p className="text-black text-xs">Commission: <span className="text-black font-semibold">{myMasterProfile.approvedCommissionPercentage}%</span></p>
                   </div>
                 )}
               </div>
@@ -540,7 +540,7 @@ const CopyTradePage = () => {
                     </div>
                     <div>
                       <p className="text-gray-400 text-xs">Withdrawn</p>
-                      <p className="text-white font-semibold">${(myMasterProfile.totalCommissionWithdrawn || 0).toFixed(2)}</p>
+                      <p className="text-blue-500 font-semibold">${(myMasterProfile.totalCommissionWithdrawn || 0).toFixed(2)}</p>
                     </div>
                   </div>
                   {(myMasterProfile.pendingCommission || 0) > 0 && (
