@@ -243,6 +243,7 @@ router.post('/open', async (req, res) => {
 router.post('/close', async (req, res) => {
   try {
     const { tradeId, bid, ask } = req.body
+    console.log(`[Trade/Close] Attempting to close trade: ${tradeId}. Input bid: ${bid}, ask: ${ask}`);
 
     if (!tradeId) {
       return res.status(400).json({ 
@@ -253,6 +254,7 @@ router.post('/close', async (req, res) => {
 
     // Check if market data is available
     if (!bid || !ask || parseFloat(bid) <= 0 || parseFloat(ask) <= 0 || isNaN(parseFloat(bid)) || isNaN(parseFloat(ask))) {
+      console.warn(`[Trade/Close] ❌ REJECTED: Invalid market data. bid=${bid}, ask=${ask}`);
       return res.status(400).json({ 
         success: false, 
         message: 'No price data available. Cannot close trade.',
@@ -283,6 +285,7 @@ router.post('/close', async (req, res) => {
     const tradeObj = await Trade.findById(tradeId)
     
     if (!tradeObj) {
+      console.warn(`[Trade/Close] ❌ REJECTED: Trade not found. tradeId=${tradeId}`);
       return res.status(404).json({ 
         success: false, 
         message: 'Trade not found' 
