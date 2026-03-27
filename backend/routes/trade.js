@@ -109,6 +109,28 @@ router.post('/open', async (req, res) => {
       })
     }
 
+    let serverSafeBid = parseFloat(bid)
+    let serverSafeAsk = parseFloat(ask)
+    let rawBidVal = null
+    let rawAskVal = null
+
+    // ≡ƒ¢í∩╕Å Fetch server-side source of truth from Redis
+    try {
+      const priceStr = await redisClient.hget('live_prices', symbol);
+      if (priceStr) {
+        const cachedPrice = JSON.parse(priceStr);
+        // Prioritize raw values from Redis for backend math
+        rawBidVal = cachedPrice.rawBid || cachedPrice.bid;
+        rawAskVal = cachedPrice.rawAsk || cachedPrice.ask;
+        
+        // Use Redis prices as the authoritative execution price to prevent frontend manipulation
+        serverSafeBid = rawBidVal;
+        serverSafeAsk = rawAskVal;
+      }
+    } catch (err) {
+      console.warn(`[Trade Route] Non-critical: Failed to sync with Redis price source for ${symbol}`);
+    }
+
     // Check if this is a challenge account first
     const challengeAccount = await ChallengeAccount.findById(tradingAccountId).populate('challengeId')
     
@@ -120,10 +142,13 @@ router.post('/open', async (req, res) => {
         side,
         orderType,
         quantity: parseFloat(quantity),
-        bid: parseFloat(bid),
-        ask: parseFloat(ask),
+        bid: serverSafeBid,
+        ask: serverSafeAsk,
+        rawBid: rawBidVal,
+        rawAsk: rawAskVal,
         sl: sl ? parseFloat(sl) : null,
-        tp: tp ? parseFloat(tp) : null
+        tp: tp ? parseFloat(tp) : null,
+        leverage
       }
 
       // Validate trade against challenge rules
@@ -168,12 +193,14 @@ router.post('/open', async (req, res) => {
       side,
       orderType,
       parseFloat(quantity),
-      parseFloat(bid),
-      parseFloat(ask),
+      serverSafeBid,
+      serverSafeAsk,
       sl ? parseFloat(sl) : null,
       tp ? parseFloat(tp) : null,
       leverage, // Pass user-selected leverage
-      pendingPrice ? parseFloat(pendingPrice) : null // Pass pending price for limit/stop orders
+      pendingPrice ? parseFloat(pendingPrice) : null, // Pass pending price for limit/stop orders
+      rawBidVal,
+      rawAskVal
     )
 
     // Check if this is a master trader and copy to followers
@@ -252,58 +279,74 @@ router.post('/close', async (req, res) => {
     } catch (e) {}
 
     // Get trade first to check if it's a challenge or master trade
-    const tradeToClose = await Trade.findById(tradeId)
+    const tradeObj = await Trade.findById(tradeId)
     
-    if (!tradeToClose) {
+    if (!tradeObj) {
       return res.status(404).json({ 
         success: false, 
         message: 'Trade not found' 
       })
     }
 
+    let serverBid = parseFloat(bid)
+    let serverAsk = parseFloat(ask)
+    let serverRawBid = null
+    let serverRawAsk = null
+
+    // Fetch server-side source of truth from Redis
+    try {
+      const priceStr = await redisClient.hget('live_prices', tradeObj.symbol);
+      if (priceStr) {
+        const cachedPrice = JSON.parse(priceStr);
+        // Prioritize high-precision raw values from Redis for closing
+        serverRawBid = cachedPrice.rawBid || cachedPrice.bid;
+        serverRawAsk = cachedPrice.rawAsk || cachedPrice.ask;
+        
+        // Use server-side prices for closing to ensure fairness
+        serverBid = serverRawBid;
+        serverAsk = serverRawAsk;
+      }
+    } catch (err) {}
+
     // Check if this is a challenge account trade
-    const challengeAccount = await ChallengeAccount.findById(tradeToClose.tradingAccountId)
+    const challengeAccount = await ChallengeAccount.findById(tradeObj.tradingAccountId)
     
     if (challengeAccount) {
       // Close trade for challenge account
-      const closePrice = tradeToClose.side === 'BUY' ? parseFloat(bid) : parseFloat(ask)
-      const pnl = tradeToClose.side === 'BUY'
-        ? (closePrice - tradeToClose.openPrice) * tradeToClose.quantity * tradeToClose.contractSize
-        : (tradeToClose.openPrice - closePrice) * tradeToClose.quantity * tradeToClose.contractSize
+      // Use refined server prices for closing
+      const closePrice = tradeObj.side === 'BUY' ? serverBid : serverAsk
+      const pnl = tradeObj.side === 'BUY'
+        ? (closePrice - tradeObj.openPrice) * tradeObj.quantity * tradeObj.contractSize
+        : (tradeObj.openPrice - closePrice) * tradeObj.quantity * tradeObj.contractSize
       
       // Update trade
-      tradeToClose.status = 'CLOSED'
-      tradeToClose.closePrice = closePrice
-      tradeToClose.closedAt = new Date()
-      tradeToClose.realizedPnl = pnl
-      tradeToClose.closeReason = 'USER'
-      await tradeToClose.save()
+      tradeObj.status = 'CLOSED'
+      tradeObj.closePrice = closePrice
+      tradeObj.closedAt = new Date()
+      tradeObj.realizedPnl = pnl
+      tradeObj.closeReason = 'USER'
+      await tradeObj.save()
       
       // Update challenge account
-      await propTradingEngine.onTradeClosed(challengeAccount._id, tradeToClose, pnl)
+      await propTradingEngine.onTradeClosed(challengeAccount._id, tradeObj, pnl)
       
       // Emit WebSocket event
       const io = req.app.get('io');
       if (io) {
-        io.to(`account:${challengeAccount._id}`).emit('tradeClosed', tradeToClose);
+        io.to(`account:${challengeAccount._id}`).emit('tradeClosed', tradeObj);
       }
 
       return res.json({
         success: true,
         message: 'Challenge trade closed successfully',
-        trade: tradeToClose,
+        trade: tradeObj,
         realizedPnl: pnl,
         isChallengeAccount: true
       })
     }
-    
-    // Regular trading account - use standard trade engine
-    const result = await tradeEngine.closeTrade(
-      tradeId,
-      parseFloat(bid),
-      parseFloat(ask),
-      'USER'
-    )
+
+    // Regular trading account
+    const result = await tradeEngine.closeTrade(tradeId, serverBid, serverAsk, 'USER', null, serverRawBid, serverRawAsk)
 
     // Note: Copy trading close is now handled inside tradeEngine.closeTrade()
     // This ensures SL/TP triggered closes also propagate to followers
@@ -358,13 +401,11 @@ router.put('/modify', async (req, res) => {
       // First check if trade exists
       const existingTrade = await Trade.findById(tradeId)
       if (!existingTrade) {
-        console.log('Trade not found:', tradeId)
         return res.status(404).json({ 
           success: false, 
           message: 'Trade not found' 
         })
       }
-      console.log('Found trade:', existingTrade.tradeId, existingTrade.status)
 
       // Parse values and handle NaN
       const parsedSl = sl !== undefined && sl !== null && sl !== '' ? parseFloat(sl) : null

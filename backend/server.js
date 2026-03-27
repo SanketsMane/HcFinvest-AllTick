@@ -145,6 +145,8 @@ redisSubscriber.on('message', (channel, message) => {
           symbol,
           bid: priceData.bid,
           ask: priceData.ask,
+          rawBid: priceData.rawBid,
+          rawAsk: priceData.rawAsk,
           time: priceData.time || now,
           provider: priceData.provider || 'alltick'
         }

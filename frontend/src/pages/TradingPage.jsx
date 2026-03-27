@@ -3410,7 +3410,6 @@ const TradingPage = () => {
     // Instantly refresh UI when backend emits tradeClosed or tradeUpdated
     priceStreamService.subscribeToAccount(accountId);
     const untrade = priceStreamService.subscribeToTrades('tradingPage', (trade, status) => {
-        console.log(`[TradingPage] Reactive Trade ${status}:`, trade._id || trade.id);
         fetchOpenTrades();
         fetchAccountSummary();
         if (status === 'closed') fetchTradeHistory();
@@ -3551,8 +3550,8 @@ const TradingPage = () => {
         
         // Only calculate if we have a valid price
         const currentPrice = livePrice?.bid 
-          ? (trade.side === 'BUY' ? livePrice.bid : livePrice.ask)
-          : (inst?.bid ? (trade.side === 'BUY' ? inst.bid : inst.ask) : null)
+          ? (trade.side === 'BUY' ? (livePrice.rawBid || livePrice.bid) : (livePrice.rawAsk || livePrice.ask))
+          : (inst?.bid ? (trade.side === 'BUY' ? (inst.rawBid || inst.bid) : (inst.rawAsk || inst.ask)) : null)
         
         if (currentPrice && currentPrice > 0) {
           hasValidPrices = true
@@ -4277,15 +4276,11 @@ const TradingPage = () => {
 
   // Modify trade SL/TP
   const handleModifyTrade = async () => {
-    console.log('handleModifyTrade called')
-    
     if (!selectedTradeForModify) {
-      console.log('No trade selected for modify')
       setTradeError('No trade selected')
       return
     }
 
-    console.log('Modifying trade:', selectedTradeForModify._id, 'SL:', modifySL, 'TP:', modifyTP)
     setTradeError('') // Clear any previous error
 
     try {
@@ -4294,7 +4289,6 @@ const TradingPage = () => {
         sl: modifySL ? parseFloat(modifySL) : null,
         tp: modifyTP ? parseFloat(modifyTP) : null
       }
-      console.log('Request body:', JSON.stringify(requestBody))
 
       const res = await fetch(`${API_URL}/trade/modify`, {
         method: 'PUT',
@@ -4302,16 +4296,13 @@ const TradingPage = () => {
         body: JSON.stringify(requestBody)
       })
 
-      console.log('Response status:', res.status)
       const data = await res.json()
-      console.log('Response data:', data)
 
       if (data.success) {
         setTradeSuccess('Trade modified successfully')
         fetchOpenTrades()
         setShowModifyModal(false)
       } else {
-        console.log('Modify failed:', data.message)
         // If trade is not open, refresh the trades list
         if (data.message?.includes('not open') || data.message?.includes('not found')) {
           fetchOpenTrades()
@@ -5049,8 +5040,8 @@ const TradingPage = () => {
                       const livePrice = livePrices[trade.symbol]
                       const inst = instruments.find(i => i.symbol === trade.symbol) || selectedInstrument
                       const currentPrice = livePrice 
-                        ? (trade.side === 'BUY' ? livePrice.bid : livePrice.ask)
-                        : (trade.side === 'BUY' ? inst.bid : inst.ask)
+                        ? (trade.side === 'BUY' ? (livePrice.rawBid || livePrice.bid) : (livePrice.rawAsk || livePrice.ask))
+                        : (trade.side === 'BUY' ? (inst.rawBid || inst.bid) : (inst.rawAsk || inst.ask))
                       const pnl = trade.side === 'BUY' 
                         ? (currentPrice - trade.openPrice) * trade.quantity * trade.contractSize
                         : (trade.openPrice - currentPrice) * trade.quantity * trade.contractSize

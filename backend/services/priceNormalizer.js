@@ -117,14 +117,19 @@ class PriceNormalizer {
   normalizePrice(symbol, rawBid, rawAsk, timestamp = Date.now()) {
     const config = this.getConfig(symbol)
     
-    const bid = this.roundPrice(parseFloat(rawBid), symbol)
-    const ask = this.roundPrice(parseFloat(rawAsk), symbol)
+    const bidFloat = parseFloat(rawBid)
+    const askFloat = parseFloat(rawAsk)
+    
+    const bid = this.roundPrice(bidFloat, symbol)
+    const ask = this.roundPrice(askFloat, symbol)
     const spread = this.roundPrice(ask - bid, symbol)
     
     return {
       symbol,
       bid,
       ask,
+      rawBid: bidFloat,
+      rawAsk: askFloat,
       spread,
       pipSize: config.pipSize,
       decimals: config.decimals,

@@ -70,6 +70,7 @@ class TradeEngine {
 
   // Calculate PnL for a trade
   calculatePnl(side, openPrice, currentPrice, quantity, contractSize = this.CONTRACT_SIZE) {
+    // Uses raw prices for full precision calculation
     if (side === 'BUY') {
       return (currentPrice - openPrice) * quantity * contractSize
     } else {
@@ -78,8 +79,12 @@ class TradeEngine {
   }
 
   // Calculate floating PnL including charges
-  calculateFloatingPnl(trade, currentBid, currentAsk) {
-    const currentPrice = trade.side === 'BUY' ? currentBid : currentAsk
+  calculateFloatingPnl(trade, currentBid, currentAsk, rawBid = null, rawAsk = null) {
+    // Prioritize raw values for institutional-grade accuracy
+    const actualBid = rawBid !== null ? rawBid : currentBid
+    const actualAsk = rawAsk !== null ? rawAsk : currentAsk
+    
+    const currentPrice = trade.side === 'BUY' ? actualBid : actualAsk
     const rawPnl = this.calculatePnl(trade.side, trade.openPrice, currentPrice, trade.quantity, trade.contractSize)
     return rawPnl - trade.commission - trade.swap
   }
@@ -96,7 +101,7 @@ class TradeEngine {
       usedMargin += trade.marginUsed
       const prices = currentPrices[trade.symbol]
       if (prices) {
-        floatingPnl += this.calculateFloatingPnl(trade, prices.bid, prices.ask)
+        floatingPnl += this.calculateFloatingPnl(trade, prices.bid, prices.ask, prices.rawBid, prices.rawAsk)
       }
     }
 
@@ -187,7 +192,7 @@ class TradeEngine {
   }
 
   // Open a new trade
-  async openTrade(userId, tradingAccountId, symbol, segment, side, orderType, quantity, bid, ask, sl = null, tp = null, userLeverage = null, pendingPriceInput = null) {
+  async openTrade(userId, tradingAccountId, symbol, segment, side, orderType, quantity, bid, ask, sl = null, tp = null, userLeverage = null, pendingPriceInput = null, rawBid = null, rawAsk = null) {
     const account = await TradingAccount.findById(tradingAccountId).populate('accountTypeId')
     if (!account) throw new Error('Trading account not found')
 
@@ -212,7 +217,10 @@ class TradeEngine {
     if (orderType !== 'MARKET' && pendingPriceInput) {
       openPrice = pendingPriceInput
     } else {
-      openPrice = this.calculateExecutionPrice(side, bid, ask, charges.spreadValue, charges.spreadType)
+      // Use raw values for the opening price if possible
+      const bidToUse = rawBid !== null ? rawBid : bid
+      const askToUse = rawAsk !== null ? rawAsk : ask
+      openPrice = this.calculateExecutionPrice(side, bidToUse, askToUse, charges.spreadValue, charges.spreadType)
     }
 
     // Get contract size based on symbol
@@ -241,7 +249,6 @@ class TradeEngine {
       throw new Error(validation.error)
     }
     
-    console.log(`Trade validated: Free Margin: $${validation.freeMargin}, Equity: $${validation.equity}`)
 
     // Calculate commission based on side and commission settings
     let commission = 0
@@ -251,7 +258,6 @@ class TradeEngine {
     if (shouldChargeCommission && charges.commissionValue > 0) {
       commission = this.calculateCommission(quantity, openPrice, charges.commissionType, charges.commissionValue, contractSize)
     }
-    console.log(`Commission calculated: $${commission} (side=${side}, commissionOnBuy=${charges.commissionOnBuy}, commissionOnSell=${charges.commissionOnSell})`)
 
     // Generate trade ID
     const tradeId = await Trade.generateTradeId()
@@ -293,7 +299,7 @@ class TradeEngine {
   }
 
   // Close a trade
-  async closeTrade(tradeId, currentBid, currentAsk, closedBy = 'USER', adminId = null) {
+  async closeTrade(tradeId, currentBid, currentAsk, closedBy = 'USER', adminId = null, rawBid = null, rawAsk = null) {
     const trade = await Trade.findById(tradeId).populate({ path: 'tradingAccountId', populate: { path: 'accountTypeId' } })
     if (!trade) throw new Error('Trade not found')
     if (trade.status !== 'OPEN') {
@@ -302,7 +308,9 @@ class TradeEngine {
       return { trade, realizedPnl: trade.realizedPnl || 0, alreadyClosed: true }
     }
 
-    const closePrice = trade.side === 'BUY' ? currentBid : currentAsk
+    const bidToUse = rawBid !== null ? rawBid : currentBid
+    const askToUse = rawAsk !== null ? rawAsk : currentAsk
+    const closePrice = trade.side === 'BUY' ? bidToUse : askToUse
     
     // Get charges to check if commission on close is enabled
     const charges = await Charges.getChargesForTrade(
@@ -501,7 +509,7 @@ class TradeEngine {
         const prices = currentPrices[trade.symbol]
         if (prices) {
           try {
-            const result = await this.closeTrade(trade._id, prices.bid, prices.ask, 'STOP_OUT')
+            const result = await this.closeTrade(trade._id, prices.bid, prices.ask, 'STOP_OUT', null, prices.rawBid, prices.rawAsk)
             closedTrades.push(result)
           } catch (err) {
             console.error(`Error closing trade ${trade.tradeId} during stop out:`, err)
@@ -549,6 +557,7 @@ class TradeEngine {
         }
 
         // Pass exactExecutionPrice for both bid and ask to ensure the exact price is used for P/L calculation regardless of trade side
+        // For SL/TP, the exactExecutionPrice is already the targeted price, so rawBid/rawAsk are not needed
         const result = await this.closeTrade(trade._id, exactExecutionPrice, exactExecutionPrice, trigger)
         triggeredTrades.push({ trade: result.trade, trigger, pnl: result.realizedPnl })
       }
@@ -593,7 +602,10 @@ class TradeEngine {
         try {
           // Update trade to OPEN status
           trade.status = 'OPEN'
-          trade.openPrice = trade.side === 'BUY' ? currentAsk : currentBid
+          // Use raw prices if available for pending execution
+          const bidToUse = prices.rawBid !== null ? prices.rawBid : currentBid
+          const askToUse = prices.rawAsk !== null ? prices.rawAsk : currentAsk
+          trade.openPrice = trade.side === 'BUY' ? askToUse : bidToUse
           trade.openedAt = new Date()
           await trade.save()
 

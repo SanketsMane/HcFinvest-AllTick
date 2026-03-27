@@ -227,14 +227,17 @@ class PropTradingEngine {
     const rules = challenge.rules
 
     // Calculate execution price with spread
-    const { symbol, segment, side, orderType, quantity, bid, ask, sl, tp } = tradeParams
+    const { symbol, segment, side, orderType, quantity, bid, ask, sl, tp, rawBid, rawAsk } = tradeParams
     
     // ≡ƒ¢í∩╕Å Absolute Final Market Guard
     if (!isMarketOpen(symbol)) {
       throw new Error(`Market is currently closed for ${symbol}.`)
     }
 
-    const openPrice = side === 'BUY' ? ask : bid
+    // Use raw values for opening price if available
+    const bidToUse = rawBid !== undefined && rawBid !== null ? rawBid : bid
+    const askToUse = rawAsk !== undefined && rawAsk !== null ? rawAsk : ask
+    const openPrice = side === 'BUY' ? askToUse : bidToUse
 
     // Get contract size based on symbol
     const contractSize = this.getContractSize(symbol)
@@ -650,8 +653,8 @@ class PropTradingEngine {
       const priceData = prices[trade.symbol]
       if (!priceData) continue
 
-      const bid = priceData.bid
-      const ask = priceData.ask
+      const bid = priceData.rawBid !== undefined ? priceData.rawBid : priceData.bid
+      const ask = priceData.rawAsk !== undefined ? priceData.rawAsk : priceData.ask
       const sl = trade.sl || trade.stopLoss
       const tp = trade.tp || trade.takeProfit
 
