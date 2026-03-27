@@ -159,16 +159,15 @@ class PriceStreamService {
       })
     })
 
-    // ✅ NEW: Handle real-time tick updates for candle aggregation
+    // ✅ NEW: Handle real-time tick updates for candle aggregation AND UI (P/L tables)
     this.socket.on('tickUpdate', (tickData) => {
       if (!tickData) return
       this.lastTickAt = Date.now()
       if (this.connectionStatus !== 'live') this._emitStatus('live')
       
-      const { symbol, bid, ask, time } = tickData
+      const { symbol, bid, ask, time, rawBid, rawAsk } = tickData
 
       //Sanket v2.0 - Drop duplicate ticks arriving back-to-back for same symbol.
-      // This prevents duplicate console lines and duplicate downstream priceUpdate dispatches.
       const tickKey = `${symbol}|${bid}|${ask}|${time || ''}`
       const prevKey = this._lastTickKeyBySymbol.get(symbol)
       const now = Date.now()
@@ -177,9 +176,20 @@ class PriceStreamService {
       this._lastTickKeyBySymbol.set(symbol, tickKey)
       this._lastTickTsBySymbol.set(symbol, now)
       
-      // console.log(`[PriceStream] 📍 Tick received: ${symbol} bid=${bid} ask=${ask}`)
+      // ✅ BROADCAST to all price subscribers (P/L table, etc.)
+      this.prices[symbol] = { 
+        bid, 
+        ask, 
+        rawBid: rawBid || bid, 
+        rawAsk: rawAsk || ask, 
+        time: time || new Date().toISOString() 
+      }
       
-      // ✅ Dispatch priceUpdate event for the chart datafeed to aggregate into candles
+      this.subscribers.forEach((callback) => {
+        try { callback(this.prices, { [symbol]: this.prices[symbol] }, this.lastTickAt) } catch {}
+      })
+
+      // ✅ Dispatch priceUpdate event for the chart datafeed
       try {
         const priceEventTarget = getPriceEvents()
         priceEventTarget.dispatchEvent(new CustomEvent('priceUpdate', {

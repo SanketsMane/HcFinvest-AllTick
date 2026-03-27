@@ -471,11 +471,12 @@ class AllTickApiService {
   async setLivePrice(symbol, data) {
     try {
       if (!symbol || !data) return;
-      const cleanSymbol = String(symbol).toUpperCase();
-      const payloadString = JSON.stringify({ ...data, symbol: cleanSymbol });
+      // ✅ ELITE: Preserve exact casing (e.g. XAUUSD.i) for UI/DB matching
+      const targetSymbol = String(symbol);
+      const payloadString = JSON.stringify({ ...data, symbol: targetSymbol });
       
-      // 1. Store the newest price in Redis HSET (Always use clean symbol)
-      await redisClient.hset('live_prices', cleanSymbol, payloadString);
+      // 1. Store the newest price in Redis HSET
+      await redisClient.hset('live_prices', targetSymbol, payloadString);
       
       // 2. Publish to the Redis channel for real-time WebSocket broadcasting
       await redisClient.publish('price_updates', payloadString);
@@ -486,8 +487,8 @@ class AllTickApiService {
 
   async getLivePrice(symbol) {
     try {
-      const cleanSymbol = String(symbol).toUpperCase();
-      const data = await redisClient.hget('live_prices', cleanSymbol);
+      const targetSymbol = String(symbol);
+      const data = await redisClient.hget('live_prices', targetSymbol);
       return data ? JSON.parse(data) : null;
     } catch (err) {
       console.error('[Redis] Failed to get live price:', err.message);

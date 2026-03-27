@@ -5036,8 +5036,13 @@ const TradingPage = () => {
                     </tr>
                   ) : (
                     openTrades.map(trade => {
-                      // Use livePrices first, fallback to instruments
-                      const livePrice = livePrices[trade.symbol]
+                      // ✅ ELITE: Case-insensitive lookup (handles XAUUSD.i vs XAUUSD.I)
+                      const targetSym = trade.symbol;
+                      const livePrice = livePrices[targetSym] || 
+                                      livePrices[targetSym.toUpperCase()] || 
+                                      livePrices[targetSym.toLowerCase()] ||
+                                      livePrices[targetSym.replace(/\.i$/i, '').toUpperCase()];
+
                       const inst = instruments.find(i => i.symbol === trade.symbol) || selectedInstrument
                       const currentPrice = livePrice 
                         ? (trade.side === 'BUY' ? (livePrice.rawBid || livePrice.bid) : (livePrice.rawAsk || livePrice.ask))
