@@ -398,8 +398,9 @@ class StorageService extends EventEmitter {
 
         const { symbol, timeframe, from, to, limit, resolve } = item;
         try {
-          const candles = await alltickApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
-          if (candles && candles.length > 0) {
+          const result = await alltickApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
+          const candles = result.candles || [];
+          if (candles.length > 0) {
             await this.storeCandles(symbol, timeframe, candles);
           }
           resolve(candles || []);
@@ -790,9 +791,10 @@ class StorageService extends EventEmitter {
         }
 
         // Use AllTick for history sync
-        const candles = await alltickApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
+        const result = await alltickApiService.getHistoricalCandles(symbol, timeframe, from, to, limit);
+        const candles = result.candles || [];
         
-        if (!candles || candles.length === 0) {
+        if (candles.length === 0) {
           return;
         }
 
