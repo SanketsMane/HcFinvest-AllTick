@@ -136,7 +136,7 @@ class AllTickApiService {
       this.ws = new WebSocket(wsUrl);
 
       this.ws.on('open', () => {
-        console.log('[AllTick] Connected to WebSocket successfully');
+        console.log('[AllTick] ✅ WebSocket Connected successfully to', wsUrl);
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.startHeartbeat();
@@ -146,6 +146,10 @@ class AllTickApiService {
       this.ws.on('message', (message) => {
         try {
           const data = JSON.parse(message);
+          // Only log non-tick messages to avoid noise, unless it's XAUUSD
+          if (data.cmd_id !== 22998 && data.cmd_id !== 22001) {
+            console.log('[AllTick] 📥 MSG:', JSON.stringify(data).substring(0, 150));
+          }
           this.handleMessage(data);
         } catch (err) {
           console.error('[AllTick] Error parsing message:', err.message);
@@ -298,7 +302,7 @@ class AllTickApiService {
     const alltickSymbols = [...new Set(symbols.map(s => this.normalizeSymbol(s)))];
     
     if (this.isConnected && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
+      const msg = {
         cmd_id: 22004, // Use 22004 for transaction quote subscription
         seq_id: this.seqId++,
         trace: uuidv4(),
@@ -307,7 +311,9 @@ class AllTickApiService {
             code: s
           }))
         }
-      }));
+      };
+      console.log(`[AllTick] 📡 SENDING SUB (22004): ${JSON.stringify(alltickSymbols)}`);
+      this.ws.send(JSON.stringify(msg));
     }
   }
 
