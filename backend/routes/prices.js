@@ -296,7 +296,7 @@ router.get('/history', async (req, res) => {
   try {
     // 🚀 STEP 1: Direct Native Fetch (Fast & Accurate)
     // We fetch the requested resolution directly from AllTick instead of aggregating 1m candles manually.
-    const result = await alltickApiService.getHistoricalCandles(symbol, timeframe, startTime, endTime, requestLimit, isPreferLive);
+    const result = await alltickApiService.getHistoricalCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit, isPreferLive);
     
     if (!result.success || !result.candles || result.candles.length === 0) {
       console.warn(`[History] ⚠️ No native data found for ${symbol} @ ${timeframe}. Faking empty response.`);
