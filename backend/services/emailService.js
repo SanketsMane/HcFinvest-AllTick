@@ -1,3 +1,4 @@
+import axios from 'axios'
 import nodemailer from 'nodemailer'
 import EmailTemplate from '../models/EmailTemplate.js'
 import EmailLog from '../models/EmailLog.js'
@@ -10,10 +11,14 @@ class EmailService {
 
   // Load config
   _loadConfig() {
-    this.provider = process.env.EMAIL_PROVIDER || 'smtp' // Default to SMTP (Zoho)
+    this.provider = process.env.EMAIL_PROVIDER || 'smtp'
     this.appName = process.env.APP_NAME || 'HC Finvest'
     this.fromEmail = process.env.SMTP_FROM_EMAIL || "support@heddgecapitals.com"
     this.fromName = process.env.SMTP_FROM_NAME || 'HC Finvest Support'
+    
+    // Resend specific
+    this.resendApiKey = process.env.RESEND_API_KEY
+    this.resendFrom = process.env.RESEND_FROM_EMAIL || this.fromEmail
   }
 
   async initialize() {
@@ -21,6 +26,7 @@ class EmailService {
 
     this._loadConfig()
 
+    // SMTP setup
     try {
       const port = parseInt(process.env.SMTP_PORT) || 465
       const isSecure = port === 465
@@ -31,27 +37,22 @@ class EmailService {
         secure: isSecure,
         auth: {
           user: process.env.SMTP_USER || "support@heddgecapitals.com",
-          pass: process.env.SMTP_PASS || "NKhnKpY2Q5tQ" // ✅ Zoho App Password
+          pass: process.env.SMTP_PASS || "NKhnKpY2Q5tQ"
         },
         tls: {
           rejectUnauthorized: false
         },
-        connectionTimeout: 30000,
-        greetingTimeout: 30000,
-        socketTimeout: 60000
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 30000
       })
-
-      console.log(
-        `📧 Email Config: ${process.env.SMTP_HOST || 'smtppro.zoho.in'}:${port} (secure: ${isSecure})`
-      )
-      console.log(`📧 User: ${process.env.SMTP_USER || 'support@heddgecapitals.com'}`)
-      console.log(`📧 From: ${this.fromName} <${this.fromEmail}>`)
 
       this.initialized = true
       console.log(`Email service initialized with provider: ${this.provider}`)
     } catch (error) {
       console.error('Failed to initialize email service:', error.message)
-      throw error
+      // We don't throw here so sendEmail can still try Resend if SMTP fails
+      this.initialized = true 
     }
   }
 
@@ -86,7 +87,7 @@ class EmailService {
       htmlContent: html,
       textContent: text,
       status: 'pending',
-      provider: 'smtp',
+      provider: this.provider,
       category,
       metadata,
       sentBy,
@@ -95,34 +96,25 @@ class EmailService {
     })
 
     try {
-      const senderEmail = this.fromEmail || process.env.SMTP_USER
-
-      const mailOptions = {
-        from: `"${this.fromName}" <${senderEmail}>`,
-        to: toName ? `"${toName}" <${to}>` : to,
-        subject,
-        html,
-        text: text || this.stripHtml(html)
+      let result;
+      if (this.provider === 'resend' || (!this.transporter && this.resendApiKey)) {
+        result = await this._sendViaResend(options)
+      } else {
+        result = await this._sendViaSMTP(options)
       }
 
-
-      const info = await this.transporter.sendMail(mailOptions)
-
       await EmailLog.updateStatus(emailLog._id, 'sent', {
-        providerMessageId: info.messageId
+        providerMessageId: result.messageId
       })
 
-      console.log(`Email sent successfully to ${to}`)
-      return { success: true, messageId: info.messageId, logId: emailLog._id }
+      console.log(`Email sent successfully via ${this.provider} to ${to}`)
+      return { success: true, messageId: result.messageId, logId: emailLog._id }
     } catch (error) {
       await EmailLog.updateStatus(emailLog._id, 'failed', {
         error: {
           code: error.code,
           message: error.message,
-          stack:
-            process.env.NODE_ENV === 'development'
-              ? error.stack
-              : undefined
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         }
       })
 
@@ -130,6 +122,45 @@ class EmailService {
       throw error
     }
   }
+
+  async _sendViaSMTP(options) {
+    const { to, toName, subject, html, text } = options
+    const senderEmail = this.fromEmail || process.env.SMTP_USER
+
+    const mailOptions = {
+      from: `"${this.fromName}" <${senderEmail}>`,
+      to: toName ? `"${toName}" <${to}>` : to,
+      subject,
+      html,
+      text: text || this.stripHtml(html)
+    }
+
+    const info = await this.transporter.sendMail(mailOptions)
+    return { messageId: info.messageId }
+  }
+
+  async _sendViaResend(options) {
+    const { to, subject, html } = options
+    
+    if (!this.resendApiKey) {
+      throw new Error('Resend API Key is missing')
+    }
+
+    const response = await axios.post('https://api.resend.com/emails', {
+      from: `"${this.fromName}" <${this.resendFrom}>`,
+      to: [to],
+      subject: subject,
+      html: html
+    }, {
+      headers: {
+        'Authorization': `Bearer ${this.resendApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    return { messageId: response.data.id }
+  }
+
 
   async sendTemplateEmail(options) {
     const {
