@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import redisClient from './redisClient.js';
 import { updateCandleListWithTick } from '../utils/candleAggregator.js';
+import priceNormalizer from './priceNormalizer.js';
 
 dotenv.config();
 
@@ -220,12 +221,14 @@ class AllTickApiService {
         let tickMs = parseInt(tick.tick_time);
         if (tickMs < 100000000000) tickMs *= 1000;
 
+        const tickTime = tickMs ? new Date(tickMs) : new Date();
+        
+        // Normalize price (rounds for display, keeps raw for math)
+        const normalized = priceNormalizer.normalizePrice(appSymbol, lastPrice, lastPrice * 1.0001, tickTime);
+        
         const priceData = {
-          symbol: appSymbol,
-          bid: lastPrice,
-          ask: lastPrice * 1.0001, // Synthetic ask until we get orderbook
+          ...normalized,
           last: lastPrice,
-          time: tickMs ? new Date(tickMs) : new Date(),
           provider: 'alltick'
         };
 
@@ -252,19 +255,22 @@ class AllTickApiService {
         let tickTs = tick.timestamp ? parseInt(tick.timestamp) : 0;
         if (tickTs > 0 && tickTs < 100000000000) tickTs *= 1000;
 
+        let bid = parseFloat(tick.bid_price || tick.last_price || tick.price || tick.close) || 0;
+        let ask = parseFloat(tick.ask_price || tick.last_price || tick.price || tick.close) || 0;
+        
+        // Add tiny spread if bid/ask are identical
+        if (ask === bid && bid > 0) {
+            ask += (bid * 0.00005);
+        }
+
+        const tickTime = tickTs ? new Date(tickTs) : new Date();
+        const normalized = priceNormalizer.normalizePrice(appSymbol, bid, ask, tickTime);
+
         const priceData = {
-          symbol: appSymbol,
-          bid: parseFloat(tick.bid_price || tick.last_price || tick.price || tick.close) || 0,
-          ask: parseFloat(tick.ask_price || tick.last_price || tick.price || tick.close) || 0,
+          ...normalized,
           last: parseFloat(tick.last_price || tick.price || tick.close) || 0,
-          time: tickTs ? new Date(tickTs) : new Date(),
           provider: 'alltick'
         };
-
-        // Add tiny spread if bid/ask are identical
-        if (priceData.ask === priceData.bid && priceData.bid > 0) {
-           priceData.ask += (priceData.bid * 0.00005);
-        }
 
         this.setLivePrice(appSymbol, priceData);
         this.notifySubscribers(appSymbol, priceData);
