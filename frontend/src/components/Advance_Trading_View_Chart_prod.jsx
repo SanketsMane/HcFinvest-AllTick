@@ -15,42 +15,6 @@ const canonicalSymbol = (raw) => {
   return compact;
 };
 
-const purgeTradingViewPersistedState = () => {
-  //Sanket v2.0 - Clear only TradingView persisted blobs that can break schema on library upgrades.
-  // This removes stale layout/settings entries that trigger "state data type ... does not match schema".
-  const shouldPurgeKey = (key) => {
-    const k = String(key || '').toLowerCase();
-    return (
-      k.includes('tradingview') ||
-      k.includes('tv_chart') ||
-      k.includes('chartproperties') ||
-      k.includes('chartlayout') ||
-      k.includes('charting_library') ||
-      k.includes('tv_ecosystem') ||
-      k.includes('tv.study') ||
-      k.includes('study_templates')
-    );
-  };
-
-  try {
-    const localKeys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && shouldPurgeKey(key)) localKeys.push(key);
-    }
-    localKeys.forEach((k) => localStorage.removeItem(k));
-  } catch (e) {}
-
-  try {
-    const sessionKeys = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key && shouldPurgeKey(key)) sessionKeys.push(key);
-    }
-    sessionKeys.forEach((k) => sessionStorage.removeItem(k));
-  } catch (e) {}
-};
-
 /**
  * Production-Grade Trading Chart Component
  * Manages trade visualization using TradingView Charting Library
@@ -89,26 +53,24 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
     isInitializingRef.current = true;
 
     try {
-      purgeTradingViewPersistedState();
-
       const widget = new window.TradingView.widget({
         symbol: latestSymbolRef.current || "XAUUSD",
         interval: "1",
         container: containerRef.current,
         library_path: "/charting_library/",
-        load_last_chart: false,
+        load_last_chart: true, // Enable loading last layout
         locale: "en",
         theme: "dark",
         autosize: true,
         datafeed: Datafeed,
         symbol_search_request_delay: 1000,
         disabled_features: [
-          "use_localstorage_for_settings",
-          "save_chart_properties_to_local_storage",
           "header_saveload",
           "create_volume_indicator_by_default"
         ],
         enabled_features: [
+          "use_localstorage_for_settings",
+          "save_chart_properties_to_local_storage",
           "header_resolutions",
           "header_chart_type",
           "trading_objects"
@@ -132,18 +94,6 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
         
         // Initial sync
         managerRef.current.syncTrades(latestTradesRef.current, latestSymbolRef.current);
-
-        // ≡ƒ¢í∩╕Å v7.49 Aggressive Volume Cleanup: Forcefully remove the Volume indicator 
-        // if it managed to sneak past the disabled_features flags.
-        try {
-            const chart = widget.activeChart();
-            chart.getAllStudies().forEach(s => {
-                if (s.name.toLowerCase().includes('volume')) {
-                    console.log(`[Trading] Pruning persistent Volume study: ${s.id}`);
-                    chart.removeEntity(s.id);
-                }
-            });
-        } catch (e) {}
 
         // ≡ƒ¢í∩╕Å Persistence Guard
         setTimeout(() => {
