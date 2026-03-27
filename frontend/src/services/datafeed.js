@@ -391,16 +391,47 @@ const Datafeed = {
     
     const handlePriceUpdate = (e) => {
       tickCount++;
+      if (!isActive) return;
       const { symbol, bid, ask, time } = e.detail;
       lastTickTime = Date.now();
       
       // Robust symbol matching
       if (normalizeRealtimeSymbol(symbol) !== normalizeRealtimeSymbol(symbolInfo.name)) return;
 
-      // Note: We no longer perform ad-hoc OHLC aggregation here.
-      // All candle formation is now handled by the backend in storageService.js
-      // and received via the 'candleUpdate' listener above.
-      // This ensures 100% consistency between live and historical data.
+      // Throttle: don't flood the chart with every single tick
+      const now = Date.now();
+      if ((now - lastUpdateTime) < throttleMs) return;
+      lastUpdateTime = now;
+
+      // Use the mid-price to build candles
+      const price = (Number(bid) + Number(ask)) / 2;
+      if (!isFinite(price) || price <= 0) return;
+
+      // Calculate candle bucket for this tick
+      const tickTime = toMs(time) || now;
+      const bucketTime = Math.floor(tickTime / resolutionMs) * resolutionMs;
+
+      if (currentBar === null) {
+        // No bar yet — seed from this tick
+        currentBar = { time: bucketTime, open: price, high: price, low: price, close: price, volume: 0 };
+        lastBarTime = bucketTime;
+      } else if (bucketTime > lastBarTime) {
+        // New candle period — push the previous bar first, then start fresh
+        onRealtimeCallback({ ...currentBar });
+        currentBar = { time: bucketTime, open: currentBar.close, high: price, low: price, close: price, volume: 0 };
+        lastBarTime = bucketTime;
+      } else {
+        // Same bar — update OHLC
+        currentBar.high  = Math.max(currentBar.high,  price);
+        currentBar.low   = Math.min(currentBar.low,   price);
+        currentBar.close = price;
+      }
+
+      currentBar.volume = (currentBar.volume || 0) + 1;
+
+      // Apply spread markup and push to chart
+      const markupBar = wrapOHLC({ ...currentBar }, symbolInfo.name, Datafeed._adminSpreads);
+      onRealtimeCallback(markupBar);
     };
 
     // Store the listener on the subscriber for cleanup
