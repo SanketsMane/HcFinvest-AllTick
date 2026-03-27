@@ -220,6 +220,9 @@ class AllTickApiService {
         if (!tick || !tick.code) return;
         
         const appSymbol = this.reverseSymbolMap[tick.code] || tick.code;
+        if (tick.code === 'XAUUSD' || appSymbol.includes('XAUUSD')) {
+            console.log(`[AllTick] 📥 LIVE TICK: ${tick.code} -> ${appSymbol} @ ${tick.price}`);
+        }
         const lastPrice = parseFloat(tick.price) || 0;
         
         let tickMs = parseInt(tick.tick_time);
