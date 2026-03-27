@@ -266,19 +266,41 @@ export class TradeLineManager {
     if (Date.now() < this.syncLockUntil && !hasClosures) return; 
 
     this.trades = trades || [];
+    
+    // ≡ƒ¢í∩╕Å v7.47 Emergency: If trade list is empty, Nuke everything immediately.
+    if (this.trades.length === 0) {
+        console.log('[TradeManager] Trade list empty. Clearing all chart entities.');
+        Object.keys(this.lines).forEach(tid => this.removeTradeLines(tid));
+        // Deep scan for stray tvIdMap entries just in case
+        Object.keys(this.tvIdMap).forEach(tvId => this._destroyShape(tvId));
+        return;
+    }
+
     const curSym = canonicalSymbol(symbol);
     const visible = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym && !String(t._id || t.id).startsWith('temp_'));
     const visibleIds = new Set(visible.map(t => String(t._id || t.id)));
+    const allAccountTradeIds = new Set(this.trades.map(t => String(t._id || t.id)));
 
     if (!this.widget) return;
     const chart = this.widget.chart();
     const now = Date.now();
 
-    // ΓöÇΓöÇΓöÇ Instant Orphan Cleanup ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    // Trades missing from the Redux store instantly have their lines deleted.
+    // ΓöÇΓöÇΓöÇ Deep Cleanup (Safeguard) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Scan all shapes the manager knows about. 
+    // If a drawing belongs to a trade that no longer exists in the account, delete it.
+    Object.keys(this.tvIdMap).forEach(tvId => {
+        const meta = this.tvIdMap[tvId];
+        if (meta && !allAccountTradeIds.has(String(meta.tradeId))) {
+            console.log(`[TradeManager] Stray drawing detected (Trade ${meta.tradeId} closed). Purging entity ${tvId}`);
+            this._destroyShape(tvId);
+            if (this.lines[meta.tradeId]) delete this.lines[meta.tradeId];
+        }
+    });
+
+    // ΓöÇΓöÇΓöÇ Orphan Cleanup (Current Symbol) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     Object.keys(this.lines).forEach(tid => {
         if (!visibleIds.has(tid)) {
-            console.log(`[TradeManager] Trade ${tid} closed/missing. Instant cleanup.`);
+            console.log(`[TradeManager] Trade ${tid} closed/missing for ${curSym}. Instant cleanup.`);
             this.removeTradeLines(tid);
         }
     });
