@@ -3,11 +3,13 @@ import Datafeed from "../services/datafeed.js";
 import { getPriceEvents } from '../services/priceStream';
 import { TradeLineManager } from "../utils/TradeLineManager.js";
 
+// ─── v7.55 localStorage Keys ────────────────────────────────────────────────
+const LS_SYMBOL   = 'hcf_chart_symbol';
+const LS_INTERVAL = 'hcf_chart_interval';
+
 const canonicalSymbol = (raw) => {
   const value = String(raw || '').trim().toUpperCase();
   if (!value) return '';
-
-  //Sanket v2.0 - Normalize XAU/USD, XAUUSDm, XAUUSD.pro variants to one stable key.
   const compact = value.replace(/[^A-Z0-9]/g, '');
   if (!compact) return '';
   if (/^[A-Z]{6}[A-Z]$/.test(compact)) return compact.slice(0, 6);
@@ -16,9 +18,7 @@ const canonicalSymbol = (raw) => {
 };
 
 /**
- * Production-Grade Trading Chart Component
- * Manages trade visualization using TradingView Charting Library
- * Integrates TradeLineManager for Exness-style draggable order lines.
+ * Production-Grade Trading Chart Component — v7.55 (RESTORED PERSISTENCE)
  */
 const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeModify }) => {
   const containerRef = useRef(null);
@@ -31,39 +31,46 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
   const latestOnTradeModifyRef = useRef(onTradeModify);
   const [isChartReady, setIsChartReady] = useState(false);
   const chartReadyRef = useRef(false);
-  
-  // Track continuous price for metrics if needed
   const currentPriceRef = useRef(null);
 
   useEffect(() => {
     latestSymbolRef.current = symbol;
     latestTradesRef.current = trades;
     latestOnTradeModifyRef.current = onTradeModify;
+
+    // v7.55: Persistent symbol tracking
+    if (symbol) {
+      try { localStorage.setItem(LS_SYMBOL, symbol); } catch (e) {}
+    }
   }, [symbol, trades, onTradeModify]);
 
-  /**
-   * Initialize TradingView widget & TradeLineManager once.
-   */
   useEffect(() => {
     if (!window.TradingView || !containerRef.current) return;
     if (widgetRef.current || isInitializingRef.current) return;
 
-    //Sanket v2.0 - Lock initialization so widget creation cannot run twice for a single mount.
-    // This prevents accidental duplicate TradingView instances and repeated onChartReady churn.
     isInitializingRef.current = true;
 
     try {
+      // Read saved state
+      const savedInterval = localStorage.getItem(LS_INTERVAL) || "1";
+      const initSymbol = latestSymbolRef.current || localStorage.getItem(LS_SYMBOL) || "XAUUSD";
+
       const widget = new window.TradingView.widget({
-        symbol: latestSymbolRef.current || "XAUUSD",
-        interval: "1",
+        symbol: initSymbol,
+        interval: savedInterval,
         container: containerRef.current,
         library_path: "/charting_library/",
-        load_last_chart: true, // Enable loading last layout
+        load_last_chart: true, // ≡ƒ¢í∩╕Å CRITICAL: Must be true to restore drawings and indicator states
         locale: "en",
         theme: "dark",
         autosize: true,
         datafeed: Datafeed,
         symbol_search_request_delay: 1000,
+        
+        // ≡ƒ¢í∩╕Å Senior Dev Persistence Config
+        client_id: 'hcf_trading_v1',
+        user_id: 'hcf_production_user',
+        
         disabled_features: [
           "header_saveload",
           "create_volume_indicator_by_default"
@@ -77,16 +84,22 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
         ],
         overrides: {
           "paneProperties.background": "#0d0d0d",
-          "mainSeriesProperties.style": 1,
+          // Do not override mainSeriesProperties.style here to allow color persistence
         }
       });
 
       widget.onChartReady(() => {
         chartReadyRef.current = true;
         setIsChartReady(true);
-        console.log(`[Trading] onChartReady triggered for ${latestSymbolRef.current}`);
+        console.log(`[Trading v7.55] Chart Ready: ${initSymbol} @ ${savedInterval}`);
+        
         widgetRef.current = widget;
         chartRef.current = widget.activeChart();
+
+        // Save interval preference
+        chartRef.current.onIntervalChanged().subscribe(null, (interval) => {
+            try { localStorage.setItem(LS_INTERVAL, interval); } catch (e) {}
+        });
 
         // Instantiate manager
         managerRef.current = new TradeLineManager(chartRef, (...args) => latestOnTradeModifyRef.current?.(...args));
@@ -95,10 +108,9 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
         // Initial sync
         managerRef.current.syncTrades(latestTradesRef.current, latestSymbolRef.current);
 
-        // ≡ƒ¢í∩╕Å Persistence Guard
+        // ≡ƒ¢í∩╕Å Persistence Guard: Ensure trade lines are synced after layout restoration
         setTimeout(() => {
           if (managerRef.current && chartReadyRef.current) {
-            console.log(`[Trading] Persistence re-sync for ${latestSymbolRef.current}`);
             managerRef.current.syncTrades(latestTradesRef.current, latestSymbolRef.current);
           }
         }, 1500);
@@ -124,12 +136,9 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
       isInitializingRef.current = false;
       console.error('[Trading] Chart Init error:', err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /**
-   * Switch symbol without recreating widget.
-   */
+  // Sync symbol changes
   useEffect(() => {
     if (!widgetRef.current || !chartReadyRef.current || !symbol) return;
     try {
@@ -137,8 +146,9 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
       if (typeof current === 'string' && canonicalSymbol(current) === canonicalSymbol(symbol)) return;
     } catch (e) {}
 
+    const savedInterval = localStorage.getItem(LS_INTERVAL) || "1";
     try {
-      widgetRef.current.setSymbol(symbol, "1", () => {
+      widgetRef.current.setSymbol(symbol, savedInterval, () => {
         if (managerRef.current) {
           managerRef.current.syncTrades(latestTradesRef.current, symbol);
         }
@@ -148,29 +158,24 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
     }
   }, [symbol, isChartReady]);
 
-  /**
-   * Sync trades to TradeLineManager whenever they change
-   */
+  // Sync trades
   useEffect(() => {
     if (managerRef.current) {
       managerRef.current.syncTrades(trades, symbol);
     }
   }, [trades, symbol]);
 
-  /**
-   * Live Price stream listener for continuous DOM updates or tracking
-   */
+  // Live price stream
   useEffect(() => {
-    const handlePriceUpdate = (e) => { // Renamed from handlePrice to handlePriceUpdate
+    const handlePriceUpdate = (e) => {
       if (e.detail?.symbol === symbol) {
         currentPriceRef.current = e.detail.bid;
       }
     };
-    const priceEvents = getPriceEvents(); // Changed from getMetaApiPriceEvents to getPriceEvents
-    priceEvents.addEventListener('priceUpdate', handlePriceUpdate); // Changed from priceStream to priceEvents and handlePrice to handlePriceUpdate
-    
+    const priceEvents = getPriceEvents();
+    priceEvents.addEventListener('priceUpdate', handlePriceUpdate);
     return () => {
-      priceEvents.removeEventListener("priceUpdate", handlePriceUpdate); // Changed from priceStream to priceEvents and handlePrice to handlePriceUpdate
+      priceEvents.removeEventListener("priceUpdate", handlePriceUpdate);
     };
   }, [symbol]);
 
