@@ -63,7 +63,8 @@ router.post('/open', async (req, res) => {
       const priceStr = await redisClient.hget('live_prices', symbol.toUpperCase());
       if (priceStr) {
         const cachedPrice = JSON.parse(priceStr);
-        if (!isPriceFresh(cachedPrice.time, 60)) {
+        // Relaxed to 300s (5 minutes) for opening trades
+        if (!isPriceFresh(cachedPrice.time, 300)) {
           console.warn(`[Trade Route] Stale price detected for ${symbol}: ${cachedPrice.time}`);
           return res.status(400).json({
             success: false,
