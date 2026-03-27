@@ -142,14 +142,9 @@ class AllTickApiService {
         this.startHeartbeat();
         this.resubscribeAll();
       });
-
       this.ws.on('message', (message) => {
         try {
           const data = JSON.parse(message);
-          // Only log non-tick messages to avoid noise, unless it's XAUUSD
-          if (data.cmd_id !== 22998 && data.cmd_id !== 22001) {
-            console.log('[AllTick] 📥 MSG:', JSON.stringify(data).substring(0, 150));
-          }
           this.handleMessage(data);
         } catch (err) {
           console.error('[AllTick] Error parsing message:', err.message);
@@ -312,7 +307,6 @@ class AllTickApiService {
           }))
         }
       };
-      console.log(`[AllTick] 📡 SENDING SUB (22004): ${JSON.stringify(alltickSymbols)}`);
       this.ws.send(JSON.stringify(msg));
     }
   }
