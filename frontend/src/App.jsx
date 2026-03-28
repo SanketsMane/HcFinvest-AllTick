@@ -99,7 +99,7 @@ function App() {
         <Route path="/admin/login" element={<AdminHostGuard><AdminLogin /></AdminHostGuard>} />
         <Route path="/admin/dashboard" element={<AdminHostGuard><AdminOverview /></AdminHostGuard>} />
         <Route path="/admin/users" element={<AdminHostGuard><AdminUserManagement /></AdminHostGuard>} />
-        <Route path="/admin/users/:userId" element={<AdminUserDetails /></AdminHostGuard>} />
+        <Route path="/admin/users/:userId" element={<AdminHostGuard><AdminUserDetails /></AdminHostGuard>} />
         <Route path="/admin/accounts" element={<AdminHostGuard><AdminAccounts /></AdminHostGuard>} />
         <Route path="/admin/account-types" element={<AdminHostGuard><AdminAccountTypes /></AdminHostGuard>} />
         <Route path="/admin/transactions" element={<AdminHostGuard><AdminTransactions /></AdminHostGuard>} />
