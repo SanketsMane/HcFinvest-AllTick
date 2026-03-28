@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
@@ -52,6 +52,23 @@ import AdminCompetitionDetails from './pages/AdminCompititionDetails.jsx'
 import Switch_Account from "./pages/Switch_Account";
 import New_Dashboard from './pages/New_Dashboard.jsx'
 
+// 🛡️ Security Guard: Only allow admin routes on the admin subdomain
+const ALLOWED_ADMIN_HOSTNAME = 'admin.hcfinvest.com'
+const isAdminHost = () => {
+  const hostname = window.location.hostname
+  return hostname === ALLOWED_ADMIN_HOSTNAME ||
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1'
+}
+
+function AdminHostGuard({ children }) {
+  if (!isAdminHost()) {
+    // Redirect to main site if accessed from wrong subdomain
+    window.location.href = 'https://hcfinvest.com'
+    return null
+  }
+  return children
+}
 
 function App() {
   return (
@@ -77,36 +94,37 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/instructions" element={<InstructionsPage />} />
-        <Route path="/admin" element={<AdminLogin />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminOverview />} />
-        <Route path="/admin/users" element={<AdminUserManagement />} />
-        <Route path="/admin/users/:userId" element={<AdminUserDetails />} />
-        <Route path="/admin/accounts" element={<AdminAccounts />} />
-        <Route path="/admin/account-types" element={<AdminAccountTypes />} />
-        <Route path="/admin/transactions" element={<AdminTransactions />} />
-        <Route path="/admin/payment-methods" element={<AdminPaymentMethods />} />
-        <Route path="/admin/trades" element={<AdminTradeManagement />} />
-        <Route path="/admin/funds" element={<AdminFundManagement />} />
-        <Route path="/admin/bank-settings" element={<AdminBankSettings />} />
-        <Route path="/admin/ib-management" element={<AdminIBManagement />} />
-        <Route path="/admin/forex-charges" element={<AdminForexCharges />} />
-        <Route path="/admin/indian-charges" element={<AdminIndianCharges />} />
-        <Route path="/admin/copy-trade" element={<AdminCopyTrade />} />
-        <Route path="/admin/prop-firm" element={<AdminPropFirm />} />
-        <Route path="/admin/admin-management" element={<AdminManagement />} />
-        <Route path="/admin/kyc" element={<AdminKYC />} />
-        <Route path="/admin/support" element={<AdminSupport />} />
-        <Route path="/admin/prop-trading" element={<AdminPropTrading />} />
-        <Route path="/admin/earnings" element={<AdminEarnings />} />
-        <Route path="/admin/theme" element={<AdminThemeSettings />} />
-        <Route path="/admin/email" element={<AdminEmailManagement />} />
-        <Route path="/admin/oxapay" element={<AdminOxapay />} />
-        <Route path="/admin/banners" element={<AdminBannerManagement />} />
-        <Route path="/admin/carousel" element={<AdminCarouselManagement />} />
-        <Route path="/admin/competition" element={<AdminCompetition />} />
-        <Route path="/admin/create-competition" element={<AdminCreateCompitition />} />
-        <Route path="/admin/competition-details/:id" element={<AdminCompetitionDetails />} />
+        {/* 🛡️ All /admin routes are guarded — only accessible from admin.hcfinvest.com */}
+        <Route path="/admin" element={<AdminHostGuard><AdminLogin /></AdminHostGuard>} />
+        <Route path="/admin/login" element={<AdminHostGuard><AdminLogin /></AdminHostGuard>} />
+        <Route path="/admin/dashboard" element={<AdminHostGuard><AdminOverview /></AdminHostGuard>} />
+        <Route path="/admin/users" element={<AdminHostGuard><AdminUserManagement /></AdminHostGuard>} />
+        <Route path="/admin/users/:userId" element={<AdminUserDetails /></AdminHostGuard>} />
+        <Route path="/admin/accounts" element={<AdminHostGuard><AdminAccounts /></AdminHostGuard>} />
+        <Route path="/admin/account-types" element={<AdminHostGuard><AdminAccountTypes /></AdminHostGuard>} />
+        <Route path="/admin/transactions" element={<AdminHostGuard><AdminTransactions /></AdminHostGuard>} />
+        <Route path="/admin/payment-methods" element={<AdminHostGuard><AdminPaymentMethods /></AdminHostGuard>} />
+        <Route path="/admin/trades" element={<AdminHostGuard><AdminTradeManagement /></AdminHostGuard>} />
+        <Route path="/admin/funds" element={<AdminHostGuard><AdminFundManagement /></AdminHostGuard>} />
+        <Route path="/admin/bank-settings" element={<AdminHostGuard><AdminBankSettings /></AdminHostGuard>} />
+        <Route path="/admin/ib-management" element={<AdminHostGuard><AdminIBManagement /></AdminHostGuard>} />
+        <Route path="/admin/forex-charges" element={<AdminHostGuard><AdminForexCharges /></AdminHostGuard>} />
+        <Route path="/admin/indian-charges" element={<AdminHostGuard><AdminIndianCharges /></AdminHostGuard>} />
+        <Route path="/admin/copy-trade" element={<AdminHostGuard><AdminCopyTrade /></AdminHostGuard>} />
+        <Route path="/admin/prop-firm" element={<AdminHostGuard><AdminPropFirm /></AdminHostGuard>} />
+        <Route path="/admin/admin-management" element={<AdminHostGuard><AdminManagement /></AdminHostGuard>} />
+        <Route path="/admin/kyc" element={<AdminHostGuard><AdminKYC /></AdminHostGuard>} />
+        <Route path="/admin/support" element={<AdminHostGuard><AdminSupport /></AdminHostGuard>} />
+        <Route path="/admin/prop-trading" element={<AdminHostGuard><AdminPropTrading /></AdminHostGuard>} />
+        <Route path="/admin/earnings" element={<AdminHostGuard><AdminEarnings /></AdminHostGuard>} />
+        <Route path="/admin/theme" element={<AdminHostGuard><AdminThemeSettings /></AdminHostGuard>} />
+        <Route path="/admin/email" element={<AdminHostGuard><AdminEmailManagement /></AdminHostGuard>} />
+        <Route path="/admin/oxapay" element={<AdminHostGuard><AdminOxapay /></AdminHostGuard>} />
+        <Route path="/admin/banners" element={<AdminHostGuard><AdminBannerManagement /></AdminHostGuard>} />
+        <Route path="/admin/carousel" element={<AdminHostGuard><AdminCarouselManagement /></AdminHostGuard>} />
+        <Route path="/admin/competition" element={<AdminHostGuard><AdminCompetition /></AdminHostGuard>} />
+        <Route path="/admin/create-competition" element={<AdminHostGuard><AdminCreateCompitition /></AdminHostGuard>} />
+        <Route path="/admin/competition-details/:id" element={<AdminHostGuard><AdminCompetitionDetails /></AdminHostGuard>} />
         <Route path="/buy-challenge" element={<BuyChallengePage />} />
         <Route path="/challenge-dashboard" element={<ChallengeDashboardPage />} />
         <Route path="/:slug/login" element={<BrandedLogin />} />

@@ -412,6 +412,25 @@ app.options('*', cors(corsOptions))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
+// 🛡️ Security: Restrict /api/admin & /api/admin-mgmt to admin subdomain only
+const ADMIN_ALLOWED_ORIGINS = [
+  'https://admin.hcfinvest.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+]
+const restrictAdminOrigin = (req, res, next) => {
+  const origin = req.headers.origin || req.headers.referer || ''
+  const isAllowed = ADMIN_ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed))
+  if (!isAllowed) {
+    console.warn(`[Security] Blocked admin API access from origin: ${origin}`)
+    return res.status(403).json({ success: false, message: 'Admin access is restricted to the admin portal.' })
+  }
+  return next()
+}
+app.use('/api/admin', restrictAdminOrigin)
+app.use('/api/admin-mgmt', restrictAdminOrigin)
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
