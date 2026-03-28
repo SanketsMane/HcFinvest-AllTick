@@ -42,36 +42,36 @@ const NavbarClient = ({title , subtitle}) => {
               {/* RIGHT - PROFILE */}
                   <div className="relative" >
                     {/* PROFILE BUTTON */}
-<div
-  onClick={() => setOpen(!open)}
-  className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-md transition"
->
-  {/* Avatar */}
-  <div className="w-9 h-9 rounded-full bg-[#22c55e] text-white flex items-center justify-center font-semibold text-sm">
-    {initial}
-  </div>
+        <div
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-md transition"
+        >
+          {/* Avatar */}
+          <div className="w-9 h-9 rounded-full bg-[#22c55e] text-white flex items-center justify-center font-semibold text-sm">
+            {initial}
+          </div>
 
-  {/* Name + Role */}
-  <div className="leading-tight">
-    <p className="text-sm font-semibold text-gray-900">
-      {user?.firstName || "User"}
-    </p>
-    <p className="text-xs text-gray-500">
-      Pro Trader
-    </p>
-  </div>
+          {/* Name + Role */}
+          <div className="leading-tight">
+            <p className="text-sm font-semibold text-gray-900">
+              {user?.firstName || "User"}
+            </p>
+            {/* <p className="text-xs text-gray-500">
+              Pro Trader
+            </p> */}
+          </div>
 
-  {/* Arrow */}
-  <svg
-    className="w-4 h-4 text-gray-500 ml-1"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    viewBox="0 0 24 24"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-  </svg>
-</div>
+          {/* Arrow */}
+          <svg
+            className="w-4 h-4 text-gray-500 ml-1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
         
           {/* DROPDOWN */}
           {open && (

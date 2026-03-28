@@ -28,6 +28,7 @@ import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
 import { Internal_Transfer } from "./Internal_Transfer";
 import NavbarClient from "../components/NavbarClient";
+import { useSidebar } from "../context/SidebarContext";
 
 const WalletPage = () => {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ const WalletPage = () => {
   const [loading, setLoading] = useState(true);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const { sidebarExpanded } = useSidebar();
 
   const [transferAmount, setTransferAmount] = useState("");
   const [fromAccount, setFromAccount] = useState("");
@@ -694,7 +696,15 @@ const WalletPage = () => {
       {!isMobile && <Sidebar activeMenu="Wallet" />}
 
       {/* Main Content - Scrollable */}
-      <main className={`flex-1 p-6 overflow-y-auto ${isMobile ? "pt-14" : ""}`}>
+<main
+  className={`flex-1 p-6 overflow-y-auto transition-all duration-300 ${
+    isMobile
+      ? "pt-14"
+      : sidebarExpanded
+      ? "ml-[280px]"
+      : "ml-[64px]"
+  }`}
+>
         {!isMobile && (
             <NavbarClient title="Wallet" subtitle="Manage your funds and transactions" />
         )}

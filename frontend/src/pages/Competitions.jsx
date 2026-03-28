@@ -15,6 +15,7 @@ import Sidebar from "../components/Sidebar";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from '../context/ThemeContext'
 import NavbarClient from "../components/NavbarClient";
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 export default function New_Compition() {
 
@@ -44,6 +45,7 @@ const [tab, setTab] = useState("active");
     const [bestRank, setBestRank] = useState(null);
     const [competitionProfit, setCompetitionProfit] = useState(0);
     const [totalWinnings, setTotalWinnings] = useState(0);
+    const { sidebarExpanded } = useSidebar();
   
   
     const top3 = leaderboard.slice(0, 3);
@@ -532,7 +534,12 @@ const [tab, setTab] = useState("active");
       <Sidebar activeMenu="Competition" />
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 ">
+      {/* <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 "> */}
+      <div
+        className={`flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 transition-all duration-300 ${
+          sidebarExpanded ? "ml-[280px]" : "ml-[64px]"
+        }`}
+      >
         {/* HEADER */}
         {/* <div className="mb-6 ">
           <h1 className="text-2xl font-bold">Trading Competitions</h1>
@@ -592,14 +599,18 @@ const [tab, setTab] = useState("active");
 
   <div className="flex items-center justify-end gap-5 mb-1">
     
-    <button
+    {/* Start Know More Button for more Hwo the competition works */}
+
+    {/* <button
       onClick={() => {
         console.log("Know More clicked");
       }}
       className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition"
     >
       Know More
-    </button>
+    </button> */}
+
+    {/* End  Know More Button for more Hwo the competition works */}
 
     <p className="text-gray-400 text-sm">Your Current Rank</p>
   </div>

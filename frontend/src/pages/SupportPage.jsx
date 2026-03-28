@@ -28,6 +28,7 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
 import NavbarClient from "../components/NavbarClient";
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 const SupportPage = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const SupportPage = () => {
   const [replyMessage, setReplyMessage] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const { sidebarExpanded } = useSidebar();
 
     // const { isDarkMode, toggleDarkMode } = useTheme();
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
@@ -613,7 +615,17 @@ const SupportPage = () => {
     {!isMobile && <Sidebar activeMenu="Support" />}
 
     {/* Main Content */}
-    <div className="flex-1 p-6 flex flex-col">
+    {/* <div className="flex-1 p-6 flex flex-col">
+     */}
+     <div
+        className={`flex-1 p-6 flex flex-col transition-all duration-300 ${
+          isMobile
+            ? ""
+            : sidebarExpanded
+            ? "ml-[280px]"
+            : "ml-[64px]"
+        }`}
+      >
 
       {/* TOP BAR */}
       {/* <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-4 sm:px-6 text-white">

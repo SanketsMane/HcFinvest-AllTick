@@ -208,12 +208,14 @@ export const Internal_Transfer = ({ show, onClose }) => {
                     Wallet - ${wallet?.balance?.toLocaleString() || "0"}
                   </option>
 
-                  {accounts.map((acc) => (
-                    <option key={acc._id} value={acc._id}>
-                      {acc.accountId} - $
-                      {Number(acc.balance || 0).toLocaleString()}
-                    </option>
-                  ))}
+                  {accounts
+  .filter((acc) => !acc.isDemo) // ❗ hide demo accounts
+  .map((acc) => (
+    <option key={acc._id} value={acc._id}>
+      {acc.accountId} - $
+      {Number(acc.balance || 0).toLocaleString()}
+    </option>
+))}
                 </select>
               </div>
 
@@ -235,13 +237,13 @@ export const Internal_Transfer = ({ show, onClose }) => {
                   )}
 
                   {accounts
-                    .filter((acc) => acc._id !== fromAccount)
-                    .map((acc) => (
-                      <option key={acc._id} value={acc._id}>
-                        {acc.accountId} - $
-                        {Number(acc.balance || 0).toLocaleString()}
-                      </option>
-                    ))}
+  .filter((acc) => acc._id !== fromAccount && !acc.isDemo) // ❗ hide demo accounts
+  .map((acc) => (
+    <option key={acc._id} value={acc._id}>
+      {acc.accountId} - $
+      {Number(acc.balance || 0).toLocaleString()}
+    </option>
+  ))}
                 </select>
               </div>
             </div>
