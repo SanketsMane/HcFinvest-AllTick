@@ -1,6 +1,7 @@
 import { API_URL } from "../config/api";
 import priceStreamService from "./priceStream";
 import { wrapOHLC } from "../utils/priceUtils";
+import { normalizeSymbol } from "../utils/symbolUtils";
 
 /**
  * Custom Datafeed for TradingView Charting Library
@@ -137,6 +138,7 @@ const Datafeed = {
   searchSymbols: (userInput, _exchange, _symbolType, onResult) => {
     const query = (userInput || '').toUpperCase();
     const results = ALL_SYMBOLS
+      .filter(s => s.symbol.endsWith('.i')) // v7.77 Strict Filter
       .filter(s => s.symbol.toUpperCase().includes(query) || s.description.toUpperCase().includes(query))
       .map(s => ({
         symbol: s.symbol,
@@ -150,9 +152,12 @@ const Datafeed = {
   },
 
   resolveSymbol: async (symbolName, onSymbolResolvedCallback) => {
+    // v7.77 Strict Normalization
+    const normalizedName = normalizeSymbol(symbolName);
+    
     // Determine pricescale based on actual asset type and precision requirements
     let pricescale = 100000; // Default 5 decimals (Forex)
-    const s = symbolName.toUpperCase();
+    const s = normalizedName.toUpperCase();
     
     if (s.includes("US30") || s.includes("US100") || s.includes("UK100") || s.includes("GER40") || s.includes("FRA40") || s.includes("SPA35") || s.includes("ES35")) {
       pricescale = 10; // 1 decimal (e.g., 18000.5)
@@ -165,9 +170,9 @@ const Datafeed = {
     }
 
     const symbolInfo = {
-      name: symbolName,
-      ticker: symbolName,
-      description: symbolName,
+      name: normalizedName,
+      ticker: normalizedName,
+      description: normalizedName,
       type: "forex",
       session: (s.includes("XAU") || s.includes("XAG") || (!s.includes("BTC") && !s.includes("ETH") && !s.includes("USDT"))) ? "0000-2400:23456" : "24x7",
       timezone: "Etc/UTC",

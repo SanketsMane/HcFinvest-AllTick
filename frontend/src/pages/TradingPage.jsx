@@ -3051,6 +3051,7 @@ import priceStreamService, { getPriceEvents } from '../services/priceStream'
 import { getAdminMarkupValue, getRetailPrice } from '../utils/priceUtils';
 import Datafeed from '../services/datafeed';
 import { useTheme } from '../context/ThemeContext'
+import { normalizeSymbol, ensureISuffix } from '../utils/symbolUtils'
 import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
 import All_Tick_Chart from '../components/All_Tick_Chart.jsx'
@@ -3073,7 +3074,8 @@ const TradingPage = () => {
     'BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'BCHUSD', 'BNBUSD', 'SOLUSD',
     'ADAUSD', 'DOGEUSD', 'DOTUSD', 'MATICUSD', 'AVAXUSD', 'LINKUSD'
   ])
-  const normalizeSymbol = (symbol = '') => String(symbol).trim().toUpperCase()
+  
+  // v7.77: Using imported normalizeSymbol for strict .i enforcement
   const getBaseSymbol = (symbol = '') => normalizeSymbol(symbol).replace(/\.I$/i, '')
   const isJpyPair = (symbol = '') => getBaseSymbol(symbol).includes('JPY')
   const isMetalSymbol = (symbol = '') => metalSymbols.has(getBaseSymbol(symbol))
@@ -3096,8 +3098,10 @@ const TradingPage = () => {
     try {
       const savedActiveTab = localStorage.getItem('activeTab') || 'XAUUSD.i'
       const savedOpenTabs = JSON.parse(localStorage.getItem('openTabs') || '[]')
-      const activeTabData = savedOpenTabs.find(t => t.symbol === savedActiveTab)
-      return activeTabData || { symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }
+      // Ensure all loaded symbols are normalized
+      const normalizedActiveTab = ensureISuffix(savedActiveTab);
+      const activeTabData = savedOpenTabs.find(t => ensureISuffix(t.symbol) === normalizedActiveTab)
+      return activeTabData ? { ...activeTabData, symbol: normalizedActiveTab } : { symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }
     } catch {
       return { symbol: 'XAUUSD.i', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }
     }
@@ -3184,7 +3188,7 @@ const TradingPage = () => {
     { symbol: 'US100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'UK100.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
     { symbol: 'ES35.i', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
-  ])
+  ].filter(inst => inst.symbol.toLowerCase().endsWith('.i'))) // v7.77 Strict UI Guard
   const [loadingInstruments, setLoadingInstruments] = useState(false) // Don't block UI on prices
   const [starredSymbols, setStarredSymbols] = useState(['XAUUSD.i', 'EURUSD.i', 'GBPUSD.i'])
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
@@ -3249,10 +3253,97 @@ const TradingPage = () => {
     // Fetch admin-set spreads
     fetchAdminSpreads()
     
+    // Check if kill switch is active from localStorage
+    const savedKillSwitch = localStorage.getItem(`killSwitch_${accountId}`)
+    if (savedKillSwitch) {
+      const endTime = parseInt(savedKillSwitch)
+      if (endTime > Date.now()) {
+        setKillSwitchActive(true)
+        setKillSwitchEndTime(endTime)
+      } else {
+        localStorage.removeItem(`killSwitch_${accountId}`)
+      }
+    }
+    
+    // Refresh prices every 5 seconds for background sync (WebSocket is primary)
+    const priceInterval = setInterval(() => {
+      fetchLivePrices()
+    }, 5000)
+    
     return () => {
       marketDataApiService.disconnect()
     }
   }, [accountId])
+
+  // Kill Switch countdown timer
+  useEffect(() => {
+    if (!killSwitchActive || !killSwitchEndTime) return
+    
+    const updateTimer = () => {
+      const now = Date.now()
+      const remaining = killSwitchEndTime - now
+      
+      if (remaining <= 0) {
+        setKillSwitchActive(false)
+        setKillSwitchEndTime(null)
+        setKillSwitchTimeLeft('')
+        localStorage.removeItem(`killSwitch_${accountId}`)
+        return
+      }
+      
+      // Format time remaining
+      const days = Math.floor(remaining / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
+      
+      let timeStr = ''
+      if (days > 0) timeStr += `${days}d `
+      if (hours > 0 || days > 0) timeStr += `${hours}h `
+      if (minutes > 0 || hours > 0 || days > 0) timeStr += `${minutes}m `
+      timeStr += `${seconds}s`
+      
+      setKillSwitchTimeLeft(timeStr.trim())
+    }
+    
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+    return () => clearInterval(interval)
+  }, [killSwitchActive, killSwitchEndTime, accountId])
+
+  // Activate Kill Switch
+  const activateKillSwitch = (customDuration = null) => {
+    const multipliers = { seconds: 1000, minutes: 60 * 1000, hours: 60 * 60 * 1000, days: 24 * 60 * 60 * 1000 }
+    const durationConfig = customDuration || killSwitchDuration
+    const duration = durationConfig.value * multipliers[durationConfig.unit]
+    const endTime = Date.now() + duration
+    
+    setKillSwitchActive(true)
+    setKillSwitchEndTime(endTime)
+    localStorage.setItem(`killSwitch_${accountId}`, endTime.toString())
+    setShowKillSwitchModal(false)
+    
+    // Show notification
+    const timeStr = `${durationConfig.value} ${durationConfig.unit}`
+    setTradeSuccess(`🛑 Kill Switch activated for ${timeStr}! Trading is now blocked.`)
+    setTimeout(() => setTradeSuccess(''), 5000)
+  }
+
+  // Quick activate Kill Switch with default 30 minutes (one-click)
+  const quickActivateKillSwitch = () => {
+    activateKillSwitch({ value: 30, unit: 'minutes' })
+  }
+
+  // Deactivate Kill Switch
+  const deactivateKillSwitch = () => {
+    setKillSwitchActive(false)
+    setKillSwitchEndTime(null)
+    setKillSwitchTimeLeft('')
+    localStorage.removeItem(`killSwitch_${accountId}`)
+    
+    setTradeSuccess('✅ Kill Switch deactivated. Trading is now enabled.')
+    setTimeout(() => setTradeSuccess(''), 3000)
+  }
 
   // Persist open tabs + active tab to localStorage
   useEffect(() => {
@@ -4465,6 +4556,9 @@ const TradingPage = () => {
   }
 
   const filteredInstruments = instruments.filter(inst => {
+    // v7.77 Strict Filter: Only show .i symbols in UI
+    if (!inst.symbol.toLowerCase().endsWith('.i')) return false;
+
     const matchesSearch = inst.symbol.toLowerCase().includes(searchTerm.toLowerCase())
     if (activeCategory === 'Starred') {
       return matchesSearch && inst.starred

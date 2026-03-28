@@ -475,35 +475,17 @@ class AllTickApiService {
     try {
       if (!symbol || !data) return;
       
-      const targetSymbol = String(symbol);
-      const baseSymbol = targetSymbol.replace(/\.i$/i, '').toUpperCase();
-      const upperCanonical = baseSymbol + '.I';
+      const targetSymbol = String(symbol).toLowerCase().endsWith('.i') ? symbol : `${symbol.toUpperCase()}.i`;
+      const payloadString = JSON.stringify({ ...data, symbol: targetSymbol });
       
-      // ✅ ELITE: Universal Variant Synchronization (v7.74)
-      // We update ALL possible variants to ensure total UI/Engine consistency.
-      // 1. Original (XAUUSD.i)
-      // 2. Uppercase Canonical (XAUUSD.I)
-      // 3. Base Symbol (XAUUSD)
-      const variants = new Set([
-        targetSymbol, 
-        targetSymbol.toUpperCase(), 
-        targetSymbol.toLowerCase(),
-        baseSymbol,
-        upperCanonical
-      ]);
-
-      for (const sym of variants) {
-        const payloadString = JSON.stringify({ ...data, symbol: sym });
-        
-        // 1. Store the newest price in Redis HSET
-        await redisClient.hset('live_prices', sym, payloadString);
-        
-        // 2. Publish to the Redis channel for real-time WebSocket broadcasting
-        await redisClient.publish('price_updates', payloadString);
-        
-        // 3. Keep local memory cache updated too
-        this.prices[sym] = data;
-      }
+      // 1. Store the newest price in Redis HSET (Strictly canonical .i only)
+      await redisClient.hset('live_prices', targetSymbol, payloadString);
+      
+      // 2. Publish for real-time WebSocket broadcasting
+      await redisClient.publish('price_updates', payloadString);
+      
+      // 3. Update local memory cache
+      this.prices[targetSymbol] = data;
     } catch (err) {
       console.error('[Redis] Failed to set live price:', err.message);
     }
@@ -552,6 +534,9 @@ class AllTickApiService {
     };
 
     Object.entries(allPrices).forEach(([symbol, data]) => {
+      // v7.77 Strict Filter: Only include canonical symbols in categories
+      if (!symbol.toLowerCase().endsWith('.i')) return;
+
       categories['All'][symbol] = data;
       const s = symbol.toUpperCase();
       if (s.includes('USD') || s.includes('JPY') || s.includes('EUR')) {

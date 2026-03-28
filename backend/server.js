@@ -43,6 +43,7 @@ import internalTransferRoutes from "./routes/internalTransfer.js";
 import redisClient from './services/redisClient.js';
 import competitionLeaderboard from "./routes/competitionLeaderboard.js";
 import competitionEmailRoutes from "./routes/emailRoutes.js";
+import chartRoutes from "./routes/chart.js";
 import "./utils/competitionStatusCron.js";
 
 
@@ -470,6 +471,7 @@ app.use("/api/competitions", competitionRoutes);
 app.use("/api/competition", competitionLeaderboard);
 app.use("/api/email", emailRoutes);
 app.use("/api/competition-email", competitionEmailRoutes);
+app.use("/api/chart", chartRoutes);
 
 // Historical API route
 // app.use("/api/history", historyRoute);

@@ -130,10 +130,15 @@ class AllTickWebSocket {
     }
 
     symbolDataArray.forEach(symbolData => {
-      const symbol = symbolData.code || symbolData.symbol
+      let symbol = symbolData.code || symbolData.symbol
       if (!symbol) {
         console.log('[AllTickWebSocket] No symbol found in data:', symbolData)
         return
+      }
+
+      // v7.77 Strict Normalization: Ensure .i suffix and remove duplicates
+      if (!symbol.toLowerCase().endsWith('.i')) {
+        symbol = `${symbol.toUpperCase()}.i`
       }
 
       const priceData = {

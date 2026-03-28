@@ -1,44 +1,103 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Datafeed from "../services/datafeed.js";
 import { getPriceEvents } from '../services/priceStream';
 import { TradeLineManager } from "../utils/TradeLineManager.js";
+import { API_URL } from "../config/api";
+import { canonicalSymbol, normalizeSymbol } from "../utils/symbolUtils.js";
 
-// ─── v7.55 localStorage Keys ────────────────────────────────────────────────
-const LS_SYMBOL   = 'hcf_chart_symbol';
-const LS_INTERVAL = 'hcf_chart_interval';
-
-import { canonicalSymbol } from "../utils/symbolUtils.js";
+// ─── v7.60 Configuration ───────────────────────────────────────────────────
+const DEBOUNCE_SAVE_MS = 2000; // Auto-save after 2 seconds of inactivity
 
 /**
- * Production-Grade Trading Chart Component — v7.55
- * - Persists symbol, interval, and all chart settings across refreshes.
- * - Volume indicator and other indicators are saved/restored automatically.
- * - Active tab symbol is always what the chart loads on refresh.
+ * Institutional-Grade Trading Chart Component — v7.60
+ * - Persists all chart settings, indicators, and drawings to the backend.
+ * - Resolves symbol desync bugs by using absolute source-of-truth prop syncing.
+ * - Supports multi-device state synchronization via MongoDB ChartLayout.
  */
-const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeModify, isDarkMode = false, onSymbolChange, adminSpreads = {} }) => {
-  const containerRef  = useRef(null);
-  const widgetRef     = useRef(null);
-  const chartRef      = useRef(null);
-  const managerRef    = useRef(null);
+const Advance_Trading_View_Chart = ({ 
+  symbol = "XAUUSD", 
+  trades = [], 
+  onTradeModify, 
+  isDarkMode = false, 
+  onSymbolChange, 
+  adminSpreads = {} 
+}) => {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  
+  const containerRef = useRef(null);
+  const widgetRef = useRef(null);
+  const chartRef = useRef(null);
+  const managerRef = useRef(null);
   const isInitializingRef = useRef(false);
-  const latestSymbolRef = useRef(symbol);
-  const latestTradesRef = useRef(trades);
-  const latestOnTradeModifyRef = useRef(onTradeModify);
+  const lastSetSymbolRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
+  
   const [isChartReady, setIsChartReady] = useState(false);
   const chartReadyRef = useRef(false);
   const currentPriceRef = useRef(null);
 
-  // ─── Keep latest refs in sync ─────────────────────────────────────────────
-  useEffect(() => {
-    latestSymbolRef.current = symbol;
-    latestTradesRef.current = trades;
-    latestOnTradeModifyRef.current = onTradeModify;
-
-    // v7.55: Persist the active tab symbol every time the prop changes
-    if (symbol) {
-      try { localStorage.setItem(LS_SYMBOL, symbol); } catch (e) {}
+  // ─── GET USER ID ──────────────────────────────────────────────────────────
+  const getUserId = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      return user?._id || user?.id;
+    } catch (e) {
+      return null;
     }
-  }, [symbol, trades, onTradeModify]);
+  };
+
+  // ─── BACKEND PERSISTENCE LOGIC ────────────────────────────────────────────
+  
+  const saveChartToBackend = useCallback(async () => {
+    const userId = getUserId();
+    if (!userId || !widgetRef.current || !chartReadyRef.current) return;
+
+    try {
+      widgetRef.current.save((layoutJson) => {
+        fetch(`${API_URL}/chart/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            symbol: 'GLOBAL', // Save to a global layout for full sync
+            layoutJson
+          })
+        }).then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              console.log('[v7.60] Chart state auto-saved to backend');
+            }
+          });
+      });
+    } catch (err) {
+      console.error('[v7.60] Backend save error:', err);
+    }
+  }, []);
+
+  const debouncedSave = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(saveChartToBackend, DEBOUNCE_SAVE_MS);
+  }, [saveChartToBackend]);
+
+  const loadChartFromBackend = async (widget) => {
+    const userId = getUserId();
+    if (!userId) return;
+
+    try {
+      console.log('[v7.60] Loading chart layout from backend...');
+      const res = await fetch(`${API_URL}/chart/load/${userId}?symbol=GLOBAL`);
+      const data = await res.json();
+      
+      if (data.success && data.layoutJson) {
+        widget.load(data.layoutJson);
+        console.log('[v7.60] ✓ Chart layout restored from backend');
+      } else {
+        console.log('[v7.60] No saved layout found, using defaults');
+      }
+    } catch (err) {
+      console.warn('[v7.60] No backend layout found or error occurred:', err.message);
+    }
+  };
 
   // ─── Initialize TradingView widget ONCE ───────────────────────────────────
   useEffect(() => {
@@ -46,91 +105,84 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
     if (widgetRef.current || isInitializingRef.current) return;
 
     isInitializingRef.current = true;
+    const userId = getUserId();
 
     try {
-      // v7.55: Read saved interval (fallback "1") and symbol
-      const savedInterval = localStorage.getItem(LS_INTERVAL) || "1";
-      const initSymbol    = latestSymbolRef.current || localStorage.getItem(LS_SYMBOL) || "XAUUSD";
-
       const widget = new window.TradingView.widget({
-        // ── Core ──────────────────────────────────────────────────────────
-        symbol:   initSymbol,
-        interval: savedInterval,           // ✅ FIX #2: Use saved interval
+        symbol: normalizedSymbol,
+        interval: "1",
         container: containerRef.current,
         library_path: "/charting_library/",
-
-        // ✅ FIX #1: load_last_chart MUST be true to restore indicators/drawings
-        load_last_chart: true,
-
         locale: "en",
-        theme: isDarkMode ? "dark" : "light", // ✅ v7.55: Sync with app theme
+        theme: isDarkMode ? "dark" : "light",
         autosize: true,
         datafeed: Datafeed,
-        symbol_search_request_delay: 1000,
         
-        // ✅ FIX #4 (v7.79): Native Local Storage Persistence Hooks
+        // Use client credentials to enable internal storage hooks if needed
         client_id: 'hcf_trading_v1',
-        user_id: 'hcf_production_user',
-        auto_save_delay: 2, // Auto-save all properties and drawings every 2 seconds
+        user_id: userId || 'anonymous',
         
-        // ── Feature flags ─────────────────────────────────────────────────
         disabled_features: [
-          "header_saveload"
+          "header_saveload",
+          "use_localstorage_for_settings" // Disabled in favor of our backend system
         ],
         enabled_features: [
-          "use_localstorage_for_settings",
-          "save_chart_properties_to_local_storage",
           "header_resolutions",
           "header_chart_type",
-          "trading_objects"
+          "trading_objects",
+          "side_toolbar_in_fullscreen_mode"
         ],
-
         overrides: {
-          "paneProperties.background": isDarkMode ? "#0d0d0d" : "#ffffff", // ✅ v7.55: Dynamic background
+          "paneProperties.background": isDarkMode ? "#0d0d0d" : "#ffffff",
           "mainSeriesProperties.style": 1,
         }
       });
 
-      widget.onChartReady(() => {
+      widget.onChartReady(async () => {
+        console.log(`[v7.60] Widget ready. Fetching backend persistence...`);
+        
+        // 1. Initial Load from Backend
+        await loadChartFromBackend(widget);
+
+        // 2. State Setup
         chartReadyRef.current = true;
         setIsChartReady(true);
-        console.log(`[v7.55] Chart ready | symbol=${initSymbol} | interval=${savedInterval} | theme=${isDarkMode ? 'dark' : 'light'}`);
-
         widgetRef.current = widget;
-        chartRef.current  = widget.activeChart();
+        chartRef.current = widget.activeChart();
+        lastSetSymbolRef.current = normalizedSymbol;
 
-        // ✅ FIX #2: Save interval whenever user changes it
+        // 3. Subscription Hooks for Auto-Save
         chartRef.current.onIntervalChanged().subscribe(null, (interval) => {
-          console.log(`[v7.55] Interval changed → ${interval}`);
-          try { localStorage.setItem(LS_INTERVAL, interval); } catch (e) {}
+          localStorage.setItem('hcf_chart_interval', interval);
+          debouncedSave();
         });
 
-        // ✅ FIX #3: Save symbol whenever chart changes it (e.g. via search bar)
-        // AND notify parent TradingPage to sync tabs
         chartRef.current.onSymbolChanged().subscribe(null, () => {
-          try {
-            const sym = chartRef.current?.symbol?.();
-            if (sym) {
-              console.log(`[v7.55] Internal symbol changed → ${sym}`);
-              localStorage.setItem(LS_SYMBOL, sym);
-              if (onSymbolChange) onSymbolChange(sym); // 🔄 Sync with parent tabs
-            }
-          } catch (e) {}
+          const sym = chartRef.current?.symbol?.();
+          if (sym && onSymbolChange) onSymbolChange(sym);
+          debouncedSave();
         });
 
-        // Instantiate trade line manager
+        // 4. Persistence Listeners for Drawings/indicators
+        widget.subscribe('onAutoSaveNeeded', () => {
+          console.log('[v7.60] Autosave triggered by widget');
+          debouncedSave();
+        });
+
+        // 5. Initialize Trade Lines
         managerRef.current = new TradeLineManager(
           chartRef,
-          (...args) => latestOnTradeModifyRef.current?.(...args)
+          (...args) => onTradeModify?.(...args)
         );
         managerRef.current.initialize(widget);
-        managerRef.current.syncTrades(latestTradesRef.current, latestSymbolRef.current);
+        managerRef.current.syncTrades(trades, symbol);
 
         isInitializingRef.current = false;
       });
 
       return () => {
         isInitializingRef.current = false;
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         if (managerRef.current) {
           managerRef.current.destroy();
           managerRef.current = null;
@@ -138,77 +190,59 @@ const Advance_Trading_View_Chart = ({ symbol = "XAUUSD", trades = [], onTradeMod
         if (widgetRef.current) {
           widgetRef.current.remove();
           widgetRef.current = null;
-          chartRef.current  = null;
+          chartRef.current = null;
           chartReadyRef.current = false;
           setIsChartReady(false);
         }
       };
     } catch (err) {
       isInitializingRef.current = false;
-      console.error('[v7.55] Chart init error:', err);
+      console.error('[v7.60] Chart setup error:', err);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Dynamic Theme Switch ─────────────────────────────────────────────────
+  // ─── Theme Sync ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!widgetRef.current || !chartReadyRef.current) return;
-    
+    if (!widgetRef.current || !isChartReady) return;
     try {
       const theme = isDarkMode ? "dark" : "light";
-      const bg = isDarkMode ? "#0d0d0d" : "#ffffff";
-      
-      // Update overrides for background
-      widgetRef.current.applyOverrides({
-        "paneProperties.background": bg,
-      });
-
-      // ✅ v7.55: Use changeTheme for a full aesthetic transition
-      if (typeof widgetRef.current.changeTheme === 'function') {
-        widgetRef.current.changeTheme(theme);
-        console.log(`[v7.55] Target theme switched → ${theme}`);
-      }
-    } catch (e) {
-      console.error('[v7.55] Theme update error:', e);
-    }
+      widgetRef.current.changeTheme(theme);
+    } catch (e) {}
   }, [isDarkMode, isChartReady]);
 
-  // ─── Switch symbol without recreating widget ───────────────────────────────
+  // ─── CRITICAL: SYMBOL SYNC (Fixes XAU/GBP desync) ──────────────────────────
   useEffect(() => {
-    if (!widgetRef.current || !chartReadyRef.current || !symbol) return;
-    try {
-      const current = chartRef.current?.symbol?.();
-      // 🛡️ v7.57: Revert strict comparison to use canonicalSymbol to prevent bouncing loops with .i datafeeds
-      if (typeof current === 'string' && canonicalSymbol(current) === canonicalSymbol(symbol)) return;
-    } catch (e) {}
+    if (!widgetRef.current || !chartReadyRef.current || !normalizedSymbol) return;
+    
+    // 🛡️ Prevent redundant setSymbol calls if already on the correct symbol
+    const current = chartRef.current?.symbol?.();
+    if (typeof current === 'string' && canonicalSymbol(current) === canonicalSymbol(normalizedSymbol)) {
+      return;
+    }
 
-    // v7.55: Use saved interval when switching symbols (not hardcoded "1")
-    const savedInterval = localStorage.getItem(LS_INTERVAL) || "1";
-
-    try {
-      widgetRef.current.setSymbol(symbol, savedInterval, () => {
-        console.log(`[v7.55] Symbol switched → ${symbol} @ ${savedInterval}`);
+    if (widgetRef.current && chartReadyRef.current && normalizedSymbol !== lastSetSymbolRef.current) {
+      console.log(`[v7.60] Symbol prop change: Switching to ${normalizedSymbol}`);
+      widgetRef.current.setSymbol(normalizedSymbol, widgetRef.current.activeChart().resolution(), () => {
+        lastSetSymbolRef.current = normalizedSymbol;
         if (managerRef.current) {
-          managerRef.current.syncTrades(latestTradesRef.current, symbol);
+          managerRef.current.syncTrades(trades, symbol);
         }
       });
-    } catch (e) {
-      console.error('[v7.55] setSymbol error:', e);
     }
-  }, [symbol, isChartReady]);
+  }, [normalizedSymbol, isChartReady, trades, symbol]);
 
-  // ─── Sync trades whenever they change ─────────────────────────────────────
+  // ─── Sync trades ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (managerRef.current) {
       managerRef.current.syncTrades(trades, symbol);
     }
   }, [trades, symbol]);
 
-  // ─── Sync admin spreads to manager ────────────────────────────────────────
   useEffect(() => {
     if (managerRef.current) {
       managerRef.current.setAdminSpreads(adminSpreads);
-      managerRef.current.syncTrades(trades, symbol); // Re-sync to apply new markup
+      managerRef.current.syncTrades(trades, symbol);
     }
   }, [adminSpreads, trades, symbol]);
 
