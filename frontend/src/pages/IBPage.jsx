@@ -22,6 +22,7 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
 import NavbarClient from "../components/NavbarClient";
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 const IBPage = () => {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ const IBPage = () => {
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [levelProgress, setLevelProgress] = useState(null);
+  const { sidebarExpanded } = useSidebar();
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -74,6 +76,7 @@ const IBPage = () => {
       const data = await res.json();
       if (data.ibUser) {
         // Merge ibUser, wallet, and stats into one profile object
+        console.log(data.data);
         setIbProfile({
           ...data.ibUser,
           ibWalletBalance: data.wallet?.balance || 0,
@@ -132,6 +135,43 @@ const IBPage = () => {
       console.error("Error fetching downline:", error);
     }
   };
+
+  const handleTransferToWallet = async () => {
+  if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
+    alert("Please enter a valid amount");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/wallet-transfer/from-ib`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: user._id,
+        amount: parseFloat(withdrawAmount),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert("Amount transferred to wallet successfully");
+
+      setWithdrawAmount("");
+
+      // 🔥 Refresh IB + Wallet
+      fetchIBProfile();
+    } else {
+      alert(data.message || "Transfer failed");
+    }
+  } catch (error) {
+    console.error("Transfer error:", error);
+    alert("Transfer failed");
+  }
+};
+
 
   const handleApply = async () => {
     setApplying(true);
@@ -241,7 +281,15 @@ const IBPage = () => {
       {!isMobile && <Sidebar activeMenu="IB" />}
 
       {/* Main */}
-      <div className="flex-1 p-6 flex flex-col">
+      <div
+  className={`flex-1 p-6 flex flex-col transition-all duration-300 ${
+    isMobile
+      ? ""
+      : sidebarExpanded
+      ? "ml-[280px]"
+      : "ml-[64px]"
+  }`}
+>
         {/* Header */}
         {/* <div className="h-14 bg-[#2f3f74] flex items-center justify-between px-6 text-white">
           <h1 className="text-lg font-semibold">Introducing Broker (IB)</h1>
@@ -250,7 +298,7 @@ const IBPage = () => {
         <NavbarClient title="Introducing Broker (IB) Dashboard"  subtitle="Manage your referrals and earnings"/>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto ">
+        <main className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="text-center py-12 text-gray-500">Loading...</div>
           ) : !ibProfile ? (
@@ -537,7 +585,7 @@ const IBPage = () => {
                   "referrals",
                   "commissions",
                   "downline",
-                  "withdraw",
+                  "Transfer to Wallet",
                 ].map((tab) => (
                   <button
                     key={tab}
@@ -855,7 +903,7 @@ const IBPage = () => {
               )}
 
               {/* withdraw */}
-              {activeTab === "withdraw" && (
+              {activeTab === "Transfer to Wallet" && (
                 <div className={isMobile ? "" : "max-w-md"}>
                   <div
                     className={`${isDarkMode ? "bg-dark-800 border-gray-800" : "bg-white border-gray-200 shadow-sm"} rounded-xl ${isMobile ? "p-4" : "p-6"} border`}
@@ -863,7 +911,7 @@ const IBPage = () => {
                     <h3
                       className={`font-semibold ${isMobile ? "mb-3 text-sm" : "mb-4"} ${isDarkMode ? "text-white" : "text-gray-900"}`}
                     >
-                      Withdraw Commission
+                      Transfer Commission to Wallet
                     </h3>
                     <div className="mb-3">
                       <p className="text-gray-400 text-xs mb-1">
@@ -884,17 +932,17 @@ const IBPage = () => {
                         value={withdrawAmount}
                         onChange={(e) => setWithdrawAmount(e.target.value)}
                         placeholder="Enter amount"
-                        className={`w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white ${isMobile ? "text-sm" : ""}`}
+                        className={`w-full bg-white border border-gray-600 rounded-lg px-3 py-2 text-black ${isMobile ? "text-sm" : ""}`}
                       />
                     </div>
                     <button
-                      onClick={handleWithdraw}
+                      onClick={handleTransferToWallet}
                       disabled={
                         !withdrawAmount || parseFloat(withdrawAmount) <= 0
                       }
                       className={`w-full bg-accent-green text-black py-2 rounded-lg font-medium hover:bg-accent-green/90 disabled:opacity-50 ${isMobile ? "text-sm" : ""}`}
                     >
-                      Request Withdrawal
+                      Transfer
                     </button>
                     {ibProfile.pendingWithdrawal > 0 && (
                       <p className="text-yellow-500 text-sm mt-3">

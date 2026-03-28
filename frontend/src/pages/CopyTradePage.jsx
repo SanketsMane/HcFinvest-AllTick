@@ -9,6 +9,7 @@ import {
 import { useTheme } from '../context/ThemeContext'
 import Sidebar from '../components/Sidebar'
 import NavbarClient from '../components/NavbarClient'
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 const CopyTradePage = () => {
   const navigate = useNavigate()
@@ -28,6 +29,7 @@ const CopyTradePage = () => {
   const [selectedAccount, setSelectedAccount] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false)
+  const { sidebarExpanded } = useSidebar();
   
   // Master trader states
   const [myMasterProfile, setMyMasterProfile] = useState(null)
@@ -394,7 +396,15 @@ const CopyTradePage = () => {
       
 
       {/* Main Content */}
-      <main className={`flex-1 p-6 overflow-auto ${isMobile ? 'pt-14' : ''}`}>
+     <main
+  className={`flex-1 p-6 overflow-y-auto transition-all duration-300 ${
+    isMobile
+      ? "pt-14"
+      : sidebarExpanded
+      ? "ml-[280px]"
+      : "ml-[64px]"
+  }`}
+>
         {!isMobile && (
           // <header className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
           //   <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Copy Trading</h1>

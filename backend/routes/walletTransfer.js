@@ -296,4 +296,90 @@ router.get('/balances/:userId', async (req, res) => {
   }
 })
 
+// from IB to Wallet
+router.post("/from-ib", async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+
+    // ✅ Validation
+    if (!userId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "UserId and amount required",
+      });
+    }
+
+    const transferAmount = parseFloat(amount);
+
+    if (transferAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
+    }
+
+    // ✅ Get User (MAIN WALLET)
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // ✅ Get IB Profile
+    const ibUser = await IB.findOne({ userId });
+    if (!ibUser) {
+      return res.status(404).json({
+        success: false,
+        message: "IB profile not found",
+      });
+    }
+
+    // ⚠️ IMPORTANT: Your IB balance comes from wallet API
+    // So IB balance must be stored somewhere (likely in Wallet OR IB model)
+
+    // 👉 Assuming IB balance is stored in IB model:
+    if (ibUser.ibWalletBalance < transferAmount) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient IB balance",
+      });
+    }
+
+    // 🔴 Deduct from IB wallet
+    ibUser.ibWalletBalance -= transferAmount;
+
+    // 🟢 Add to MAIN USER WALLET
+    user.walletBalance += transferAmount;
+
+    await ibUser.save();
+    await user.save();
+
+    // ✅ Log transaction (same pattern as your system)
+    await Transaction.create({
+      userId,
+      type: "IB_TO_WALLET",
+      amount: transferAmount,
+      paymentMethod: "Internal",
+      status: "Completed",
+      transactionRef: `IBT${Date.now()}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Transfer successful",
+      userWalletBalance: user.walletBalance,
+      ibWalletBalance: ibUser.ibWalletBalance,
+    });
+
+  } catch (error) {
+    console.error("IB transfer error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 export default router

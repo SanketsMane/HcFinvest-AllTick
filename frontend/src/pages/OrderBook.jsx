@@ -31,6 +31,7 @@ import {
 import { useTheme } from '../context/ThemeContext'
 import Sidebar from '../components/Sidebar'
 import NavbarClient from '../components/NavbarClient'
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 const OrderBook = () => {
   const navigate = useNavigate()
@@ -52,6 +53,7 @@ const OrderBook = () => {
   const [customEndDate, setCustomEndDate] = useState('')
     // const { isDarkMode, toggleDarkMode } = useTheme();
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const { sidebarExpanded } = useSidebar();
   const itemsPerPage = 20
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
@@ -448,7 +450,15 @@ const OrderBook = () => {
       )}
  */}
       {/* Main Content */}
-      <main className={`flex-1 p-6 overflow-auto ${isMobile ? 'pt-14' : ''}`}>
+<main
+  className={`flex-1 p-6 overflow-y-auto transition-all duration-300 ${
+    isMobile
+      ? "pt-14"
+      : sidebarExpanded
+      ? "ml-[280px]"
+      : "ml-[64px]"
+  }`}
+>
         {!isMobile && (
 
           <NavbarClient title="Order Book" subtitle="Manage and track your buy and sell orders" />

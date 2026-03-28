@@ -26,6 +26,7 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import Sidebar from "../components/Sidebar";
 import NavbarClient from "../components/NavbarClient";
+import { useSidebar } from "../context/SidebarContext";
 
 // Animation styles
 const fadeInUp = "animate-[fadeInUp_0.5s_ease-out_forwards]";
@@ -38,7 +39,7 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
   const [currentUser, setCurrentUser] = useState(
     JSON.parse(localStorage.getItem("user") || "{}"),
   );
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  // const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -86,6 +87,7 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
     text: "",
   });
   const [loginHistory, setLoginHistory] = useState([]);
+  const { sidebarExpanded } = useSidebar();
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -526,43 +528,24 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
 
   return (
     <>
-      <div className="min-h-screen flex bg-[#F8F8F8] text-gray-800">
-        {/* Mobile Header */}
-        {/* {isMobile && (
-        <header
-          className={`fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center gap-4 bg-[#2f3f74] text-gray-900 border-b border-gray-200`}
-        >
-          <button
-            onClick={() => navigate("/mobile")}
-            className={`p-2 -ml-2 rounded-lg ${isDarkMode ? "hover:bg-dark-700" : "hover:bg-gray-100"}`}
-          >
-            <ArrowLeft
-              size={22}
-              className={isDarkMode ? "text-gray-900" : "text-gray-900"}
-            />
-          </button>
-          <h1
-            className={`font-semibold text-lg flex-1 ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-          >
-            Wallet
-          </h1>
-          <button
-            onClick={() => navigate("/mobile")}
-            className={`p-2 rounded-lg ${isDarkMode ? "hover:bg-dark-700" : "hover:bg-gray-100"}`}
-          >
-            <Home size={20} className="text-gray-500" />
-          </button>
-        </header>
-      )} */}
-
-        {/* Collapsible Sidebar - Hidden on Mobile, Fixed */}
+      <div className="min-h-screen flex bg-[#F8F8F8] text-gray-800">    
 
         {!isMobile && <Sidebar activeMenu="Profile" />}
 
         {/* Main Content - Scrollable */}
-        <main
+        {/* <main
           className={`flex-1 p-6 overflow-y-auto ${isMobile ? "pt-14" : ""}`}
-        >
+        > */}
+
+          <main
+            className={`flex-1 p-6 overflow-y-auto transition-all duration-300 ${
+              isMobile
+                ? "pt-14"
+                : sidebarExpanded
+                ? "ml-[280px]"
+                : "ml-[64px]"
+            }`}
+          >
           <div className={`${isMobile ? "p-4" : ""} space-y-6`}>
             {/* Success/Error Messages */}
             {success && (

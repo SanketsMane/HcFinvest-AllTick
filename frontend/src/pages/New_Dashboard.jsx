@@ -2,11 +2,8 @@
 
 import {
   ArrowRight,
-  Gift,
   Wallet,
   BarChart2,
-  Shield,
-  Gauge,
   ArrowLeft,
   CircleDollarSign,
 } from "lucide-react";
@@ -16,28 +13,12 @@ import Sidebar from "../components/Sidebar";
 import { useEffect, useState } from "react";
 import { Internal_Transfer } from "./Internal_Transfer";
 import NavbarClient from "../components/NavbarClient";
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 const New_Dashboard = () => {
-  const banners = [
-    {
-      title: "Deposit Now & Get",
-      highlight: "20% Bonus",
-      desc: "Trade with extra capital. Activate your bonus.",
-      bg: "from-[#0f2027] via-[#203a43] to-[#2c5364]",
-    },
-    {
-      title: "Invite Friends & Earn",
-      highlight: "$50 Reward",
-      desc: "Refer your friends and earn rewards instantly.",
-      bg: "from-purple-600 via-indigo-600 to-blue-600",
-    },
-    {
-      title: "Trade Gold & Forex",
-      highlight: "Low Spread",
-      desc: "Start trading with lowest spread in market.",
-      bg: "from-green-600 via-emerald-600 to-teal-600",
-    },
-  ];
+  const [banners, setBanners] = useState([]);
+  const BASE_URL = API_URL.replace("/api", "");
+  const { sidebarExpanded } = useSidebar();
 
   const [current, setCurrent] = useState(0);
 
@@ -48,10 +29,22 @@ const New_Dashboard = () => {
 
   const [openTrades, setOpenTrades] = useState([]);
   const [livePrices, setLivePrices] = useState({});
+  const [loading, setLoading] = useState(true);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const navigate = useNavigate();
+
+const defaultBanner = [
+  {
+    _id: "default1",
+    title: "Welcome to HcFinvest",
+    highlight: "Start Trading Today",
+    desc: "Trade smarter with real-time insights and powerful tools.",
+    image: "default-banner.jpg", // put this image in public/uploads/banners
+  },
+];
+
 
   const liveAccounts = userAccounts.filter(
     (acc) => !acc.isDemo && !acc.accountTypeId?.isDemo,
@@ -106,21 +99,26 @@ const New_Dashboard = () => {
 
     if (user._id) fetchUserAccounts();
   }, []);
+
   // 👉 Auto Slide
   useEffect(() => {
+    if (banners.length <= 1) return;
+
     const interval = setInterval(() => {
       setCurrent((prev) => (prev + 1) % banners.length);
-    }, 3000);
+    }, 4000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [banners.length]);
 
   // 👉 Manual Controls
   const nextSlide = () => {
+    if (banners.length === 0) return;
     setCurrent((prev) => (prev + 1) % banners.length);
   };
 
   const prevSlide = () => {
+    if (banners.length === 0) return;
     setCurrent((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
   };
 
@@ -148,6 +146,18 @@ const New_Dashboard = () => {
       console.error("Error fetching open trades:", error);
     }
   };
+
+  useEffect(() => {
+    console.log("Banners:", banners.length);
+  }, [banners]);
+
+  useEffect(() => {
+    setCurrent(0);
+  }, [banners]);
+
+  useEffect(() => {
+    console.log("Current Slide:", current);
+  }, [current]);
 
   useEffect(() => {
     if (userAccounts.length > 0) {
@@ -245,150 +255,184 @@ const New_Dashboard = () => {
   const growthPercent =
     totalLiveBalance > 0 ? ((totalPnl / totalLiveBalance) * 100).toFixed(2) : 0;
 
+  const getInvestmentDistribution = () => {
+    const map = {};
+    let totalInvested = 0;
 
-    const getInvestmentDistribution = () => {
-  const map = {};
-  let totalInvested = 0;
+    openTrades.forEach((trade) => {
+      const value = trade.quantity * trade.openPrice;
 
-  openTrades.forEach((trade) => {
-    const value = trade.quantity * trade.openPrice;
+      if (!map[trade.symbol]) {
+        map[trade.symbol] = 0;
+      }
 
-    if (!map[trade.symbol]) {
-      map[trade.symbol] = 0;
+      map[trade.symbol] += value;
+      totalInvested += value;
+    });
+
+    const result = [];
+
+    // Symbol % calculation
+    Object.entries(map).forEach(([symbol, value]) => {
+      result.push({
+        name: symbol,
+        percent:
+          totalLiveBalance > 0
+            ? ((value / totalLiveBalance) * 100).toFixed(1)
+            : 0,
+      });
+    });
+
+    // FREE BALANCE
+    const free = totalLiveBalance - totalInvested;
+
+    if (free > 0) {
+      result.push({
+        name: "FREE",
+        percent:
+          totalLiveBalance > 0
+            ? ((free / totalLiveBalance) * 100).toFixed(1)
+            : 0,
+      });
     }
 
-    map[trade.symbol] += value;
-    totalInvested += value;
-  });
-
-  const result = [];
-
-  // Symbol % calculation
-  Object.entries(map).forEach(([symbol, value]) => {
-    result.push({
-      name: symbol,
-      percent:
-        totalLiveBalance > 0
-          ? ((value / totalLiveBalance) * 100).toFixed(1)
-          : 0,
-    });
-  });
-
-  // FREE BALANCE
-  const free = totalLiveBalance - totalInvested;
-
-  if (free > 0) {
-    result.push({
-      name: "FREE",
-      percent:
-        totalLiveBalance > 0
-          ? ((free / totalLiveBalance) * 100).toFixed(1)
-          : 0,
-    });
-  }
-
-  return result;
-};
-
+    return result;
+  };
 
   const investmentData = getInvestmentDistribution();
 
+  useEffect(() => {
+    fetchBanners();
+  }, []);
+
+  const fetchBanners = async () => {
+    try {
+      const res = await fetch(`${API_URL}/banners/getall`);
+      const data = await res.json();
+
+      if (data.success) {
+        setBanners(data.data);
+      }
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex bg-gray-100">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-
-        {/* <div className="mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            Dashboard
-            <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">
-              Pro Trader
-            </span>
-          </h1>
-          <p className="text-gray-500">
-            Welcome back, John. Here's your trading overview for today.
-          </p>
-        </div> */}
-
+  <div
+    className={`flex-1 overflow-y-auto p-6 transition-all duration-300 ${
+      sidebarExpanded ? "ml-[280px]" : "ml-[64px]"
+    }`}
+  >
         <NavbarClient title="Dashbaord" subtitle="Welcome back to hcfinvest." />
 
         {/* Banner */}
         {/* Banner Wrapper */}
-        <div className="relative overflow-hidden rounded-2xl mb-6">
-          {/* Slides */}
-          <div
-            className="flex transition-transform duration-500"
-            style={{ transform: `translateX(-${current * 100}%)` }}
-          >
-            {banners.map((banner, index) => (
+        {/* Banner */}
+        {banners.length > 0 ? (
+          <div className="relative overflow-hidden rounded-2xl mb-6">
+            {/* SLIDER WRAPPER */}
+            <div className="overflow-hidden w-full">
               <div
-                key={index}
-                className={`min-w-full h-80 p-6 text-white bg-gradient-to-r ${banner.bg} relative`}
+                className="flex transition-transform duration-700 ease-in-out"
+                style={{ transform: `translateX(-${current * 100}%)` }}
               >
-                <span className="text-xs bg-white/10 px-3 py-1 rounded-full">
-                  Limited Time
-                </span>
+                {banners.map((banner) => (
+                  <div
+                    key={banner._id}
+                    className="min-w-full flex-shrink-0 h-80 relative"
+                  >
+                    {/* IMAGE */}
+                    <img
+                      src={`${BASE_URL}/uploads/banners/${banner.image}`}
+                      alt={banner.title}
+                      className="w-full h-full object-cover"
+                    />
 
-                <h2 className="text-3xl font-bold mt-2">
-                  {banner.title}
-                  <span className="text-green-400"> {banner.highlight}</span>
-                </h2>
+                    {/* OVERLAY */}
+                    <div className="absolute inset-0 bg-black/40" />
 
-                <p className="text-gray-300 mt-2">{banner.desc}</p>
+                    {/* CONTENT */}
+                    <div className="absolute inset-0 flex flex-col justify-center px-6 z-10">
+                      <span className="text-xs bg-white/10 px-3 py-1 rounded-full w-fit text-white">
+                        Limited Time
+                      </span>
 
-                <button className="mt-4 bg-green-500 px-4 py-2 rounded-lg">
-                  Action
-                </button>
+                      <h2 className="text-3xl font-bold mt-2 text-white">
+                        {banner.title}
+                        <span className="text-green-400">
+                          {" "}
+                          {banner.highlight || ""}
+                        </span>
+                      </h2>
 
-                <div className="absolute right-6 top-1/2 -translate-y-1/2 bg-white/10 p-4 rounded-full">
-                  <Gift />
-                </div>
+                      <p className="text-gray-200 mt-2 max-w-md">
+                        {banner.desc || ""}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* LEFT ARROW */}
+            {banners.length > 1 && (
+              <button
+                onClick={prevSlide}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full z-10"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
+
+            {/* RIGHT ARROW */}
+            {banners.length > 1 && (
+              <button
+                onClick={nextSlide}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full z-10"
+              >
+                <ArrowRight size={18} />
+              </button>
+            )}
           </div>
+        ) : (
+  <div className="relative overflow-hidden rounded-2xl mb-6 bg-gradient-to-r from-blue-600 to-indigo-700 h-80 flex items-center">
+    
+    {/* Content */}
+    <div className="px-8 text-white">
+      <span className="text-xs bg-white/20 px-3 py-1 rounded-full">
+        Welcome
+      </span>
 
-          {/* LEFT BUTTON */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full z-10"
-          >
-            <ArrowLeft size={18} />
-          </button>
+      <h2 className="text-3xl font-bold mt-3">
+        Welcome to <span className="text-green-300">HC Finvest</span>
+      </h2>
 
-          {/* RIGHT BUTTON */}
-          <button
-            onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full z-10"
-          >
-            <ArrowRight size={18} />
-          </button>
+      <p className="mt-2 text-gray-200 max-w-md">
+        Start trading, manage your accounts and track performance in one place.
+      </p>
 
-          {/* DOTS */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-            {banners.map((_, i) => (
-              <div
-                key={i}
-                className={`h-2 w-2 rounded-full ${
-                  current === i ? "bg-white" : "bg-white/40"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-        {/* Dots */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-          {banners.map((_, i) => (
-            <div
-              key={i}
-              className={`h-2 w-2 rounded-full ${
-                current === i ? "bg-white" : "bg-white/40"
-              }`}
-            />
-          ))}
-        </div>
+      <button
+        onClick={() => navigate("/account")}
+        className="mt-4 bg-white text-black px-5 py-2 rounded-lg font-medium hover:bg-gray-200"
+      >
+        Get Started →
+      </button>
+    </div>
+
+    {/* Decorative Right Side */}
+    <div className="absolute right-0 top-0 w-1/2 h-full opacity-20">
+      <div className="w-full h-full bg-[radial-gradient(circle_at_center,_white,_transparent)]"></div>
+    </div>
+  </div>
+)}
 
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-6">
@@ -562,10 +606,8 @@ const New_Dashboard = () => {
               </div>
             </div>
 
-            
-
-              {/* ACTIVE POSITIONS */}
-{/*               
+            {/* ACTIVE POSITIONS */}
+            {/*               
               <div className="bg-white rounded-2xl p-5 shadow-sm">
                 <div className="flex justify-between mb-4">
                   <h3 className="font-semibold">Active Positions</h3>
@@ -657,59 +699,57 @@ const New_Dashboard = () => {
           */}
 
           <div className="bg-white rounded-2xl p-5 shadow-sm">
-                <div className="flex justify-between mb-4">
-                  <h3 className="font-semibold">Active Positions</h3>
-                  <span
-                    onClick={() => navigate("/orders")}
-                    className="text-blue-500 text-sm cursor-pointer"
+            <div className="flex justify-between mb-4">
+              <h3 className="font-semibold">Active Positions</h3>
+              <span
+                onClick={() => navigate("/orders")}
+                className="text-blue-500 text-sm cursor-pointer"
+              >
+                View All →
+              </span>
+            </div>
+
+            <p className="text-gray-400 text-sm mb-2">
+              {openTrades.length} open trades
+            </p>
+
+            {/* Total P/L */}
+            <div className="bg-gray-100 rounded-lg p-3 mb-3 flex justify-between">
+              <span>Total P/L</span>
+              <span
+                className={`font-semibold ${
+                  totalPnl >= 0 ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Trades List */}
+            {openTrades.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center">
+                No active trades
+              </p>
+            ) : (
+              openTrades.slice(0, 4).map((trade) => {
+                const pnl = calculatePnl(trade);
+
+                return (
+                  <div
+                    key={trade._id}
+                    className="flex justify-between items-center border rounded-lg px-3 py-2 mb-2"
                   >
-                    View All →
-                  </span>
-                </div>
-
-                <p className="text-gray-400 text-sm mb-2">
-                  {openTrades.length} open trades
-                </p>
-
-                {/* Total P/L */}
-                <div className="bg-gray-100 rounded-lg p-3 mb-3 flex justify-between">
-                  <span>Total P/L</span>
-                  <span
-                    className={`font-semibold ${
-                      totalPnl >= 0 ? "text-green-600" : "text-red-500"
-                    }`}
-                  >
-                    {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
-                  </span>
-                </div>
-
-                {/* Trades List */}
-                {openTrades.length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center">
-                    No active trades
-                  </p>
-                ) : (
-                  openTrades.slice(0, 4).map((trade) => {
-                    const pnl = calculatePnl(trade);
-
-                    return (
-                      <div
-                        key={trade._id}
-                        className="flex justify-between items-center border rounded-lg px-3 py-2 mb-2"
-                      >
-                        <span className="font-medium">{trade.symbol}</span>
-                        <span
-                          className={
-                            pnl >= 0 ? "text-green-600" : "text-red-500"
-                          }
-                        >
-                          {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                    <span className="font-medium">{trade.symbol}</span>
+                    <span
+                      className={pnl >= 0 ? "text-green-600" : "text-red-500"}
+                    >
+                      {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>

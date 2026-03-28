@@ -12,16 +12,18 @@ import {
 import { useTheme } from '../context/ThemeContext'
 import Sidebar from '../components/Sidebar'
 import NavbarClient from '../components/NavbarClient'
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 const InstructionsPage = () => {
   const navigate = useNavigate()
   const { isDarkMode, toggleDarkMode } = useTheme()
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  // const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [expandedSection, setExpandedSection] = useState('getting-started')
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
     // const { isDarkMode, toggleDarkMode } = useTheme();
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const { sidebarExpanded } = useSidebar();
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -245,7 +247,16 @@ const InstructionsPage = () => {
     {!isMobile && <Sidebar activeMenu="Instructions" />}
 
     {/* MAIN CONTENT */}
-    <div className="flex-1 p-6 flex flex-col">
+    {/* <div className="flex-1 p-6 flex flex-col"> */}
+    <div
+      className={`flex-1 p-6 flex flex-col transition-all duration-300 ${
+        isMobile
+          ? ""
+          : sidebarExpanded
+          ? "ml-[280px]"
+          : "ml-[64px]"
+      }`}
+    >
 
       {/* TOP BAR */}
       {/* {!isMobile && (

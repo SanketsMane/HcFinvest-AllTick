@@ -7,6 +7,7 @@ import { UserCircle, RefreshCw, TrendingUp,  Settings,  User,  Moon, ShieldCheck
 import { API_URL } from "../config/api";
 import Sidebar from "../components/Sidebar";
 import NavbarClient from "../components/NavbarClient";
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -17,9 +18,10 @@ export default function Account() {
   const [loadingTrades, setLoadingTrades] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  // const [sidebarExpanded, setSidebarExpanded] = useState(false);
     // const { isDarkMode, toggleDarkMode } = useTheme();
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const { sidebarExpanded } = useSidebar();
 
   const [wallet, setWallet] = useState(null);
 
@@ -145,7 +147,11 @@ if (accs.length > 0) {
       <Sidebar activeMenu="Account" />
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col p-6">
+      <div
+  className={`flex-1 flex flex-col p-6 transition-all duration-300 ${
+    sidebarExpanded ? "ml-[280px]" : "ml-[64px]"
+  }`}
+>
         {/* TOP BAR */}
 
               <NavbarClient title="My Account" subtitle="Manage your trading accounts" />
