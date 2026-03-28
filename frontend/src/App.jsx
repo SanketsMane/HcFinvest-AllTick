@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -52,7 +53,6 @@ import AdminCompetitionDetails from './pages/AdminCompititionDetails.jsx'
 import Switch_Account from "./pages/Switch_Account";
 import New_Dashboard from './pages/New_Dashboard.jsx'
 
-import { useEffect } from 'react'
 
 // 🛡️ Guard to restrict admin access to admin.hcfinvest.com
 const AdminHostGuard = ({ children }) => {
@@ -158,7 +158,7 @@ function App() {
         <Route path="/admin/admin-management" element={<AdminHostGuard><AdminManagement /></AdminHostGuard>} />
         <Route path="/admin/kyc" element={<AdminHostGuard><AdminKYC /></AdminHostGuard>} />
         <Route path="/admin/support" element={<AdminHostGuard><AdminSupport /></AdminHostGuard>} />
-        <Route path="/admin/prop-trading" element={<AdminPropTrading /></AdminHostGuard>} />
+        <Route path="/admin/prop-trading" element={<AdminHostGuard><AdminPropTrading /></AdminHostGuard>} />
         <Route path="/admin/earnings" element={<AdminHostGuard><AdminEarnings /></AdminHostGuard>} />
         <Route path="/admin/theme" element={<AdminHostGuard><AdminThemeSettings /></AdminHostGuard>} />
         <Route path="/admin/email" element={<AdminHostGuard><AdminEmailManagement /></AdminHostGuard>} />
