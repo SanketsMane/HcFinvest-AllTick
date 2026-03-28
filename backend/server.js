@@ -384,6 +384,7 @@ const allowedOrigins = [
   'https://hcfinvest.com',
   'https://www.hcfinvest.com',
   'https://api.hcfinvest.com',
+  'https://admin.hcfinvest.com',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5000',
