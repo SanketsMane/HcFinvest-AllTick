@@ -242,6 +242,17 @@ class AllTickApiService {
             console.log(`[AllTick] 📥 LIVE TICK: ${tick.code} -> ${appSymbol} @ ${tick.price}`);
         }
         const lastPrice = parseFloat(tick.price) || 0;
+        let bid = parseFloat(tick.bid) || lastPrice;
+        let ask = parseFloat(tick.ask) || lastPrice;
+
+        // If provider only sends one price, synthesize a realistic spread
+        if (bid === ask && lastPrice > 0) {
+            const config = priceNormalizer.getConfig(appSymbol);
+            const spreadPips = appSymbol.includes('JPY') || appSymbol.includes('XAU') ? 2 : 1.5;
+            const spreadAmount = config.pipSize * spreadPips;
+            bid = lastPrice - (spreadAmount / 2);
+            ask = lastPrice + (spreadAmount / 2);
+        }
         
         let tickMs = parseInt(tick.tick_time);
         if (tickMs < 100000000000) tickMs *= 1000;
@@ -249,7 +260,7 @@ class AllTickApiService {
         const tickTime = tickMs ? new Date(tickMs) : new Date();
         
         // Normalize price (rounds for display, keeps raw for math)
-        const normalized = priceNormalizer.normalizePrice(appSymbol, lastPrice, lastPrice * 1.0001, tickTime);
+        const normalized = priceNormalizer.normalizePrice(appSymbol, bid, ask, tickTime);
         
         const priceData = {
           ...normalized,

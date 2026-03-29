@@ -29,18 +29,10 @@ class TradeEngine {
     return 100000
   }
 
-  // Calculate execution price with spread
-  calculateExecutionPrice(side, bid, ask, spreadValue, spreadType) {
-    let spread = spreadValue
-    if (spreadType === 'PERCENTAGE') {
-      spread = (ask - bid) * (spreadValue / 100)
-    }
-    
-    if (side === 'BUY') {
-      return ask + spread
-    } else {
-      return bid - spread
-    }
+  // Calculate execution price (Strict MT5 logic)
+  // BUY opens at ASK, SELL opens at BID
+  calculateExecutionPrice(side, bid, ask) {
+    return side === 'BUY' ? ask : bid
   }
 
   // Calculate margin required for a trade
@@ -78,15 +70,25 @@ class TradeEngine {
     }
   }
 
-  // Calculate floating PnL including charges
-  calculateFloatingPnl(trade, currentBid, currentAsk, rawBid = null, rawAsk = null) {
-    // Prioritize raw values for institutional-grade accuracy
-    const actualBid = rawBid !== null ? rawBid : currentBid
-    const actualAsk = rawAsk !== null ? rawAsk : currentAsk
+  // Calculate floating PnL using the model's business logic
+  calculateFloatingPnl(trade, currentBid, currentAsk) {
+    // If trade is a Mongoose model, use its method
+    if (typeof trade.calculatePnl === 'function') {
+      return trade.calculatePnl(currentBid, currentAsk)
+    }
+
+    // Fallback for plain objects (e.g. from Redis or aggregate)
+    const entryAsk = trade.entryAsk || trade.openPrice
+    const entryBid = trade.entryBid || trade.openPrice
     
-    const currentPrice = trade.side === 'BUY' ? actualBid : actualAsk
-    const rawPnl = this.calculatePnl(trade.side, trade.openPrice, currentPrice, trade.quantity, trade.contractSize)
-    return rawPnl - trade.commission - trade.swap
+    let pnl = 0
+    if (trade.side === 'BUY') {
+      pnl = (currentBid - entryAsk) * trade.quantity * trade.contractSize
+    } else {
+      pnl = (entryBid - currentAsk) * trade.quantity * trade.contractSize
+    }
+    
+    return pnl - (trade.commission || 0) - (trade.swap || 0)
   }
 
   // Get account financial summary (real-time calculated values)
@@ -210,18 +212,14 @@ class TradeEngine {
     const charges = await Charges.getChargesForTrade(userId, symbol, segment, account.accountTypeId?._id)
     console.log(`Charges retrieved: spread=${charges.spreadValue}, commission=${charges.commissionValue}, commissionType=${charges.commissionType}`)
 
-    // Calculate execution price with spread
-    // For pending orders, use the user-specified pending price
-    // For market orders, calculate based on bid/ask with spread
-    let openPrice
-    if (orderType !== 'MARKET' && pendingPriceInput) {
-      openPrice = pendingPriceInput
-    } else {
-      // Use raw values for the opening price if possible
-      const bidToUse = rawBid !== null ? rawBid : bid
-      const askToUse = rawAsk !== null ? rawAsk : ask
-      openPrice = this.calculateExecutionPrice(side, bidToUse, askToUse, charges.spreadValue, charges.spreadType)
-    }
+    // Calculate execution prices
+    const bidToUse = rawBid !== null ? rawBid : bid
+    const askToUse = rawAsk !== null ? rawAsk : ask
+    
+    // MT5: BUY opens at ASK, SELL opens at BID
+    const openPrice = this.calculateExecutionPrice(side, bidToUse, askToUse)
+    const entryBid = bidToUse
+    const entryAsk = askToUse
 
     // Get contract size based on symbol
     const contractSize = this.getContractSize(symbol)
@@ -273,6 +271,8 @@ class TradeEngine {
       orderType,
       quantity,
       openPrice,
+      entryBid,
+      entryAsk,
       stopLoss: sl,
       sl: sl,
       takeProfit: tp,
@@ -310,6 +310,8 @@ class TradeEngine {
 
     const bidToUse = rawBid !== null ? rawBid : currentBid
     const askToUse = rawAsk !== null ? rawAsk : currentAsk
+    
+    // MT5 Logic: BUY closes at BID, SELL closes at ASK
     const closePrice = trade.side === 'BUY' ? bidToUse : askToUse
     
     // Get charges to check if commission on close is enabled
@@ -327,9 +329,8 @@ class TradeEngine {
       console.log(`Commission on close: $${closeCommission}`)
     }
     
-    // Calculate final PnL (commission already deducted on open, subtract swap and close commission)
-    const rawPnl = this.calculatePnl(trade.side, trade.openPrice, closePrice, trade.quantity, trade.contractSize)
-    const realizedPnl = rawPnl - trade.swap - closeCommission
+    // Calculate final PnL using the model's robust logic
+    const realizedPnl = trade.calculatePnl(bidToUse, askToUse)
 
     // Update trade
     trade.closePrice = closePrice

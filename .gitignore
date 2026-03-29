@@ -20,3 +20,5 @@ logs/
 uploads/
 storage/*.key
 Sanket/
+.agent
+.planning

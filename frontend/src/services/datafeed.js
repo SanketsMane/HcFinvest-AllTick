@@ -288,6 +288,15 @@ const Datafeed = {
     const throttleMs = 50;
     let isActive = true;
 
+    // Track active subscriber state for interpolation injection
+    Datafeed._activeSubscribers = Datafeed._activeSubscribers || {};
+    Datafeed._activeSubscribers[subscriberUID] = {
+      symbol: symbolInfo.name,
+      onRealtimeCallback,
+      get currentBar() { return currentBar; },
+      set currentBar(val) { currentBar = val; }
+    };
+
     // Seed real-time aggregation from the last historical bar so refresh during a forming
     // candle does not restart OHLC from a single tick (dot-like candle issue).
     const seededBar = Datafeed._lastHistoryBars?.[historyKey];
@@ -455,8 +464,27 @@ const Datafeed = {
       priceEventTarget.removeEventListener("candleUpdate", handleCandleUpdate);
       priceEventTarget.removeEventListener("priceUpdate", handlePriceUpdate);
       delete Datafeed._subscribers[subscriberUID];
+      delete Datafeed._activeSubscribers[subscriberUID];
       console.log(`[DATAFEED] ❌ Unsubscribed: ${symbolInfo.name}, received ${tickCount} ticks`);
     };
+  },
+
+  updateInterpolatedTick: (symbol, interpolatedPrice) => {
+    // This allows the interpolation loop in the React component to push 
+    // smooth price updates into the TradingView candles.
+    if (!Datafeed._activeSubscribers) return;
+    
+    Object.values(Datafeed._activeSubscribers).forEach(sub => {
+      if (normalizeRealtimeSymbol(sub.symbol) === normalizeRealtimeSymbol(symbol)) {
+        const bar = { ...sub.currentBar };
+        bar.close = interpolatedPrice;
+        bar.high = Math.max(bar.high, interpolatedPrice);
+        bar.low = Math.min(bar.low, interpolatedPrice);
+        
+        const markupBar = wrapOHLC(bar, sub.symbol, Datafeed._adminSpreads);
+        sub.onRealtimeCallback(markupBar);
+      }
+    });
   },
 
   unsubscribeBars: (subscriberUID) => {

@@ -8,6 +8,8 @@ import { API_URL } from "../config/api";
 import Sidebar from "../components/Sidebar";
 import NavbarClient from "../components/NavbarClient";
 import { useSidebar } from "../context/SidebarContext.jsx";
+import { getPriceEvents } from "../services/priceStream";
+import { useInterpolation } from "../hooks/useInterpolation";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -121,6 +123,52 @@ if (accs.length > 0) {
     setLoadingTrades(false);
   };
 
+  const [livePrices, setLivePrices] = useState({});
+
+  useEffect(() => {
+    const handlePriceUpdate = (e) => {
+      const { symbol, bid, ask } = e.detail;
+      setLivePrices(prev => ({
+        ...prev,
+        [symbol]: { bid, ask }
+      }));
+    };
+    const priceEvents = getPriceEvents();
+    priceEvents.addEventListener('priceUpdate', handlePriceUpdate);
+    return () => priceEvents.removeEventListener('priceUpdate', handlePriceUpdate);
+  }, []);
+
+  // Calculate Raw Floating PnL following MT5 logic
+  const calculateTotalPnL = () => {
+    return openTrades.reduce((total, trade) => {
+      const prices = livePrices[trade.symbol];
+      if (!prices) return total;
+      
+      const { bid, ask } = prices;
+      const isBuy = trade.side === "BUY";
+      
+      // MT5: BUY closes at Bid against EntryAsk
+      // MT5: SELL closes at Ask against EntryBid
+      const entryAsk = trade.entryAsk || trade.openPrice || 0;
+      const entryBid = trade.entryBid || trade.openPrice || 0;
+      const quantity = trade.quantity || 0;
+      const contractSize = trade.contractSize || 100000;
+      
+      let pnl = 0;
+      if (isBuy) {
+        pnl = (bid - entryAsk) * quantity * contractSize;
+      } else {
+        pnl = (entryBid - ask) * quantity * contractSize;
+      }
+      
+      // Include commission and swap if they exist
+      return total + pnl - (trade.commission || 0) - (trade.swap || 0);
+    }, 0);
+  };
+
+  const targetPnL = calculateTotalPnL();
+  const smoothPnL = useInterpolation(targetPnL, 0.15); // Slightly slower smoothing for account numbers
+
   useEffect(() => {
   if (user._id) {
     fetchAccounts();
@@ -138,8 +186,8 @@ if (accs.length > 0) {
   const credit = selectedAccount?.credit || 0;
   const leverage = selectedAccount?.leverage || "-";
   const walletBalance = wallet?.balance || 0; // ✅ ADDED
-  const equity = balance + credit;
-  const freeMargin = equity;
+  const equity = balance + credit + smoothPnL;
+  const freeMargin = equity; // Simplified for this view
 
   return (
     <div className="min-h-screen flex bg-[#f4f6fb] text-gray-800">
@@ -383,10 +431,32 @@ if (accs.length > 0) {
                           TP: {trade.takeProfit || "-"}
                         </td>
 
-                        <td className="text-blue-500">
-                          {trade.realizedPnl
-                            ? `$${trade.realizedPnl.toFixed(2)}`
-                            : "Live"}
+                        <td className={
+                          (() => {
+                            const prices = livePrices[trade.symbol];
+                            if (!prices) return "text-gray-400";
+                            const entryAsk = trade.entryAsk || trade.openPrice;
+                            const entryBid = trade.entryBid || trade.openPrice;
+                            const contractSize = trade.contractSize || 100000;
+                            const pnl = trade.side === "BUY" 
+                              ? (prices.bid - entryAsk) * trade.quantity * contractSize
+                              : (entryBid - prices.ask) * trade.quantity * contractSize;
+                            const finalPnl = pnl - (trade.commission || 0) - (trade.swap || 0);
+                            return finalPnl >= 0 ? "text-green-500" : "text-red-500";
+                          })()
+                        }>
+                          {(() => {
+                            const prices = livePrices[trade.symbol];
+                            if (!prices) return "Waiting...";
+                            const entryAsk = trade.entryAsk || trade.openPrice;
+                            const entryBid = trade.entryBid || trade.openPrice;
+                            const contractSize = trade.contractSize || 100000;
+                            const pnl = trade.side === "BUY" 
+                              ? (prices.bid - entryAsk) * trade.quantity * contractSize
+                              : (entryBid - prices.ask) * trade.quantity * contractSize;
+                            const finalPnl = pnl - (trade.commission || 0) - (trade.swap || 0);
+                            return `$${finalPnl.toFixed(2)}`;
+                          })()}
                         </td>
                       </tr>
                     ))

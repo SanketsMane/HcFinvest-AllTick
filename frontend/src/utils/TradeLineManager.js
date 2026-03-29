@@ -536,4 +536,46 @@ export class TradeLineManager {
       console.error('[TradeManager] Commit error:', e);
     }
   }
+
+  updateLivePrice(symbol, prices) {
+    if (!this.widget || !this.trades || this.trades.length === 0 || !prices) return;
+    
+    const curSym = canonicalSymbol(symbol);
+    const visibleTrades = this.trades.filter(t => canonicalSymbol(t.symbol) === curSym);
+
+    // Support both single numeric price (legacy) and dual price object
+    const bid = typeof prices === 'object' ? prices.bid : prices;
+    const ask = typeof prices === 'object' ? prices.ask : prices;
+
+    visibleTrades.forEach(trade => {
+      const tid = String(trade._id || trade.id);
+      const set = this.lines[tid];
+      if (!set || !set.entry) return;
+
+      const side = String(trade.side || trade.type || '').toLowerCase();
+      const isBuy = side.includes('buy') || side.includes('long');
+      
+      const entryAsk = trade.entryAsk || trade.openPrice || trade.price || 0;
+      const entryBid = trade.entryBid || trade.openPrice || trade.price || 0;
+      const quantity = trade.quantity || trade.size || trade.lots || 0;
+      const contractSize = trade.contractSize || 100000;
+      
+      let pnl = 0;
+      if (isBuy) {
+        // BUY: Closes at Bid against EntryAsk
+        pnl = (bid - entryAsk) * quantity * contractSize;
+      } else {
+        // SELL: Closes at Ask against EntryBid
+        pnl = (entryBid - ask) * quantity * contractSize;
+      }
+
+      // Include commission/swap if available
+      const finalPnl = pnl - (trade.commission || 0) - (trade.swap || 0);
+      
+      const pnlText = finalPnl >= 0 ? `+$${finalPnl.toFixed(2)}` : `-$${Math.abs(finalPnl).toFixed(2)}`;
+      const labelText = `${isBuy ? 'BUY' : 'SELL'} ${quantity} | ${pnlText}`;
+
+      this._updateShape(set.entry.tvId, trade.openPrice || trade.price, labelText);
+    });
+  }
 }
