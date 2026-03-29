@@ -1,5 +1,6 @@
 import axios from 'axios'
 import nodemailer from 'nodemailer'
+import * as postmark from 'postmark'
 import EmailTemplate from '../models/EmailTemplate.js'
 import EmailLog from '../models/EmailLog.js'
 
@@ -19,6 +20,9 @@ class EmailService {
     // Resend specific
     this.resendApiKey = process.env.RESEND_API_KEY
     this.resendFrom = process.env.RESEND_FROM_EMAIL || this.fromEmail
+
+    // Postmark specific
+    this.postmarkApiKey = process.env.POSTMARK_API_KEY
   }
 
   async initialize() {
@@ -28,24 +32,31 @@ class EmailService {
 
     // SMTP setup
     try {
-      const port = parseInt(process.env.SMTP_PORT) || 465
-      const isSecure = port === 465
+      if (process.env.SMTP_HOST) {
+        const port = parseInt(process.env.SMTP_PORT) || 465
+        const isSecure = port === 465
 
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtppro.zoho.in',
-        port: port,
-        secure: isSecure,
-        auth: {
-          user: process.env.SMTP_USER || "support@heddgecapitals.com",
-          pass: process.env.SMTP_PASS || "NKhnKpY2Q5tQ"
-        },
-        tls: {
-          rejectUnauthorized: false
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 30000
-      })
+        this.transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtppro.zoho.in',
+          port: port,
+          secure: isSecure,
+          auth: {
+            user: process.env.SMTP_USER || "support@heddgecapitals.com",
+            pass: process.env.SMTP_PASS || "Jf0DLgxCEptT"
+          },
+          tls: {
+            rejectUnauthorized: false
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 30000
+        })
+      }
+
+      // Postmark setup
+      if (this.postmarkApiKey) {
+        this.postmarkClient = new postmark.ServerClient(this.postmarkApiKey)
+      }
 
       this.initialized = true
       console.log(`Email service initialized with provider: ${this.provider}`)
@@ -97,7 +108,9 @@ class EmailService {
 
     try {
       let result;
-      if (this.provider === 'resend' || (!this.transporter && this.resendApiKey)) {
+      if (this.provider === 'postmark' && this.postmarkClient) {
+        result = await this._sendViaPostmark(options)
+      } else if (this.provider === 'resend' || (!this.transporter && this.resendApiKey)) {
         result = await this._sendViaResend(options)
       } else {
         result = await this._sendViaSMTP(options)
@@ -159,6 +172,25 @@ class EmailService {
     })
 
     return { messageId: response.data.id }
+  }
+
+  async _sendViaPostmark(options) {
+    const { to, subject, html, text } = options
+    
+    if (!this.postmarkClient) {
+      throw new Error('Postmark Client is missing')
+    }
+
+    const response = await this.postmarkClient.sendEmail({
+      From: `"${this.fromName}" <${this.fromEmail}>`,
+      To: to,
+      Subject: subject,
+      HtmlBody: html,
+      TextBody: text || this.stripHtml(html),
+      MessageStream: 'outbound'
+    })
+
+    return { messageId: response.MessageID }
   }
 
 
@@ -308,12 +340,26 @@ class EmailService {
 
   async verifyConnection() {
     await this.initialize()
-    try {
-      await this.transporter.verify()
-      return { success: true, message: 'Email service is ready' }
-    } catch (error) {
-      return { success: false, message: error.message }
+    
+    if (this.provider === 'postmark' && this.postmarkClient) {
+      try {
+        await this.postmarkClient.getServer()
+        return { success: true, message: 'Postmark service is ready' }
+      } catch (error) {
+        return { success: false, message: `Postmark error: ${error.message}` }
+      }
     }
+
+    if (this.transporter) {
+      try {
+        await this.transporter.verify()
+        return { success: true, message: 'Email service is ready' }
+      } catch (error) {
+        return { success: false, message: error.message }
+      }
+    }
+
+    return { success: false, message: 'No active email provider configured' }
   }
 }
 
