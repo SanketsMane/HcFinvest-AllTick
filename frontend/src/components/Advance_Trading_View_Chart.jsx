@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Datafeed from "../services/datafeed.js";
 import { getPriceEvents } from '../services/priceStream';
 import { TradeLineManager } from "../utils/TradeLineManager.js";
+import { useInterpolation } from "../hooks/useInterpolation";
 import { API_URL } from "../config/api";
 import { canonicalSymbol, normalizeSymbol } from "../utils/symbolUtils.js";
 
@@ -34,7 +35,25 @@ const Advance_Trading_View_Chart = ({
   
   const [isChartReady, setIsChartReady] = useState(false);
   const chartReadyRef = useRef(false);
+  const [targetPrice, setTargetPrice] = useState(0);
   const currentPriceRef = useRef(null);
+
+  // ─── SMOOTH INTERPOLATION ──────────────────────────────────────────────────
+  const displayPrice = useInterpolation(targetPrice, 0.2);
+
+  // Sync interpolated price to manager and datafeed for smooth updates
+  useEffect(() => {
+    if (isChartReady) {
+      // 1. Update order lines/PnL labels via manager
+      if (managerRef.current) {
+        managerRef.current.updateLivePrice(symbol, displayPrice);
+      }
+      // 2. Inject smooth price into TradingView candle updates
+      // Using mid-price for candles to keep display consistent with standard charts
+      const mid = typeof displayPrice === 'object' ? (displayPrice.bid + displayPrice.ask) / 2 : displayPrice;
+      Datafeed.updateInterpolatedTick?.(symbol, mid);
+    }
+  }, [displayPrice, symbol, isChartReady]);
 
   // ─── GET USER ID ──────────────────────────────────────────────────────────
   const getUserId = () => {
@@ -268,7 +287,9 @@ const Advance_Trading_View_Chart = ({
   useEffect(() => {
     const handlePriceUpdate = (e) => {
       if (e.detail?.symbol === symbol) {
-        currentPriceRef.current = e.detail.bid;
+        const { bid, ask } = e.detail;
+        currentPriceRef.current = bid; // Keep bid as primary ref for simplicity
+        setTargetPrice({ bid, ask });
       }
     };
     const priceEvents = getPriceEvents();

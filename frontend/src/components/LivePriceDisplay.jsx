@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react'
 import alltickWebSocket from '../services/alltickWebSocket'
+import { useInterpolation } from '../hooks/useInterpolation'
 
 const LivePriceDisplay = ({ symbol = 'BTCUSDT', className = '' }) => {
   const [priceData, setPriceData] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('disconnected')
   const [lastUpdate, setLastUpdate] = useState(null)
+  
+  // Use interpolation for the main price
+  const interpolatedPrice = useInterpolation(priceData?.price || 0, 0.2);
 
   useEffect(() => {
     let unsubscribe = null
@@ -79,7 +82,7 @@ const LivePriceDisplay = ({ symbol = 'BTCUSDT', className = '' }) => {
       {/* Price Display */}
       <div className="space-y-2">
         <div className="text-3xl font-bold">
-          {formatPrice(priceData?.price)}
+          {formatPrice(interpolatedPrice || priceData?.price)}
         </div>
 
         {/* Price Change */}

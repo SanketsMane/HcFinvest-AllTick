@@ -622,208 +622,205 @@ const Switch_Account = () => {
       {!createOnlyMode && (
         <main className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}> */}
 
-        {/* Main Content */}
-{/* <main className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}> */}
-<main className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}>
-          <div className={`${isMobile ? "p-4" : "p-6"}`}>
-            {createOnlyMode && (
-  <div className="w-full max-w-4xl mx-auto">
+      {/* Main Content */}
+      {/* <main className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}> */}
+      <main className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}>
+        <div className={`${isMobile ? "p-4" : "p-6"}`}>
+          {createOnlyMode && (
+            <div className="w-full max-w-4xl mx-auto">
 
-    {/* Header */}
-    <div className="flex items-center justify-between mb-8">
-      <h2 className="text-2xl font-semibold text-gray-900">
-        Open New Account
-      </h2>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Open New Account
+                </h2>
 
-      <button
-        onClick={() => window.close()}
-        className="text-gray-500 hover:text-gray-900 transition"
-      >
-        <X size={22} />
-      </button>
-    </div>
+                <button
+                  onClick={() => window.close()}
+                  className="text-gray-500 hover:text-gray-900 transition"
+                >
+                  <X size={22} />
+                </button>
+              </div>
 
-    {/* Tabs */}
-    <div className="flex gap-3 mb-8">
-      <button
-        onClick={() => setCreateAccountTab("live")}
-        className={`px-5 py-2.5 rounded-lg font-medium transition ${
-          createAccountTab === "live"
-            ? "bg-blue-500 text-white shadow"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-        }`}
-      >
-        Live Account
-      </button>
+              {/* Tabs */}
+              <div className="flex gap-3 mb-8">
+                <button
+                  onClick={() => setCreateAccountTab("live")}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition ${createAccountTab === "live"
+                      ? "bg-blue-500 text-white shadow"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                >
+                  Live Account
+                </button>
 
-      <button
-        onClick={() => setCreateAccountTab("demo")}
-        className={`px-5 py-2.5 rounded-lg font-medium transition ${
-          createAccountTab === "demo"
-            ? "bg-yellow-500 text-black shadow"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-        }`}
-      >
-        Demo Account
-      </button>
-    </div>
+                <button
+                  onClick={() => setCreateAccountTab("demo")}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition ${createAccountTab === "demo"
+                      ? "bg-yellow-500 text-black shadow"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                >
+                  Demo Account
+                </button>
+              </div>
 
-    {/* Account Cards */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Account Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-      {accountTypes
-        .filter((t) =>
-          createAccountTab === "demo" ? t.isDemo : !t.isDemo
-        )
-        .map((type) => {
-          const isSelected = selectedType?._id === type._id;
+                {accountTypes
+                  .filter((t) =>
+                    createAccountTab === "demo" ? t.isDemo : !t.isDemo
+                  )
+                  .map((type) => {
+                    const isSelected = selectedType?._id === type._id;
 
-          return (
-            <button
-              key={type._id}
-              onClick={() => setSelectedType(type)}
-              className={`relative border rounded-xl p-6 text-left transition ${
-                isSelected
-                  ? "border-blue-500 ring-2 ring-blue-500"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
+                    return (
+                      <button
+                        key={type._id}
+                        onClick={() => setSelectedType(type)}
+                        className={`relative border rounded-xl p-6 text-left transition ${isSelected
+                            ? "border-blue-500 ring-2 ring-blue-500"
+                            : "border-gray-200 hover:border-gray-300"
+                          }`}
+                      >
 
-              {/* Selected Icon */}
-              {isSelected && (
-                <Check
-                  size={18}
-                  className="absolute top-4 right-4 text-blue-500"
-                />
-              )}
+                        {/* Selected Icon */}
+                        {isSelected && (
+                          <Check
+                            size={18}
+                            className="absolute top-4 right-4 text-blue-500"
+                          />
+                        )}
 
-              {/* Title */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {type.name}
-              </h3>
+                        {/* Title */}
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                          {type.name}
+                        </h3>
 
-              <p className="text-sm text-gray-500 mb-6">
-                {type.description || "Trading account"}
-              </p>
+                        <p className="text-sm text-gray-500 mb-6">
+                          {type.description || "Trading account"}
+                        </p>
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-5 text-sm">
+                        {/* Stats */}
+                        <div className="grid grid-cols-2 gap-5 text-sm">
 
-                <div>
-                  <p className="text-gray-400 text-xs">Min Deposit</p>
-                  <p className="font-medium text-gray-900">
-                    ${type.minDeposit || 0}
-                  </p>
-                </div>
+                          <div>
+                            <p className="text-gray-400 text-xs">Min Deposit</p>
+                            <p className="font-medium text-gray-900">
+                              ${type.minDeposit || 0}
+                            </p>
+                          </div>
 
-                <div>
-                  <p className="text-gray-400 text-xs">Leverage</p>
-                  <p className="font-medium text-gray-900">
-                    {type.leverage || "1:100"}
-                  </p>
-                </div>
+                          <div>
+                            <p className="text-gray-400 text-xs">Leverage</p>
+                            <p className="font-medium text-gray-900">
+                              {type.leverage || "1:100"}
+                            </p>
+                          </div>
 
-                <div>
-                  <p className="text-gray-400 text-xs">Spread</p>
-                  <p className="font-medium text-gray-900">
-                    {type.minSpread ?? 2} pips
-                  </p>
-                </div>
+                          <div>
+                            <p className="text-gray-400 text-xs">Spread</p>
+                            <p className="font-medium text-gray-900">
+                              {type.minSpread ?? 2} pips
+                            </p>
+                          </div>
 
-                <div>
-                  <p className="text-gray-400 text-xs">Commission</p>
-                  <p className="font-medium text-gray-900">
-                    {type.commission ? `$${type.commission}` : "None"}
-                  </p>
-                </div>
+                          <div>
+                            <p className="text-gray-400 text-xs">Commission</p>
+                            <p className="font-medium text-gray-900">
+                              {type.commission ? `$${type.commission}` : "None"}
+                            </p>
+                          </div>
+
+                        </div>
+                      </button>
+                    );
+                  })}
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="flex justify-center gap-4 mt-10">
+
+                <button
+                  onClick={() => window.close()}
+                  className={`flex items-center gap-2 font-medium ${isMobile ? 'px-4 py-2 text-sm' : 'px-6 py-3'} rounded-lg border bg-gray-100 text-gray-900 hover:bg-gray-200 border-gray-300`}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleCreateAccount}
+                  disabled={!selectedType}
+                  className="px-10 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium disabled:opacity-50"
+                >
+                  Create Account
+                </button>
 
               </div>
-            </button>
-          );
-        })}
-    </div>
 
-    {/* Footer Buttons */}
-    <div className="flex justify-center gap-4 mt-10">
-
-  <button
-    onClick={() => window.close()}
-    className={`flex items-center gap-2 font-medium ${isMobile ? 'px-4 py-2 text-sm' : 'px-6 py-3'} rounded-lg border bg-gray-100 text-gray-900 hover:bg-gray-200 border-gray-300`}
-  >
-    Cancel
-  </button>
-
-  <button
-    onClick={handleCreateAccount}
-    disabled={!selectedType}
-    className="px-10 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium disabled:opacity-50"
-  >
-    Create Account
-  </button>
-
-</div>
-
-  </div>
-)}
-            {/* Mobile Header */}
-            {isMobile && (
-              <header
-                className={`fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center gap-4 ${isDarkMode ? "bg-[#2f3f74] text-gray-900 border-b border-gray-200" : "bg-white border-b border-gray-200"}`}
-              >
-                <button
-                  onClick={() => navigate("/mobile")}
-                  className={`p-2 -ml-2 rounded-lg ${isDarkMode ? "hover:bg-gray-100" : "hover:bg-gray-100"}`}
-                >
-                  <ArrowLeft
-                    size={22}
-                    className={isDarkMode ? "text-gray-900" : "text-gray-900"}
-                  />
-                </button>
-                <h1
-                  className={`font-semibold text-lg flex-1 ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-                >
-                  Account
-                </h1>
-                <button
-                  onClick={toggleDarkMode}
-                  className={`p-2 rounded-lg ${isDarkMode ? "text-yellow-400 hover:bg-gray-100" : "text-blue-500 hover:bg-gray-100"}`}
-                >
-                  {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-                </button>
-                <button
-                  onClick={() => navigate("/mobile")}
-                  className={`p-2 rounded-lg ${isDarkMode ? "hover:bg-gray-100" : "hover:bg-gray-100"}`}
-                >
-                  <Home size={20} className="text-gray-600" />
-                </button>
-              </header>
-            )}
-
-            {/* Sidebar - Hidden on Mobile, Fixed height with scroll for nav */}
-
-            {/* Main Content - Scrollable */}
-            <main
-              className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}
+            </div>
+          )}
+          {/* Mobile Header */}
+          {isMobile && (
+            <header
+              className={`fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center gap-4 ${isDarkMode ? "bg-[#2f3f74] text-gray-900 border-b border-gray-200" : "bg-white border-b border-gray-200"}`}
             >
-              <div className={`${isMobile ? "p-4" : "p-6"}`}>
-                {/* Success/Error Messages */}
-                {success && (
-                  <div
-                    className={`mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-500 flex items-center gap-2 ${isMobile ? "text-sm" : ""}`}
-                  >
-                    <Check size={18} /> {success}
-                  </div>
-                )}
-                {error && (
-                  <div
-                    className={`mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-500 ${isMobile ? "text-sm" : ""}`}
-                  >
-                    {error}
-                  </div>
-                )}
+              <button
+                onClick={() => navigate("/mobile")}
+                className={`p-2 -ml-2 rounded-lg ${isDarkMode ? "hover:bg-gray-100" : "hover:bg-gray-100"}`}
+              >
+                <ArrowLeft
+                  size={22}
+                  className={isDarkMode ? "text-gray-900" : "text-gray-900"}
+                />
+              </button>
+              <h1
+                className={`font-semibold text-lg flex-1 ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+              >
+                Account
+              </h1>
+              <button
+                onClick={toggleDarkMode}
+                className={`p-2 rounded-lg ${isDarkMode ? "text-yellow-400 hover:bg-gray-100" : "text-blue-500 hover:bg-gray-100"}`}
+              >
+                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+              <button
+                onClick={() => navigate("/mobile")}
+                className={`p-2 rounded-lg ${isDarkMode ? "hover:bg-gray-100" : "hover:bg-gray-100"}`}
+              >
+                <Home size={20} className="text-gray-600" />
+              </button>
+            </header>
+          )}
 
-                {/* Header with Title and Buttons */}
-{/* 
+          {/* Sidebar - Hidden on Mobile, Fixed height with scroll for nav */}
+
+          {/* Main Content - Scrollable */}
+          <main
+            className={`flex-1 overflow-y-auto ${isMobile ? "pt-14" : ""}`}
+          >
+            <div className={`${isMobile ? "p-4" : "p-6"}`}>
+              {/* Success/Error Messages */}
+              {success && (
+                <div
+                  className={`mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-500 flex items-center gap-2 ${isMobile ? "text-sm" : ""}`}
+                >
+                  <Check size={18} /> {success}
+                </div>
+              )}
+              {error && (
+                <div
+                  className={`mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-500 ${isMobile ? "text-sm" : ""}`}
+                >
+                  {error}
+                </div>
+              )}
+
+              {/* Header with Title and Buttons */}
+              {/* 
                 <div
                   className={`flex ${isMobile ? "flex-col gap-3" : "items-center justify-between"} mb-4`}
                 >
@@ -882,491 +879,489 @@ const Switch_Account = () => {
                   ))}
                 </div>
 */}
-                {/* Accounts Content */}
-                {!createOnlyMode &&
-                  (loading ? (
-                    <div className="flex items-center justify-center py-16">
-                      <RefreshCw
-                        size={24}
-                        className="text-gray-600 animate-spin"
-                      />
-                    </div>
-                  ) : activeTab === "Challenge" ? (
-                    /* Challenge Tab Content */
-                    <div>
-                      {/* Buy Challenge Button */}
-                      <div className="mb-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-xl p-6">
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-yellow-500/20 rounded-xl flex items-center justify-center">
-                              <Trophy size={28} className="text-yellow-500" />
-                            </div>
-                            <div>
-                              <h3 className="text-gray-900 font-semibold text-lg">
-                                Prop Trading Challenge
-                              </h3>
-                              <p className="text-gray-600 text-sm">
-                                Get funded up to $200,000. Keep up to 80% of
-                                profits.
-                              </p>
-                            </div>
+              {/* Accounts Content */}
+              {!createOnlyMode &&
+                (loading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <RefreshCw
+                      size={24}
+                      className="text-gray-600 animate-spin"
+                    />
+                  </div>
+                ) : activeTab === "Challenge" ? (
+                  /* Challenge Tab Content */
+                  <div>
+                    {/* Buy Challenge Button */}
+                    <div className="mb-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-xl p-6">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+                            <Trophy size={28} className="text-yellow-500" />
                           </div>
-                          <button
-                            onClick={() => navigate("/buy-challenge")}
-                            className="flex items-center gap-2 bg-yellow-500 text-black font-bold px-6 py-3 rounded-xl hover:bg-yellow-400 transition-colors"
-                          >
-                            <Trophy size={18} /> Buy Challenge
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Challenge Accounts List */}
-                      {challengeAccounts.length === 0 ? (
-                        <div
-                          className={`border border-dashed border-gray-700 rounded-xl ${isMobile ? "p-8" : "p-16"} text-center`}
-                        >
-                          <div
-                            className={`${isMobile ? "w-12 h-12" : "w-14 h-14"} bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4`}
-                          >
-                            <Trophy
-                              size={isMobile ? 20 : 24}
-                              className="text-gray-600"
-                            />
+                          <div>
+                            <h3 className="text-gray-900 font-semibold text-lg">
+                              Prop Trading Challenge
+                            </h3>
+                            <p className="text-gray-600 text-sm">
+                              Get funded up to $200,000. Keep up to 80% of
+                              profits.
+                            </p>
                           </div>
-                          <h3
-                            className={`text-gray-900 font-medium ${isMobile ? "text-base" : "text-lg"} mb-2`}
-                          >
-                            No challenge accounts yet
-                          </h3>
-                          <p className="text-gray-600 text-sm mb-4">
-                            Buy a challenge to start your prop trading journey
-                          </p>
-                          <button
-                            onClick={() => navigate("/buy-challenge")}
-                            className="inline-flex items-center gap-2 text-yellow-500 hover:text-yellow-400 font-medium transition-colors text-sm"
-                          >
-                            Buy your first challenge <ArrowRight size={16} />
-                          </button>
                         </div>
-                      ) : (
-                        <div
-                          className={`grid ${isMobile ? "grid-cols-1 gap-3" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}`}
+                        <button
+                          onClick={() => navigate("/buy-challenge")}
+                          className="flex items-center gap-2 bg-yellow-500 text-black font-bold px-6 py-3 rounded-xl hover:bg-yellow-400 transition-colors"
                         >
-                          {challengeAccounts.map((account) => (
-                            <div
-                              key={account._id}
-                              className="bg-white rounded-xl border border-gray-200 overflow-hidden"
-                            >
-                              {/* Card Header */}
-                              <div className="p-4 border-b border-gray-200">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div
-                                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                        account.status === "FUNDED"
-                                          ? "bg-purple-500/20"
-                                          : account.status === "PASSED"
-                                            ? "bg-green-500/20"
-                                            : account.status === "FAILED"
-                                              ? "bg-red-500/20"
-                                              : "bg-yellow-500/20"
-                                      }`}
-                                    >
-                                      <Trophy
-                                        size={20}
-                                        className={
-                                          account.status === "FUNDED"
-                                            ? "text-purple-500"
-                                            : account.status === "PASSED"
-                                              ? "text-green-500"
-                                              : account.status === "FAILED"
-                                                ? "text-red-500"
-                                                : "text-yellow-500"
-                                        }
-                                      />
-                                    </div>
-                                    <div>
-                                      <h3 className="text-gray-900 font-semibold">
-                                        {account.accountId}
-                                      </h3>
-                                      <p className="text-gray-600 text-xs uppercase">
-                                        {account.challengeId?.name ||
-                                          "Challenge"}{" "}
-                                        • Phase {account.currentPhase}/
-                                        {account.totalPhases}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      account.status === "FUNDED"
-                                        ? "bg-purple-500/20 text-purple-500"
-                                        : account.status === "PASSED"
-                                          ? "bg-green-500/20 text-green-500"
-                                          : account.status === "FAILED"
-                                            ? "bg-red-500/20 text-red-500"
-                                            : account.status === "EXPIRED"
-                                              ? "bg-orange-500/20 text-orange-500"
-                                              : "bg-blue-500/20 text-blue-500"
-                                    }`}
-                                  >
-                                    {account.status}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Card Body - Stats */}
-                              <div className="p-4">
-                                <div className="text-center mb-4">
-                                  <p className="text-gray-900 text-2xl font-bold">
-                                    $
-                                    {(
-                                      account.currentBalance || 0
-                                    ).toLocaleString()}
-                                  </p>
-                                  <p className="text-gray-600 text-sm">
-                                    Balance
-                                  </p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3 text-sm">
-                                  <div className="bg-gray-100 rounded-lg p-2 text-center">
-                                    <p className="text-gray-600 text-xs">
-                                      Profit
-                                    </p>
-                                    <p
-                                      className={`font-medium ${account.currentProfitPercent >= 0 ? "text-green-500" : "text-red-500"}`}
-                                    >
-                                      {account.currentProfitPercent >= 0
-                                        ? "+"
-                                        : ""}
-                                      {(
-                                        account.currentProfitPercent || 0
-                                      ).toFixed(2)}
-                                      %
-                                    </p>
-                                  </div>
-                                  <div className="bg-gray-100 rounded-lg p-2 text-center">
-                                    <p className="text-gray-600 text-xs">
-                                      Daily DD
-                                    </p>
-                                    <p className="text-red-500 font-medium">
-                                      {(
-                                        account.currentDailyDrawdownPercent || 0
-                                      ).toFixed(2)}
-                                      %
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Card Footer - Actions */}
-                              <div className="flex border-t border-gray-200">
-                                {account.status === "ACTIVE" ||
-                                account.status === "FUNDED" ? (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedChallengeAccount(account);
-                                      setShowRulesModal(true);
-                                    }}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-yellow-500 text-black font-medium hover:bg-yellow-400 transition-colors"
-                                  >
-                                    <ArrowRight size={16} /> Start Trading
-                                  </button>
-                                ) : (
-                                  <div className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 bg-gray-100">
-                                    {account.status === "PASSED"
-                                      ? "Awaiting Funded Account"
-                                      : account.status}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ) : userAccounts.length === 0 ? (
-                    <div className="border border-dashed border-gray-700 rounded-xl p-16 text-center">
-                      <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <TrendingUp size={24} className="text-gray-600" />
+                          <Trophy size={18} /> Buy Challenge
+                        </button>
                       </div>
-                      <h3 className="text-gray-900 font-medium text-lg mb-2">
-                        No {activeTab.toLowerCase()} accounts yet
-                      </h3>
-                      <p className="text-gray-600 text-sm mb-6">
-                        Open your first {activeTab.toLowerCase()} trading
-                        account to start trading
-                      </p>
-                      <button
-                        onClick={() => {
-                          fetchAccountTypes();
-                          setShowCreateModal(true);
-                        }}
-                        className="inline-flex items-center gap-2 text-accent-green hover:text-accent-green/80 font-medium transition-colors"
+                    </div>
+
+                    {/* Challenge Accounts List */}
+                    {challengeAccounts.length === 0 ? (
+                      <div
+                        className={`border border-dashed border-gray-700 rounded-xl ${isMobile ? "p-8" : "p-16"} text-center`}
                       >
-                        Open your first {activeTab.toLowerCase()} account{" "}
-                        <ArrowRight size={18} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      className={`grid ${isMobile ? "grid-cols-1 gap-3" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}`}
-                    >
-                      {userAccounts
-                        .filter((acc) => {
-                          if (activeTab === "Real")
-                            return (
-                              !acc.accountTypeId?.isDemo &&
-                              !acc.isDemo &&
-                              acc.status === "Active"
-                            );
-                          if (activeTab === "Demo")
-                            return (
-                              (acc.accountTypeId?.isDemo || acc.isDemo) &&
-                              acc.status === "Active"
-                            );
-                          if (activeTab === "Archived")
-                            return (
-                              acc.status === "Archived" ||
-                              acc.status !== "Active"
-                            );
-                          return true;
-                        })
-                        .map((account) => (
+                        <div
+                          className={`${isMobile ? "w-12 h-12" : "w-14 h-14"} bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4`}
+                        >
+                          <Trophy
+                            size={isMobile ? 20 : 24}
+                            className="text-gray-600"
+                          />
+                        </div>
+                        <h3
+                          className={`text-gray-900 font-medium ${isMobile ? "text-base" : "text-lg"} mb-2`}
+                        >
+                          No challenge accounts yet
+                        </h3>
+                        <p className="text-gray-600 text-sm mb-4">
+                          Buy a challenge to start your prop trading journey
+                        </p>
+                        <button
+                          onClick={() => navigate("/buy-challenge")}
+                          className="inline-flex items-center gap-2 text-yellow-500 hover:text-yellow-400 font-medium transition-colors text-sm"
+                        >
+                          Buy your first challenge <ArrowRight size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        className={`grid ${isMobile ? "grid-cols-1 gap-3" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}`}
+                      >
+                        {challengeAccounts.map((account) => (
                           <div
                             key={account._id}
-                            className={`${isDarkMode ? "bg-white border-gray-200" : "bg-white border-gray-200 shadow-sm"} rounded-xl border overflow-hidden`}
+                            className="bg-white rounded-xl border border-gray-200 overflow-hidden"
                           >
                             {/* Card Header */}
-                            <div
-                              className={`${isMobile ? "p-3" : "p-4"} border-b ${isDarkMode ? "border-gray-200" : "border-gray-200"}`}
-                            >
+                            <div className="p-4 border-b border-gray-200">
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-3">
                                   <div
-                                    className={`${isMobile ? "w-8 h-8" : "w-10 h-10"} bg-blue-500/20 rounded-lg flex items-center justify-center`}
+                                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${account.status === "FUNDED"
+                                        ? "bg-purple-500/20"
+                                        : account.status === "PASSED"
+                                          ? "bg-green-500/20"
+                                          : account.status === "FAILED"
+                                            ? "bg-red-500/20"
+                                            : "bg-yellow-500/20"
+                                      }`}
                                   >
-                                    <TrendingUp
-                                      size={isMobile ? 16 : 20}
-                                      className="text-blue-500"
+                                    <Trophy
+                                      size={20}
+                                      className={
+                                        account.status === "FUNDED"
+                                          ? "text-purple-500"
+                                          : account.status === "PASSED"
+                                            ? "text-green-500"
+                                            : account.status === "FAILED"
+                                              ? "text-red-500"
+                                              : "text-yellow-500"
+                                      }
                                     />
                                   </div>
                                   <div>
-                                    <h3
-                                      className={`font-semibold ${isMobile ? "text-sm" : ""} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-                                    >
+                                    <h3 className="text-gray-900 font-semibold">
                                       {account.accountId}
                                     </h3>
                                     <p className="text-gray-600 text-xs uppercase">
-                                      {account.accountTypeId?.name ||
-                                        "STANDARD"}
+                                      {account.challengeId?.name ||
+                                        "Challenge"}{" "}
+                                      • Phase {account.currentPhase}/
+                                      {account.totalPhases}
                                     </p>
                                   </div>
                                 </div>
-                                <div className="relative">
-                                  <button
-                                    onClick={() =>
-                                      setShowAccountMenu(
-                                        showAccountMenu === account._id
-                                          ? null
-                                          : account._id,
-                                      )
-                                    }
-                                    className="text-gray-600 hover:text-gray-900 p-1"
-                                  >
-                                    <MoreHorizontal size={18} />
-                                  </button>
-                                  {showAccountMenu === account._id && (
-                                    <div
-                                      className="absolute right-0 top-8 bg-gray-100 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[160px]"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {account.status === "Archived" ? (
-                                        <>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setShowAccountMenu(null);
-                                              handleUnarchiveAccount(
-                                                account._id,
-                                              );
-                                            }}
-                                            className="w-full px-4 py-2 text-left text-sm text-green-400 hover:bg-gray-200 rounded-t-lg flex items-center gap-2"
-                                          >
-                                            <RefreshCw size={14} /> Unarchive
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setShowAccountMenu(null);
-                                              setShowDeleteConfirm(account);
-                                            }}
-                                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-200 rounded-b-lg flex items-center gap-2"
-                                          >
-                                            <X size={14} /> Delete Permanently
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShowAccountMenu(null);
-                                            setShowArchiveConfirm(account);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-200 rounded-lg flex items-center gap-2"
-                                        >
-                                          <X size={14} /> Archive Account
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 mt-3">
                                 <span
-                                  className={`w-2 h-2 rounded-full ${account.status === "Active" ? "bg-green-500" : "bg-red-500"}`}
-                                ></span>
-                                <span
-                                  className={`text-xs ${account.status === "Active" ? "text-green-500" : "text-red-500"}`}
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${account.status === "FUNDED"
+                                      ? "bg-purple-500/20 text-purple-500"
+                                      : account.status === "PASSED"
+                                        ? "bg-green-500/20 text-green-500"
+                                        : account.status === "FAILED"
+                                          ? "bg-red-500/20 text-red-500"
+                                          : account.status === "EXPIRED"
+                                            ? "bg-orange-500/20 text-orange-500"
+                                            : "bg-blue-500/20 text-blue-500"
+                                    }`}
                                 >
-                                  {account.status === "Active"
-                                    ? "Live"
-                                    : account.status}
+                                  {account.status}
                                 </span>
                               </div>
                             </div>
 
-                            {/* Card Body - Balance & Details */}
-                            <div className={`${isMobile ? "p-3" : "p-4"}`}>
-                              <div className="text-center mb-3">
-                                <p
-                                  className={`font-bold ${isMobile ? "text-2xl" : "text-3xl"} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-                                >
-                                  ${account.balance.toLocaleString()}
+                            {/* Card Body - Stats */}
+                            <div className="p-4">
+                              <div className="text-center mb-4">
+                                <p className="text-gray-900 text-2xl font-bold">
+                                  $
+                                  {(
+                                    account.currentBalance || 0
+                                  ).toLocaleString()}
                                 </p>
-                                <p className="text-gray-600 text-sm mt-1">
+                                <p className="text-gray-600 text-sm">
                                   Balance
                                 </p>
                               </div>
-
-                              {/* Account Details Grid */}
-                              <div
-                                className={`grid grid-cols-2 gap-2 mt-3 pt-3 border-t ${isDarkMode ? "border-gray-200" : "border-gray-200"}`}
-                              >
-                                <div className="text-center">
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div className="bg-gray-100 rounded-lg p-2 text-center">
                                   <p className="text-gray-600 text-xs">
-                                    Leverage
+                                    Profit
                                   </p>
                                   <p
-                                    className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                    className={`font-medium ${account.currentProfitPercent >= 0 ? "text-green-500" : "text-red-500"}`}
                                   >
-                                    {account.leverage || "1:100"}
-                                  </p>
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-gray-600 text-xs">
-                                    Credit
-                                  </p>
-                                  <p
-                                    className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-                                  >
-                                    ${(account.credit || 0).toLocaleString()}
-                                  </p>
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-gray-600 text-xs">
-                                    Min Deposit
-                                  </p>
-                                  <p
-                                    className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-                                  >
-                                    $
-                                    {account.accountTypeId?.minDeposit?.toLocaleString() ||
-                                      "0"}
-                                  </p>
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-gray-600 text-xs">
-                                    Equity
-                                  </p>
-                                  <p
-                                    className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-                                  >
-                                    $
+                                    {account.currentProfitPercent >= 0
+                                      ? "+"
+                                      : ""}
                                     {(
-                                      (account.balance || 0) +
-                                      (account.credit || 0)
-                                    ).toLocaleString()}
+                                      account.currentProfitPercent || 0
+                                    ).toFixed(2)}
+                                    %
+                                  </p>
+                                </div>
+                                <div className="bg-gray-100 rounded-lg p-2 text-center">
+                                  <p className="text-gray-600 text-xs">
+                                    Daily DD
+                                  </p>
+                                  <p className="text-red-500 font-medium">
+                                    {(
+                                      account.currentDailyDrawdownPercent || 0
+                                    ).toFixed(2)}
+                                    %
                                   </p>
                                 </div>
                               </div>
                             </div>
 
                             {/* Card Footer - Actions */}
-                            <div
-                              className={`flex border-t ${isDarkMode ? "border-gray-200" : "border-gray-200"}`}
-                            >
-                              <button
-                                onClick={() =>
-                                  isMobile
-                                    ? navigate(`/mobile?account=${account._id}`)
-                                    : navigate(`/trade/${account._id}`)
-                                }
-                                className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} bg-blue-500 hover:bg-blue-600 text-white text-black font-medium hover:bg-blue-500 hover:bg-blue-600 text-white/90 transition-colors`}
-                              >
-                                <ArrowRight size={isMobile ? 12 : 16} /> Trade
-                              </button>
-                              {account.isDemo ||
-                              account.accountTypeId?.isDemo ? (
-                                // Demo account - show Reset button only
+                            <div className="flex border-t border-gray-200">
+                              {account.status === "ACTIVE" ||
+                                account.status === "FUNDED" ? (
                                 <button
-                                  onClick={() => handleResetDemo(account._id)}
-                                  className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-yellow-400 hover:text-yellow-300 hover:bg-gray-100 transition-colors border-l border-gray-200`}
+                                  onClick={() => {
+                                    setSelectedChallengeAccount(account);
+                                    setShowRulesModal(true);
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-yellow-500 text-black font-medium hover:bg-yellow-400 transition-colors"
                                 >
-                                  <RefreshCw size={isMobile ? 12 : 16} /> Reset
+                                  <ArrowRight size={16} /> Start Trading
                                 </button>
                               ) : (
-                                // Real account - show Deposit/Withdraw/Transfer
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedAccount(account);
-                                      setShowTransferModal(true);
-                                    }}
-                                    className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors border-l border-gray-200`}
-                                  >
-                                    <Plus size={isMobile ? 12 : 16} /> Deposit
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedAccount(account);
-                                      setShowWithdrawModal(true);
-                                    }}
-                                    className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors border-l border-gray-200`}
-                                  >
-                                    <Minus size={isMobile ? 12 : 16} /> Withdraw
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedAccount(account);
-                                      setShowAccountTransferModal(true);
-                                    }}
-                                    className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-blue-400 hover:text-blue-300 hover:bg-gray-100 transition-colors border-l border-gray-200`}
-                                  >
-                                    <Copy size={isMobile ? 12 : 16} /> Transfer
-                                  </button>
-                                </>
+                                <div className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 bg-gray-100">
+                                  {account.status === "PASSED"
+                                    ? "Awaiting Funded Account"
+                                    : account.status}
+                                </div>
                               )}
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+                ) : userAccounts.length === 0 ? (
+                  <div className="border border-dashed border-gray-700 rounded-xl p-16 text-center">
+                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <TrendingUp size={24} className="text-gray-600" />
                     </div>
-                  ))}
-              </div>
-            </main>
-          </div>
-        </main>
-      
+                    <h3 className="text-gray-900 font-medium text-lg mb-2">
+                      No {activeTab.toLowerCase()} accounts yet
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-6">
+                      Open your first {activeTab.toLowerCase()} trading
+                      account to start trading
+                    </p>
+                    <button
+                      onClick={() => {
+                        fetchAccountTypes();
+                        setShowCreateModal(true);
+                      }}
+                      className="inline-flex items-center gap-2 text-accent-green hover:text-accent-green/80 font-medium transition-colors"
+                    >
+                      Open your first {activeTab.toLowerCase()} account{" "}
+                      <ArrowRight size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={`grid ${isMobile ? "grid-cols-1 gap-3" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}`}
+                  >
+                    {userAccounts
+                      .filter((acc) => {
+                        if (activeTab === "Real")
+                          return (
+                            !acc.accountTypeId?.isDemo &&
+                            !acc.isDemo &&
+                            acc.status === "Active"
+                          );
+                        if (activeTab === "Demo")
+                          return (
+                            (acc.accountTypeId?.isDemo || acc.isDemo) &&
+                            acc.status === "Active"
+                          );
+                        if (activeTab === "Archived")
+                          return (
+                            acc.status === "Archived" ||
+                            acc.status !== "Active"
+                          );
+                        return true;
+                      })
+                      .map((account) => (
+                        <div
+                          key={account._id}
+                          className={`${isDarkMode ? "bg-white border-gray-200" : "bg-white border-gray-200 shadow-sm"} rounded-xl border overflow-hidden`}
+                        >
+                          {/* Card Header */}
+                          <div
+                            className={`${isMobile ? "p-3" : "p-4"} border-b ${isDarkMode ? "border-gray-200" : "border-gray-200"}`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`${isMobile ? "w-8 h-8" : "w-10 h-10"} bg-blue-500/20 rounded-lg flex items-center justify-center`}
+                                >
+                                  <TrendingUp
+                                    size={isMobile ? 16 : 20}
+                                    className="text-blue-500"
+                                  />
+                                </div>
+                                <div>
+                                  <h3
+                                    className={`font-semibold ${isMobile ? "text-sm" : ""} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                  >
+                                    {account.accountId}
+                                  </h3>
+                                  <p className="text-gray-600 text-xs uppercase">
+                                    {account.accountTypeId?.name ||
+                                      "STANDARD"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="relative">
+                                <button
+                                  onClick={() =>
+                                    setShowAccountMenu(
+                                      showAccountMenu === account._id
+                                        ? null
+                                        : account._id,
+                                    )
+                                  }
+                                  className="text-gray-600 hover:text-gray-900 p-1"
+                                >
+                                  <MoreHorizontal size={18} />
+                                </button>
+                                {showAccountMenu === account._id && (
+                                  <div
+                                    className="absolute right-0 top-8 bg-gray-100 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[160px]"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {account.status === "Archived" ? (
+                                      <>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowAccountMenu(null);
+                                            handleUnarchiveAccount(
+                                              account._id,
+                                            );
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-sm text-green-400 hover:bg-gray-200 rounded-t-lg flex items-center gap-2"
+                                        >
+                                          <RefreshCw size={14} /> Unarchive
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowAccountMenu(null);
+                                            setShowDeleteConfirm(account);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-200 rounded-b-lg flex items-center gap-2"
+                                        >
+                                          <X size={14} /> Delete Permanently
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowAccountMenu(null);
+                                          setShowArchiveConfirm(account);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-200 rounded-lg flex items-center gap-2"
+                                      >
+                                        <X size={14} /> Archive Account
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 mt-3">
+                              <span
+                                className={`w-2 h-2 rounded-full ${account.status === "Active" ? "bg-green-500" : "bg-red-500"}`}
+                              ></span>
+                              <span
+                                className={`text-xs ${account.status === "Active" ? "text-green-500" : "text-red-500"}`}
+                              >
+                                {account.status === "Active"
+                                  ? "Live"
+                                  : account.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Card Body - Balance & Details */}
+                          <div className={`${isMobile ? "p-3" : "p-4"}`}>
+                            <div className="text-center mb-3">
+                              <p
+                                className={`font-bold ${isMobile ? "text-2xl" : "text-3xl"} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                              >
+                                ${account.balance.toLocaleString()}
+                              </p>
+                              <p className="text-gray-600 text-sm mt-1">
+                                Balance
+                              </p>
+                            </div>
+
+                            {/* Account Details Grid */}
+                            <div
+                              className={`grid grid-cols-2 gap-2 mt-3 pt-3 border-t ${isDarkMode ? "border-gray-200" : "border-gray-200"}`}
+                            >
+                              <div className="text-center">
+                                <p className="text-gray-600 text-xs">
+                                  Leverage
+                                </p>
+                                <p
+                                  className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                >
+                                  {account.leverage || "1:100"}
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-gray-600 text-xs">
+                                  Credit
+                                </p>
+                                <p
+                                  className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                >
+                                  ${(account.credit || 0).toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-gray-600 text-xs">
+                                  Min Deposit
+                                </p>
+                                <p
+                                  className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                >
+                                  $
+                                  {account.accountTypeId?.minDeposit?.toLocaleString() ||
+                                    "0"}
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-gray-600 text-xs">
+                                  Equity
+                                </p>
+                                <p
+                                  className={`font-medium text-sm ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                >
+                                  $
+                                  {(
+                                    (account.balance || 0) +
+                                    (account.credit || 0)
+                                  ).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card Footer - Actions */}
+                          <div
+                            className={`flex border-t ${isDarkMode ? "border-gray-200" : "border-gray-200"}`}
+                          >
+                            <button
+                              onClick={() =>
+                                isMobile
+                                  ? navigate(`/mobile?account=${account._id}`)
+                                  : navigate(`/trade/${account._id}`)
+                              }
+                              className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} bg-blue-500 hover:bg-blue-600 text-white text-black font-medium hover:bg-blue-500 hover:bg-blue-600 text-white/90 transition-colors`}
+                            >
+                              <ArrowRight size={isMobile ? 12 : 16} /> Trade
+                            </button>
+                            {account.isDemo ||
+                              account.accountTypeId?.isDemo ? (
+                              // Demo account - show Reset button only
+                              <button
+                                onClick={() => handleResetDemo(account._id)}
+                                className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-yellow-400 hover:text-yellow-300 hover:bg-gray-100 transition-colors border-l border-gray-200`}
+                              >
+                                <RefreshCw size={isMobile ? 12 : 16} /> Reset
+                              </button>
+                            ) : (
+                              // Real account - show Deposit/Withdraw/Transfer
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSelectedAccount(account);
+                                    setShowTransferModal(true);
+                                  }}
+                                  className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors border-l border-gray-200`}
+                                >
+                                  <Plus size={isMobile ? 12 : 16} /> Deposit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedAccount(account);
+                                    setShowWithdrawModal(true);
+                                  }}
+                                  className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors border-l border-gray-200`}
+                                >
+                                  <Minus size={isMobile ? 12 : 16} /> Withdraw
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedAccount(account);
+                                    setShowAccountTransferModal(true);
+                                  }}
+                                  className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? "py-2 text-xs" : "py-3"} text-blue-400 hover:text-blue-300 hover:bg-gray-100 transition-colors border-l border-gray-200`}
+                                >
+                                  <Copy size={isMobile ? 12 : 16} /> Transfer
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ))}
+            </div>
+          </main>
+        </div>
+      </main>
+
 
       {/* Create Account Modal */}
       {showCreateModal && !createOnlyMode && (
@@ -1404,21 +1399,19 @@ const Switch_Account = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => setCreateAccountTab("live")}
-                  className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                    createAccountTab === "live"
+                  className={`flex-1 py-2 rounded-lg font-medium transition-colors ${createAccountTab === "live"
                       ? "bg-blue-500 hover:bg-blue-600 text-white text-black"
                       : "bg-gray-100 text-gray-600 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   Live Account
                 </button>
                 <button
                   onClick={() => setCreateAccountTab("demo")}
-                  className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                    createAccountTab === "demo"
+                  className={`flex-1 py-2 rounded-lg font-medium transition-colors ${createAccountTab === "demo"
                       ? "bg-yellow-500 text-black"
                       : "bg-gray-100 text-gray-600 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   Demo Account
                 </button>
@@ -1461,11 +1454,10 @@ const Switch_Account = () => {
                         <button
                           key={type._id}
                           onClick={() => setSelectedType(type)}
-                          className={`relative bg-gray-100 rounded-xl p-5 text-left transition-all duration-200 border ${
-                            isSelected
+                          className={`relative bg-gray-100 rounded-xl p-5 text-left transition-all duration-200 border ${isSelected
                               ? "border-white ring-1 ring-white"
                               : "border-gray-700 hover:border-gray-600"
-                          }`}
+                            }`}
                         >
                           {/* Header */}
                           <div className="flex items-center gap-3 mb-3">
@@ -1503,7 +1495,7 @@ const Switch_Account = () => {
                                 {type.isDemo
                                   ? "10,000"
                                   : type.minDeposit?.toLocaleString() ||
-                                    "100"}{" "}
+                                  "100"}{" "}
                                 {!type.isDemo && "USD"}
                               </p>
                             </div>
@@ -1971,11 +1963,10 @@ const Switch_Account = () => {
                     <button
                       key={acc._id}
                       onClick={() => setTargetAccount(acc)}
-                      className={`w-full p-3 rounded-lg border flex items-center justify-between ${
-                        targetAccount?._id === acc._id
+                      className={`w-full p-3 rounded-lg border flex items-center justify-between ${targetAccount?._id === acc._id
                           ? "border-blue-500 bg-blue-500/10"
                           : "border-gray-700 bg-gray-100 hover:border-gray-600"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <TrendingUp size={14} className="text-gray-600" />
@@ -1998,10 +1989,10 @@ const Switch_Account = () => {
                     !acc.isDemo &&
                     !acc.accountTypeId?.isDemo,
                 ).length === 0 && (
-                  <p className="text-gray-600 text-sm text-center py-2">
-                    No live accounts available for transfer
-                  </p>
-                )}
+                    <p className="text-gray-600 text-sm text-center py-2">
+                      No live accounts available for transfer
+                    </p>
+                  )}
               </div>
             </div>
 
@@ -2116,13 +2107,12 @@ const Switch_Account = () => {
                   <div>
                     <p className="text-gray-600 text-xs">Status</p>
                     <p
-                      className={`font-bold ${
-                        selectedChallengeAccount.status === "ACTIVE"
+                      className={`font-bold ${selectedChallengeAccount.status === "ACTIVE"
                           ? "text-blue-500"
                           : selectedChallengeAccount.status === "FUNDED"
                             ? "text-purple-500"
                             : "text-gray-600"
-                      }`}
+                        }`}
                     >
                       {selectedChallengeAccount.status}
                     </p>
@@ -2183,13 +2173,13 @@ const Switch_Account = () => {
                 </div>
                 {selectedChallengeAccount.challengeId?.rules
                   ?.stopLossMandatory && (
-                  <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                    <Check size={18} className="text-yellow-500" />
-                    <span className="text-yellow-500">
-                      Stop Loss is REQUIRED on all trades
-                    </span>
-                  </div>
-                )}
+                    <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                      <Check size={18} className="text-yellow-500" />
+                      <span className="text-yellow-500">
+                        Stop Loss is REQUIRED on all trades
+                      </span>
+                    </div>
+                  )}
               </div>
 
               {/* Warning */}
