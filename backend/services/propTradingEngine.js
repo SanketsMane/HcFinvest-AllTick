@@ -656,6 +656,15 @@ class PropTradingEngine {
         continue
       }
 
+      // ✅ ELITE: Price Freshness Guard (Anti-Fossilization)
+      const priceAgeMs = Date.now() - (priceData.timestamp || 0);
+      if (priceAgeMs > 60000) {
+        if (Math.random() < 0.05) { // Log 5% of instances for challenge trades
+          console.warn(`[PropEngine] Skipping SL/TP check for ${trade.symbol} due to stale data (${Math.round(priceAgeMs/1000)}s)`);
+        }
+        continue;
+      }
+
       const bid = priceData.rawBid !== undefined ? priceData.rawBid : priceData.bid
       const ask = priceData.rawAsk !== undefined ? priceData.rawAsk : priceData.ask
       const sl = trade.sl || trade.stopLoss
@@ -690,6 +699,10 @@ class PropTradingEngine {
       }
 
       if (shouldClose) {
+        console.log(`[PropEngine] 🚨 SL/TP TRIGGERED: Challenge Trade ${trade._id} [${trade.side} ${trade.symbol}] hit ${closeReason}. ` +
+                    `Price: ${trade.side === 'BUY' ? bid : ask}, Trigger: ${closePrice}, ` +
+                    `Data Age: ${Math.round((Date.now() - priceData.timestamp)/1000)}s`);
+
         // Calculate PnL
         const pnl = trade.side === 'BUY'
           ? (closePrice - trade.openPrice) * trade.quantity * trade.contractSize

@@ -556,8 +556,23 @@ class TradeEngine {
         continue
       }
 
+      // ✅ ELITE: Price Freshness Guard (Anti-Fossilization)
+      // If the price is older than 60 seconds, it's considered stale and dangerous for SL/TP checks
+      const priceAgeMs = Date.now() - (prices.timestamp || 0);
+      if (priceAgeMs > 60000) {
+        if (Math.random() < 0.01) { // Log only 1% of instances to avoid flooding
+           console.warn(`[TradeEngine] Skipping SL/TP check for ${targetSym} due to stale price data (age: ${Math.round(priceAgeMs/1000)}s)`);
+        }
+        continue;
+      }
+
       const trigger = trade.checkSlTp(prices.bid, prices.ask)
       if (trigger) {
+        console.log(`[TradeEngine] 🚨 SL/TP TRIGGERED: Trade ${trade._id} [${trade.side} ${trade.symbol}] hit ${trigger}. ` +
+                    `Price: ${trade.side === 'BUY' ? prices.bid : prices.ask}, ` +
+                    `Trigger Point: ${trigger === 'SL' ? (trade.stopLoss || trade.sl) : (trade.takeProfit || trade.tp)}, ` +
+                    `Data Age: ${Math.round((Date.now() - prices.timestamp)/1000)}s`);
+        
         // ZERO SLIPPAGE IMPLEMENTATION:
         // Use the exact requested SL/TP price rather than the market price that breached it
         let exactExecutionPrice = trade.side === 'BUY' ? prices.bid : prices.ask;
@@ -591,7 +606,11 @@ class TradeEngine {
                      currentPrices[targetSym.replace(/\.i$/i, '').toUpperCase()] ||
                      currentPrices[targetSym.replace(/\.i$/i, '').toLowerCase()];
       
-      if (!prices) continue
+      if (!prices || !prices.bid || !prices.ask) continue
+
+      // ✅ ELITE: Price Freshness Guard (Anti-Fossilization)
+      const priceAgeMs = Date.now() - (prices.timestamp || 0);
+      if (priceAgeMs > 60000) continue;
 
       let shouldExecute = false
       const currentBid = prices.bid
