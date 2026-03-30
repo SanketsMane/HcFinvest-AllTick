@@ -72,7 +72,7 @@ class PriceStreamService {
     this._emitStatus('connecting')
 
     this.socket.on('connect', () => {
-      console.log('[PriceStream] Connected to server')
+      // v7.51 Silent
       this.isConnected = true
       this.reconnectAttempts = 0
       this._emitStatus('live')
@@ -107,18 +107,14 @@ class PriceStreamService {
       this.subscribers.forEach((callback, id) => {
         try {
           callback(this.prices, updated || {}, timestamp)
-        } catch (e) {
-          console.error('[PriceStream] Subscriber error:', e)
-        }
+        } catch (e) {}
       })
       
       // Notify all category subscribers
       this.categorySubscribers.forEach((callback, id) => {
         try {
           callback(this.categories, timestamp)
-        } catch (e) {
-          console.error('[PriceStream] Category subscriber error:', e)
-        }
+        } catch (e) {}
       })
     })
 
@@ -153,9 +149,7 @@ class PriceStreamService {
       this.subscribers.forEach((callback, id) => {
         try {
           callback(this.prices, prices, timestamp)
-        } catch (e) {
-          console.error('[PriceStream] Subscriber error:', e)
-        }
+        } catch (e) {}
       })
     })
 
@@ -202,29 +196,27 @@ class PriceStreamService {
             time: time || new Date().toISOString()
           }
         }))
-      } catch (e) {
-        console.error('[PriceStream] Failed to dispatch tickUpdate:', e.message)
-      }
+      } catch (e) {}
     })
 
     this.socket.on('disconnect', () => {
-      console.log('[PriceStream] Disconnected')
+      // v7.51 Silent
       this.isConnected = false
       this._emitStatus('reconnecting')
     })
 
     // ✅ NEW: Listen to live trade updates pushes from backend
     this.socket.on('tradeUpdated', (trade) => {
-      console.log(`[PriceStream] 🔄 Trade Updated: ${trade.tradeId}`)
+      // v7.51 Silent
       this.tradeSubscribers.forEach((callback) => {
-        try { callback(trade, 'updated') } catch (e) { console.error(e) }
+        try { callback(trade, 'updated') } catch (e) {}
       })
     })
 
     this.socket.on('tradeClosed', (trade) => {
-      console.log(`[PriceStream] ❌ Trade Closed: ${trade.tradeId}`)
+      // v7.51 Silent
       this.tradeSubscribers.forEach((callback) => {
-        try { callback(trade, 'closed') } catch (e) { console.error(e) }
+        try { callback(trade, 'closed') } catch (e) {}
       })
     })
 
@@ -243,13 +235,10 @@ class PriceStreamService {
             candle
           }
         }))
-      } catch (e) {
-        console.error('[PriceStream] Failed to dispatch candleUpdate:', e.message)
-      }
+      } catch (e) {}
     })
 
     this.socket.on('connect_error', (error) => {
-      console.error('[PriceStream] Connection error:', error.message)
       this.reconnectAttempts++
       this._emitStatus('reconnecting')
     })

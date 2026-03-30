@@ -12,8 +12,7 @@ import { API_URL } from '../config/api';
  * ============================================================
  */
 // ΓöÇΓöÇΓöÇ Auth ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-window.TRADE_ENGINE_VERSION = '7.28-PERFECT';
-console.log('%c [TradeManager v7.45] PERFECTIONIST ENGINE ACTIVE ', 'background: #222; color: #e91e63; font-size: 20px;');
+window.TRADE_ENGINE_VERSION = '7.51-SILENT';
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -62,19 +61,15 @@ export class TradeLineManager {
     this.lastSync = 0;
     this.isCommitBlocked = false;
     
-    // Ghost tracking
     this.activeDragId = null;
     this.dragStartPrice = 0;
     this.isUpdatingGhost = false;
-    this.syncLockUntil = 0; // v7.28 Anti-Flicker lock
+    this.syncLockUntil = 0;
     this._adminSpreads = {};
-
-    console.log('[TradeManager v7.45] Perfectionist Engine Initialized');
   }
 
   setAdminSpreads(spreads) {
     this._adminSpreads = spreads || {};
-    console.log('[TradeManager] Admin spreads updated', Object.keys(this._adminSpreads).length);
   }
 
   initialize(widget) {
@@ -94,15 +89,12 @@ export class TradeLineManager {
                 if (props && props.text) {
                     const text = String(props.text).toUpperCase();
                     if (text === 'TP' || text === 'SL' || text.includes('BUY ') || text.includes('SELL ') || text.includes('NEW TP') || text.includes('NEW SL')) {
-                        console.log(`[TradeManager] Purging fossilized trade line ${shape.id} from cache.`);
                         chart.removeEntity(shape.id);
                     }
                 }
             });
-        } catch (e) {
-            console.error('[TradeManager] Fossil cleanup error:', e);
-        }
-    }, 1500); // 1.5s delay ensures layout is fully restored before sweeping
+        } catch (e) {}
+    }, 1500); 
   }
 
   destroy() {
@@ -124,10 +116,7 @@ export class TradeLineManager {
 
       const action = String(status?.status || status || '').toLowerCase();
       
-      // ≡ƒ¢í∩╕Å v7.46 Clean Console: Silence utility events
-      if (action !== 'points_changed' && action !== 'move' && action !== 'properties_changed') {
-          console.log(`[TradeManager] EVENT: ${tvId} (${meta.type}) status="${action}"`);
-      }
+      // v7.51 Silent Mode
 
       if (action === 'started') {
         this.activeDragId = meta.tradeId;
@@ -135,7 +124,6 @@ export class TradeLineManager {
         try {
           shape = widget.chart().getShapeById(tvId);
         } catch (e) {
-          console.warn(`[TradeManager] Drag failed: Shape ${tvId} not found.`);
           this.activeDragId = null;
           return;
         }
@@ -143,9 +131,8 @@ export class TradeLineManager {
         this.dragStartPrice = Number.isFinite(p) ? p : 0;
       }
 
-      // ≡ƒ¢í∩╕Å v7.46 Deletion Guard: If the user bypasses UI and deletes a line, re-sync to restore it.
+      // v7.51 Restore Guard
       if (action === 'remove' && !this.isCommitBlocked) {
-          console.log(`[TradeManager] UI deletion detected for ${meta.type}. Triggering restoration sync.`);
           setTimeout(() => this.syncTrades(this.trades), 100);
       }
 
@@ -228,8 +215,6 @@ export class TradeLineManager {
       return;
     }
     const price = shape?.getPoints?.()?.[0]?.price;
-    
-    console.log(`[TradeManager] Drag Stop [200ms final]: ${meta.type} (TV:${tvId}) price=${price}`);
 
     if (!price || !meta.tradeId) {
         this.activeDragId = null;
@@ -249,10 +234,22 @@ export class TradeLineManager {
               const side = String(trade.side || trade.type || '').toLowerCase();
               const isBuy = side.includes('buy') || side.includes('long');
               const entryPrice = Number(trade.openPrice || trade.price);
-              const t = isBuy ? (price > entryPrice ? 'tp' : 'sl') : (price < entryPrice ? 'tp' : 'sl');
-
-              console.log(`[TradeManager] Confirming EXACT SPAWN: ${t.toUpperCase()} -> ${price} (Targeted)`);
               
+              // v7.51 Precision decision logic
+              const priceScale = this.widget.activeChart().symbolInfo()?.pricescale || 100;
+              const epsilon = 1 / (priceScale * 10); // 0.1 pip epsilon
+              
+              let t;
+              if (isBuy) {
+                  if (price > entryPrice + epsilon) t = 'tp';
+                  else if (price < entryPrice - epsilon) t = 'sl';
+                  else return; // Dropped too close to entry, ignore to prevent accidental SL hit
+              } else {
+                  if (price < entryPrice - epsilon) t = 'tp';
+                  else if (price > entryPrice + epsilon) t = 'sl';
+                  else return;
+              }
+
               if (this.lines[tid][t]) {
                   this._updateShape(this.lines[tid][t].tvId, price);
               } else {
@@ -274,12 +271,11 @@ export class TradeLineManager {
         }
 
         if (meta.type === 'sl' || meta.type === 'tp') {
-            console.log(`[TradeManager] Confirming ${meta.type.toUpperCase()} DROP -> ${price}`);
             this._updateShape(tvId, price);
             await this._commitTrade(meta.tradeId, meta.type, price);
         }
     } finally {
-        setTimeout(() => { this.activeDragId = null; }, 200);
+        this.activeDragId = null;
     }
   }
 
@@ -295,9 +291,8 @@ export class TradeLineManager {
 
     this.trades = trades || [];
     
-    // ≡ƒ¢í∩╕Å v7.48 Emergency: If trade list is empty, Nuke everything immediately.
+    // v7.48 Emergency
     if (this.trades.length === 0) {
-        console.log('[TradeManager] Trade list empty. Clearing all chart entities.');
         this.clearAllManagedDrawings();
         return;
     }
@@ -317,7 +312,6 @@ export class TradeLineManager {
     Object.keys(this.tvIdMap).forEach(tvId => {
         const meta = this.tvIdMap[tvId];
         if (meta && !allAccountTradeIds.has(String(meta.tradeId))) {
-            console.log(`[TradeManager] Stray drawing detected (Trade ${meta.tradeId} closed). Purging entity ${tvId}`);
             this._destroyShape(tvId);
             if (this.lines[meta.tradeId]) delete this.lines[meta.tradeId];
         }
@@ -326,7 +320,6 @@ export class TradeLineManager {
     // ΓöÇΓöÇΓöÇ Orphan Cleanup (Current Symbol) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     Object.keys(this.lines).forEach(tid => {
         if (!visibleIds.has(tid)) {
-            console.log(`[TradeManager] Trade ${tid} closed/missing for ${curSym}. Instant cleanup.`);
             this.removeTradeLines(tid);
         }
     });
@@ -338,7 +331,6 @@ export class TradeLineManager {
   }
 
   clearAllManagedDrawings() {
-      console.log('[TradeManager] Executing Alpha-Level ClearAll...');
       Object.keys(this.lines).forEach(tid => this.removeTradeLines(tid));
       // Safeguard for anything missed by removeTradeLines
       Object.keys(this.tvIdMap).forEach(tvId => this._destroyShape(tvId));
@@ -463,7 +455,6 @@ export class TradeLineManager {
     if (set.ghost) this._destroyShape(set.ghost.tvId);
 
     delete this.lines[tid];
-    console.log(`[TradeManager] Cleaned up lines for trade ${tid}`);
   }
 
   getTradeById(tid) {
@@ -472,9 +463,8 @@ export class TradeLineManager {
 
   async _commitTrade(tradeId, type, price) {
     const tid = String(tradeId);
-    console.log(`[TradeManager] Native Commit: ${tid} ${type} -> ${price}`);
     
-    // ≡ƒ¢í∩╕Å v7.25 State-Preserving Commit
+    // v7.51 State-Preserving Commit
     const trade = this.getTradeById(tid);
     if (!trade) return;
 
@@ -518,17 +508,7 @@ export class TradeLineManager {
     const currentTP = type === 'tp' ? roundedPrice : parseFloat(Number(fallbackTP).toFixed(decimals));
 
     // ≡ƒ¢í∩╕Å v7.48 Payload Guard: Never send invalid or infinite values to the backend
-    if (!Number.isFinite(currentSL) || !Number.isFinite(currentTP)) {
-        console.error('[TradeManager] Aborting modification: SL or TP is invalid.', { currentSL, currentTP });
-        return;
-    }
-
-    console.log('%c [TradeManager] ≡ƒÄ» ZERO-SLIPPAGE PAYLOAD ', 'background: #4caf50; color: white; padding: 2px 4px;', { 
-        action: type.toUpperCase(), 
-        rawDragValue: price, 
-        roundedPayloadSent: roundedPrice,
-        decimalsApplied: decimals 
-    });
+    // v7.51 Silent Payload Preparation
 
     const payload = { 
         tradeId: tid,
@@ -552,9 +532,7 @@ export class TradeLineManager {
       if (data.success && this.onTradeModify) {
         this.onTradeModify({ tradeId: tid, sl: currentSL, tp: currentTP });
       }
-    } catch (e) {
-      console.error('[TradeManager] Commit error:', e);
-    }
+    } catch (e) {}
   }
 
   updateLivePrice(symbol, prices) {

@@ -115,7 +115,6 @@ const Datafeed = {
 
   setAdminSpreads: (spreads) => {
     Datafeed._adminSpreads = spreads || {};
-    console.log('[DATAFEED] Admin spreads updated', Object.keys(Datafeed._adminSpreads).length);
   },
 
   onReady: (callback) => {
@@ -187,7 +186,6 @@ const Datafeed = {
       volume_precision: 2,
       data_status: "streaming"
     };
-    console.log(`[v7.50] resolveSymbol: ${symbolName} using pricescale ${pricescale}`);
     setTimeout(() => onSymbolResolvedCallback(symbolInfo), 0);
   },
 
@@ -214,11 +212,9 @@ const Datafeed = {
       if (useLiveCache) params.set('preferLive', '1');
       const url = `${API_URL}/prices/history?${params.toString()}`;
       
-      console.log(`[DATAFEED] getBars: ${symbolInfo.name} (${resolution}→${timeframe}) from=${from} to=${to} limit=${limit}`);
       
       const res = await fetch(url);
       if (!res.ok) {
-        console.error(`[DATAFEED] ❌ getBars HTTP ${res.status} for ${symbolInfo.name}`);
         // CRITICAL: Call onError instead of onHistory([], {noData: true})
         // This prevents TradingView from permanently marking this timeframe as "EMPTY"
         // if we are just experiencing a temporary 429 rate limit.
@@ -228,7 +224,6 @@ const Datafeed = {
 
       const result = await res.json();
       const candleCount = result.candles?.length || 0;
-      console.log(`[DATAFEED] ✓ getBars received ${candleCount} candles for ${symbolInfo.name}`);
 
       let bars = [];
       if (result.success && result.candles && result.candles.length > 0) {
@@ -238,16 +233,13 @@ const Datafeed = {
       }
 
       if (bars.length === 0) {
-          console.log(`[DATAFEED] ⚠️ No valid bars for ${symbolInfo.name}. Returning noData.`);
           onHistoryCallback([], { noData: true });
       } else {
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           Datafeed._lastHistoryBars[historyKey] = { ...bars[bars.length - 1] };
-          console.log(`[DATAFEED] ✅ Returning ${bars.length} bars with valid timestamps`);
           onHistoryCallback(bars, { noData: false });
       }
     } catch (err) {
-      console.error("[DATAFEED] ❌ getBars Exception:", err.message);
       onErrorCallback(err);
     }
   },
@@ -335,7 +327,6 @@ const Datafeed = {
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
           onRealtimeCallback(currentBar);
-          console.log(`[DATAFEED] 🧩 Bootstrapped live bar for ${symbolInfo.name} ${timeframe} @ ${new Date(latest.time).toISOString()}`);
           return;
         }
 
@@ -356,7 +347,6 @@ const Datafeed = {
     // ✅ Backend Candle Authority: Join resolution-agnostic symbol room on backend
     priceStreamService.subscribeBars(symbolInfo.name);
     
-    console.log(`[DATAFEED] ✅ subscribeBars: ${symbolInfo.name}, resolution=${resolution}m`);
     
     // ✅ Monitor for data gaps - production-grade health check
     const dataGapMonitor = setInterval(() => {
@@ -452,7 +442,6 @@ const Datafeed = {
     Datafeed._subscribers = Datafeed._subscribers || {};
     Datafeed._subscribers[subscriberUID] = handlePriceUpdate;
 
-    console.log(`[DATAFEED] 👂 Real-time subscription: ${symbolInfo.name}`);
     priceEventTarget.addEventListener("candleUpdate", handleCandleUpdate);
     priceEventTarget.addEventListener("priceUpdate", handlePriceUpdate);
     
@@ -465,7 +454,6 @@ const Datafeed = {
       priceEventTarget.removeEventListener("priceUpdate", handlePriceUpdate);
       delete Datafeed._subscribers[subscriberUID];
       delete Datafeed._activeSubscribers[subscriberUID];
-      console.log(`[DATAFEED] ❌ Unsubscribed: ${symbolInfo.name}, received ${tickCount} ticks`);
     };
   },
 

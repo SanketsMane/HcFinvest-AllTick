@@ -38,7 +38,6 @@ export const useInterpolation = (target, smoothingFactor = 0.2, epsilon = 0.0000
     }
     
     if (shouldTeleport) {
-      console.log('[Interpolation] Large jump detected, teleporting...');
       displayRef.current = target;
       setDisplayPrice(target);
     }

@@ -84,12 +84,10 @@ const Advance_Trading_View_Chart = ({
         }).then(res => res.json())
           .then(data => {
             if (data.success) {
-              console.log('[v7.60] Chart state auto-saved to backend');
             }
           });
       });
     } catch (err) {
-      console.error('[v7.60] Backend save error:', err);
     }
   }, []);
 
@@ -103,18 +101,14 @@ const Advance_Trading_View_Chart = ({
     if (!userId) return;
 
     try {
-      console.log('[v7.60] Loading chart layout from backend...');
       const res = await fetch(`${API_URL}/chart/load/${userId}?symbol=GLOBAL`);
       const data = await res.json();
       
       if (data.success && data.layoutJson) {
         widget.load(data.layoutJson);
-        console.log('[v7.60] ✓ Chart layout restored from backend');
       } else {
-        console.log('[v7.60] No saved layout found, using defaults');
       }
     } catch (err) {
-      console.warn('[v7.60] No backend layout found or error occurred:', err.message);
     }
   };
 
@@ -157,7 +151,6 @@ const Advance_Trading_View_Chart = ({
       });
 
       widget.onChartReady(async () => {
-        console.log(`[v7.60] Widget ready. Fetching backend persistence...`);
         
         // 1. Initial Load from Backend
         await loadChartFromBackend(widget);
@@ -183,7 +176,6 @@ const Advance_Trading_View_Chart = ({
 
         // 4. Persistence Listeners for Drawings/indicators/candle colors
         widget.subscribe('onAutoSaveNeeded', () => {
-          console.log('[v7.60] Autosave triggered by widget (AutoSaveNeeded)');
           debouncedSave();
         });
 
@@ -193,7 +185,6 @@ const Advance_Trading_View_Chart = ({
             });
         
         widget.activeChart().onChartTypeChanged().subscribe(null, () => {
-           console.log('[v7.60] Autosave triggered by Chart Type Change');
            debouncedSave();
         });
 
@@ -225,7 +216,6 @@ const Advance_Trading_View_Chart = ({
       };
     } catch (err) {
       isInitializingRef.current = false;
-      console.error('[v7.60] Chart setup error:', err);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -238,12 +228,10 @@ const Advance_Trading_View_Chart = ({
     try {
       const newTheme = isDarkMode ? "dark" : "light";
       if (newTheme !== lastThemeRef.current) {
-        console.log(`[v7.60] Theme change detected: ${lastThemeRef.current} -> ${newTheme}`);
         widgetRef.current.changeTheme(newTheme);
         lastThemeRef.current = newTheme;
       }
     } catch (e) {
-      console.error('[v7.60] Theme change error:', e);
     }
   }, [isDarkMode, isChartReady]);
 
@@ -258,7 +246,6 @@ const Advance_Trading_View_Chart = ({
     }
 
     if (widgetRef.current && chartReadyRef.current && normalizedSymbol !== lastSetSymbolRef.current) {
-      console.log(`[v7.60] Symbol prop change: Switching to ${normalizedSymbol}`);
       widgetRef.current.setSymbol(normalizedSymbol, widgetRef.current.activeChart().resolution(), () => {
         lastSetSymbolRef.current = normalizedSymbol;
         if (managerRef.current) {
