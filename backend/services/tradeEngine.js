@@ -557,12 +557,14 @@ class TradeEngine {
       }
 
       // ✅ ELITE: Price Freshness Guard (Anti-Fossilization)
-      // v7.52: Increased threshold to 120s to account for clock drift/lag
+      // v7.53: Force numeric parsing to prevent string-math NaN in production
       const now = Date.now();
-      const priceAgeMs = now - (prices.timestamp || 0);
-      if (priceAgeMs > 120000) {
-        if (Math.random() < 0.05) { // Log 5% for better diagnostics
-           console.warn(`[TradeEngine] Skipping SL/TP check for ${targetSym} due to stale price data (age: ${Math.round(priceAgeMs/1000)}s, drift: ${now - (prices.timestamp || 0)}ms)`);
+      const tickEpoch = new Date(prices.timestamp || 0).getTime();
+      const priceAgeMs = now - tickEpoch;
+      
+      if (priceAgeMs > 120000 || isNaN(priceAgeMs)) {
+        if (Math.random() < 0.05) { 
+           console.warn(`[TradeEngine] Skipping SL/TP for ${targetSym} (Stale data: ${Math.round(priceAgeMs/1000)}s, epoch: ${tickEpoch})`);
         }
         continue;
       }

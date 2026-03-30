@@ -12,7 +12,8 @@ import { API_URL } from '../config/api';
  * ============================================================
  */
 // ΓöÇΓöÇΓöÇ Auth ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-window.TRADE_ENGINE_VERSION = '7.51-SILENT';
+window.TRADE_ENGINE_VERSION = '7.53-ACTIVE';
+console.log("%c [TradeManager] v7.53 SL/TP ENGINE ACTIVE ", "background: #1a1a1a; color: #00ff00; font-weight: bold; padding: 4px; border-radius: 4px;");
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -231,10 +232,15 @@ export class TradeLineManager {
               this._destroyShape(ghost.tvId);
               this.lines[tid].ghost = null;
               
-              // v7.52 Hardened side detection
+              // v7.53 Hardened side detection with price-based fallback
               const sideStr = String(trade.side || trade.type || trade.action || trade.orderType || '').toLowerCase();
-              const isBuy = sideStr.includes('buy') || sideStr.includes('long');
               const entryPrice = Number(trade.openPrice || trade.price);
+              
+              let isBuy = sideStr.includes('buy') || sideStr.includes('long');
+              // Fallback: If side is ambiguous, infer from current position vs entry
+              if (!sideStr && price !== entryPrice) {
+                  isBuy = price > entryPrice; 
+              }
               
               const priceScale = this.widget.activeChart().symbolInfo()?.pricescale || 100;
               const epsilon = 5 / (priceScale * 10); // 0.5 pip epsilon for better drag stability
