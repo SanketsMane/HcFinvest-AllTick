@@ -2,6 +2,7 @@ import { API_URL } from "../config/api";
 import priceStreamService from "./priceStream";
 import { wrapOHLC } from "../utils/priceUtils";
 import { normalizeSymbol } from "../utils/symbolUtils";
+import { getInstrumentInfo } from "../utils/precision";
 
 /**
  * Custom Datafeed for TradingView Charting Library
@@ -151,23 +152,10 @@ const Datafeed = {
   },
 
   resolveSymbol: async (symbolName, onSymbolResolvedCallback) => {
-    // v7.77 Strict Normalization
     const normalizedName = normalizeSymbol(symbolName);
-    
-    // Determine pricescale based on actual asset type and precision requirements
-    let pricescale = 100000; // Default 5 decimals (Forex)
+    const { pricescale } = getInstrumentInfo(normalizedName);
     const s = normalizedName.toUpperCase();
     
-    if (s.includes("US30") || s.includes("US100") || s.includes("UK100") || s.includes("GER40") || s.includes("FRA40") || s.includes("SPA35") || s.includes("ES35")) {
-      pricescale = 10; // 1 decimal (e.g., 18000.5)
-    } else if (s.includes("US500") || s.includes("XAU") || s.includes("BTC") || s.includes("ETH") || s.includes("BNB") || s.includes("SOL") || s.includes("LTC")) {
-      pricescale = 100; // 2 decimals (e.g., 2150.50, 65000.00)
-    } else if (s.includes("JPY") || s.includes("XAG") || s.includes("NGAS") || s.includes("OIL")) {
-      pricescale = 1000; // 3 decimals (e.g., 150.123, 30.550)
-    } else if (s.includes("XRP") || s.includes("ADA") || s.includes("DOGE")) {
-      pricescale = 100000; // 5 decimals (Crypto micros)
-    }
-
     const symbolInfo = {
       name: normalizedName,
       ticker: normalizedName,

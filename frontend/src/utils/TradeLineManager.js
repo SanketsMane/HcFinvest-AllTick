@@ -1,4 +1,6 @@
 import { API_URL } from '../config/api';
+import { getInstrumentInfo, roundPrice } from './precision';
+import { canonicalSymbol } from './symbolUtils';
 
 /**
  * ============================================================
@@ -242,8 +244,9 @@ export class TradeLineManager {
                   isBuy = price > entryPrice; 
               }
               
-              const priceScale = this.widget.activeChart().symbolInfo()?.pricescale || 100;
-              const epsilon = 5 / (priceScale * 10); // 0.5 pip epsilon for better drag stability
+              const symbol = this.widget.symbolInterval().symbol;
+              const { pricescale } = getInstrumentInfo(symbol);
+              const epsilon = 5 / (pricescale * 10); // 0.5 pip epsilon for better drag stability
               
               let t = null;
               if (isBuy) {
@@ -475,15 +478,9 @@ export class TradeLineManager {
     if (!trade) return;
 
     // ≡ƒ¢í∩╕Å v7.28 Precision Discovery
-    // Try to get instrument precision from chart to eliminate slippage
-    let decimals = 5;
-    try {
-        const info = this.widget.activeChart().symbolInfo();
-        if (info && info.pricescale) {
-            decimals = Math.round(Math.log10(info.pricescale));
-            if (decimals < 0) decimals = 2; // Default to 2 for things like JPY
-        }
-    } catch {}
+    // Use shared utility to get correct rounding decimals for the instrument
+    const symbol = this.widget.symbolInterval().symbol;
+    const { decimals } = getInstrumentInfo(symbol);
 
     // ≡ƒ¢í∩╕Å v7.36 Ultimate State Integrity
     // Use physical TV shapes as the primary fallback to prevent asynchronous Redux lag from overwriting new lines with zeros!
@@ -534,6 +531,9 @@ export class TradeLineManager {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
+      
+      const data = await res.json();
+
       if (data.success && this.onTradeModify) {
         console.log(`[TradeManager] SUCCESS: Trade ${tid} modified (${type} -> ${roundedPrice})`);
         this.onTradeModify({ tradeId: tid, sl: currentSL, tp: currentTP });
