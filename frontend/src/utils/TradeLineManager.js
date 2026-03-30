@@ -131,7 +131,14 @@ export class TradeLineManager {
 
       if (action === 'started') {
         this.activeDragId = meta.tradeId;
-        const shape = widget.chart().getShapeById(tvId);
+        let shape;
+        try {
+          shape = widget.chart().getShapeById(tvId);
+        } catch (e) {
+          console.warn(`[TradeManager] Drag failed: Shape ${tvId} not found.`);
+          this.activeDragId = null;
+          return;
+        }
         const p = shape?.getPoints?.()?.[0]?.price;
         this.dragStartPrice = Number.isFinite(p) ? p : 0;
         
@@ -163,7 +170,10 @@ export class TradeLineManager {
 
   async _onNativeMove(tvId, meta) {
     const chart = this.widget.chart();
-    const shape = chart.getShapeById(tvId);
+    let shape;
+    try {
+      shape = chart.getShapeById(tvId);
+    } catch (e) { return; }
     const price = shape?.getPoints?.()?.[0]?.price;
     if (!price || !Number.isFinite(price) || this.isUpdatingGhost) return;
 
@@ -216,7 +226,13 @@ export class TradeLineManager {
 
   async _onNativeStop(tvId, meta) {
     const chart = this.widget.chart();
-    const shape = chart.getShapeById(tvId);
+    let shape;
+    try {
+      shape = chart.getShapeById(tvId);
+    } catch (e) {
+      this.activeDragId = null;
+      return;
+    }
     const price = shape?.getPoints?.()?.[0]?.price;
     
     console.log(`[TradeManager] Drag Stop [200ms final]: ${meta.type} (TV:${tvId}) price=${price}`);
@@ -416,15 +432,20 @@ export class TradeLineManager {
   }
 
   _updateShape(tvId, price, text = null) {
-    const shape = this.widget.chart().getShapeById(tvId);
-    if (!shape) return;
-    this.isCommitBlocked = true;
+    if (!this.widget) return;
     try {
-        shape.setPoints([{ price }]);
-        if (text) shape.setProperties({ overrides: { text } });
-    } finally { 
-        // 50ms suffocation for stray TV points_changed echoes
-        setTimeout(() => { this.isCommitBlocked = false; }, 50);
+      const shape = this.widget.chart().getShapeById(tvId);
+      if (!shape) return;
+      this.isCommitBlocked = true;
+      try {
+          shape.setPoints([{ price }]);
+          if (text) shape.setProperties({ overrides: { text } });
+      } finally { 
+          // 50ms suffocation for stray TV points_changed echoes
+          setTimeout(() => { this.isCommitBlocked = false; }, 50);
+      }
+    } catch (e) {
+      // Silently fail if shape is gone (likely a refresh/cleanup race)
     }
   }
 
@@ -432,11 +453,11 @@ export class TradeLineManager {
     if (!tvId) return;
     try { 
         const chart = this.widget.chart();
-        chart.removeEntity(tvId); 
+        try { chart.removeEntity(tvId); } catch(e) {}
         // ≡ƒ¢í∩╕Å v7.48 Double-Tap Deletion: Some shapes linger if deleted during a render cycle.
         // We fire a second cleanup 100ms later to ensure the entity is gone.
         setTimeout(() => {
-            try { chart.removeEntity(tvId); } catch(e) {}
+            try { this.widget?.chart()?.removeEntity(tvId); } catch(e) {}
         }, 100);
     } catch (e) {}
     delete this.tvIdMap[tvId];
@@ -487,7 +508,9 @@ export class TradeLineManager {
             const slShape = this.widget.chart().getShapeById(this.lines[tid].sl.tvId);
             const p = slShape?.getPoints?.()?.[0]?.price;
             if (Number.isFinite(p)) fallbackSL = p;
-        } catch {}
+        } catch (e) {
+            // Shape not found, use stored trade value
+        }
     }
 
     let fallbackTP = trade.takeProfit || trade.tp || 0;
@@ -496,7 +519,9 @@ export class TradeLineManager {
             const tpShape = this.widget.chart().getShapeById(this.lines[tid].tp.tvId);
             const p = tpShape?.getPoints?.()?.[0]?.price;
             if (Number.isFinite(p)) fallbackTP = p;
-        } catch {}
+        } catch (e) {
+            // Shape not found, use stored trade value
+        }
     }
 
     const roundedPrice = parseFloat(price.toFixed(decimals));
