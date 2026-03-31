@@ -4998,6 +4998,7 @@ const TradingPage = () => {
               onTradeModify={handleTradeModify}
               isDarkMode={isDarkMode}
               adminSpreads={adminSpreads}
+              selectedSide={selectedSide}
               onSymbolChange={(newSym) => {
                 // 🔄 Sync chart's internal search with parent tabs
                 const cleanSym = newSym.replace(/\.i$/i, '').toUpperCase();

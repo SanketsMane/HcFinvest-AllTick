@@ -1,6 +1,6 @@
 import { API_URL } from "../config/api";
 import priceStreamService from "./priceStream";
-import { wrapOHLC } from "../utils/priceUtils";
+import { getRetailPrice, wrapOHLC } from "../utils/priceUtils";
 import { normalizeSymbol } from "../utils/symbolUtils";
 
 /**
@@ -73,6 +73,37 @@ const normalizeBars = (candles = []) => {
   return [...barsByTime.values()].sort((a, b) => a.time - b.time);
 };
 
+const applyChartPriceModeToBar = (bar, symbol, adminSpreads, side = 'MID') => {
+  if (!bar) return bar;
+
+  if (side === 'BUY' || side === 'SELL') {
+    return {
+      ...bar,
+      open: getRetailPrice(bar.open, symbol, side, adminSpreads),
+      high: getRetailPrice(bar.high, symbol, side, adminSpreads),
+      low: getRetailPrice(bar.low, symbol, side, adminSpreads),
+      close: getRetailPrice(bar.close, symbol, side, adminSpreads)
+    };
+  }
+
+  return wrapOHLC(bar, symbol, adminSpreads);
+};
+
+const getChartExecutionPrice = (bid, ask, symbol, adminSpreads, side = 'MID') => {
+  const numBid = Number(bid);
+  const numAsk = Number(ask);
+
+  if (side === 'BUY') {
+    return getRetailPrice(numAsk, symbol, 'BUY', adminSpreads);
+  }
+
+  if (side === 'SELL') {
+    return getRetailPrice(numBid, symbol, 'SELL', adminSpreads);
+  }
+
+  return (numBid + numAsk) / 2;
+};
+
 //Sanket v2.0 - All symbols without .i suffix
 const ALL_SYMBOLS = [
   // Forex
@@ -118,10 +149,15 @@ const ALL_SYMBOLS = [
 const Datafeed = {
   interval: null,
   _adminSpreads: {},
+  _chartPriceSide: 'MID',
 
   setAdminSpreads: (spreads) => {
     Datafeed._adminSpreads = spreads || {};
     console.log('[DATAFEED] Admin spreads updated', Object.keys(Datafeed._adminSpreads).length);
+  },
+
+  setChartPriceSide: (side) => {
+    Datafeed._chartPriceSide = side === 'BUY' || side === 'SELL' ? side : 'MID';
   },
 
   onReady: (callback) => {
@@ -249,7 +285,7 @@ const Datafeed = {
       if (result.success && result.candles && result.candles.length > 0) {
         // Apply Retail Lens Markup to historical bars
         const rawBars = normalizeBars(result.candles);
-        bars = rawBars.map(bar => wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads));
+        bars = rawBars.map(bar => applyChartPriceModeToBar(bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide));
       }
 
       if (bars.length === 0) {
@@ -369,7 +405,7 @@ const Datafeed = {
         const currentBucket = Math.floor(Date.now() / resolutionMs) * resolutionMs;
 
         if (latest.time === currentBucket) {
-          currentBar = { ...latest };
+          currentBar = applyChartPriceModeToBar(latest, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
           lastBarTime = latest.time;
           lastUpdateTime = Date.now();
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
@@ -380,7 +416,7 @@ const Datafeed = {
         }
 
         if (lastBarTime === null) {
-          currentBar = { ...latest };
+          currentBar = applyChartPriceModeToBar(latest, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
           lastBarTime = latest.time;
           lastUpdateTime = Date.now();
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
@@ -436,7 +472,7 @@ const Datafeed = {
       if (currentBar !== null && bar.time < lastBarTime) return;
 
       // Apply Retail Lens Markup to AUTHORITATIVE bar
-      const authoritativeBar = wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads);
+      const authoritativeBar = applyChartPriceModeToBar(bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
 
       currentBar = { ...authoritativeBar };
       lastBarTime = bar.time;
@@ -474,8 +510,10 @@ const Datafeed = {
       if ((now - lastUpdateTime) < throttleMs) return;
       lastUpdateTime = now;
 
-      // Use the mid-price to build candles
-      const price = (Number(bid) + Number(ask)) / 2;
+      //Sanket v2.0 - Use the same side-aware execution price as the active BUY/SELL panel.
+      // MID made the chart sit between the red and blue buttons, which users perceive as wrong.
+      // BUY mode -> chart follows retail ask; SELL mode -> chart follows retail bid.
+      const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
       if (!isFinite(price) || price <= 0) return;
 
       // Calculate candle bucket for this tick
@@ -497,7 +535,7 @@ const Datafeed = {
         // Only push if currentBar is the direct predecessor of the new bucket.
         if (currentBar.time === bucketTime - resolutionMs) {
           //Sanket v2.0 - Finalise the closed candle with the real close (not smoothed).
-          pushBar(wrapOHLC({ ...currentBar }, symbolInfo.name, Datafeed._adminSpreads));
+          pushBar({ ...currentBar });
         }
         currentBar = { time: bucketTime, open: currentBar.close, high: price, low: price, close: price, volume: 0 };
         lastBarTime = bucketTime;
@@ -513,15 +551,14 @@ const Datafeed = {
 
       //Sanket v2.0 - Store markup target; the RAF smooth loop handles calling pushBar each frame.
       // We do NOT call pushBar here for same-candle updates — that would cause the discrete 50ms jumps.
-      const markupBar = wrapOHLC({ ...currentBar }, symbolInfo.name, Datafeed._adminSpreads);
-      lastMarkupBar = markupBar;
-      targetClose = markupBar.close;
+      lastMarkupBar = { ...currentBar };
+      targetClose = currentBar.close;
 
       hasNewTick = true; // signal RAF loop to start/continue lerping
       if (displayClose === null || snapDisplay) {
         //Sanket v2.0 - First tick or new candle: snap immediately so chart doesn't wait one RAF frame
         displayClose = targetClose;
-        pushBar({ ...markupBar, close: displayClose });
+        pushBar({ ...currentBar, close: displayClose });
       }
     };
 

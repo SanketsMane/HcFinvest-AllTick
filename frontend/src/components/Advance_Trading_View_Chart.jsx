@@ -21,7 +21,8 @@ const Advance_Trading_View_Chart = ({
   onTradeModify, 
   isDarkMode = false, 
   onSymbolChange, 
-  adminSpreads = {} 
+  adminSpreads = {},
+  selectedSide = 'MID'
 }) => {
   const normalizedSymbol = normalizeSymbol(symbol);
   
@@ -324,9 +325,10 @@ const Advance_Trading_View_Chart = ({
   useEffect(() => {
     if (!managerRef.current || !isChartReady) return;
     managerRef.current.setAdminSpreads(adminSpreads);
+    Datafeed.setChartPriceSide(selectedSide);
     if (!initialSyncDoneRef.current) return; // Wait for 600ms initial sync to complete first
     managerRef.current.syncTrades(trades, symbol);
-  }, [adminSpreads, trades, symbol, isChartReady]);
+  }, [adminSpreads, trades, symbol, isChartReady, selectedSide]);
 
   // ─── Live price stream listener ───────────────────────────────────────────
   useEffect(() => {
