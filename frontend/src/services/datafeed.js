@@ -360,6 +360,8 @@ const Datafeed = {
     let prevRafTime;
     let rafId;
     let hasNewTick = false;   // true while lerp is in-flight; gates RAF pushBar
+    const displayTargetThrottleMs = 180;
+    let lastDisplayTargetAt = 0;
 
     // Seed real-time aggregation from the last historical bar so refresh during a forming
     // candle does not restart OHLC from a single tick (dot-like candle issue).
@@ -494,6 +496,8 @@ const Datafeed = {
       lastMarkupBar = { ...currentBar };
       targetClose = currentBar.close;
       displayClose = currentBar.close; // snap — server candles are authoritative, no lerp needed
+      lastDisplayTargetAt = Date.now();
+      hasNewTick = false;
     };
     
     const handlePriceUpdate = (e) => {
@@ -549,11 +553,15 @@ const Datafeed = {
 
       currentBar.volume = (currentBar.volume || 0) + 1;
 
-      //Sanket v2.0 - Store markup target; the RAF smooth loop handles calling pushBar each frame.
-      // We do NOT call pushBar here for same-candle updates — that would cause the discrete 50ms jumps.
+      //Sanket v2.0 - Raw OHLC keeps updating on every tick, but the displayed interpolation target
+      // only refreshes every 180ms. This matches the BUY/SELL buttons more closely: interpolation
+      // gets enough distance to visibly animate instead of being constantly reset by 50ms updates.
+      const shouldRefreshDisplayTarget = snapDisplay || (now - lastDisplayTargetAt) >= displayTargetThrottleMs;
+      if (!shouldRefreshDisplayTarget) return;
+
       lastMarkupBar = { ...currentBar };
       targetClose = currentBar.close;
-
+      lastDisplayTargetAt = now;
       hasNewTick = true; // signal RAF loop to start/continue lerping
       if (displayClose === null || snapDisplay) {
         //Sanket v2.0 - First tick or new candle: snap immediately so chart doesn't wait one RAF frame
