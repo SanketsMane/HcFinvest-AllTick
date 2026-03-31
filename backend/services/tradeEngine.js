@@ -6,6 +6,7 @@ import AdminLog from '../models/AdminLog.js'
 import ibEngine from './ibEngineNew.js'
 import MasterTrader from '../models/MasterTrader.js'
 import { isMarketOpen, isPriceFresh } from '../utils/marketHours.js'
+import mongoose from 'mongoose'
 
 class TradeEngine {
   constructor() {

@@ -3,6 +3,7 @@ import ChallengeAccount from '../models/ChallengeAccount.js'
 import PropSettings from '../models/PropSettings.js'
 import Trade from '../models/Trade.js'
 import { isMarketOpen } from '../utils/marketHours.js'
+import mongoose from 'mongoose'
 
 class PropTradingEngine {
   constructor() {
