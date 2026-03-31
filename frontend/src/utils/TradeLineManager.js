@@ -71,14 +71,17 @@ export class TradeLineManager {
     this.widget = widget;
     this._attachEvents(widget);
     
-    // ≡ƒ¢í∩╕Å v7.80 Fossil Cleanup: Purge baked-in lines from localStorage
-    // Because auto_save_delay saves programmatic lines, they load as dead "fossil" shapes on refresh.
-    // We must scan and destroy them before syncing live trades.
+    // v7.80 Fossil Cleanup: Purge baked-in lines from chart save state on refresh.
+    // CRITICAL: skip any shape that is already tracked in tvIdMap — those are LIVE managed lines
+    // created by syncTrades. Deleting them leaves set.tp/sl with a dead tvId (since _destroyShape
+    // is not called), causing _updateShape to silently fail and the line to vanish permanently.
+    //Sanket v2.0 - Only remove shapes that are NOT in tvIdMap (true fossils, not managed lines)
     setTimeout(() => {
         try {
             const chart = widget.chart();
             const shapes = chart.getAllShapes();
             shapes.forEach(shape => {
+                if (this.tvIdMap[shape.id]) return; // Skip managed shapes — never delete live lines
                 const entity = chart.getShapeById(shape.id);
                 const props = entity?.getProperties?.();
                 if (props && props.text) {
@@ -127,8 +130,11 @@ export class TradeLineManager {
       }
 
       // v7.51 Restore Guard
+      // Sanket v2.0 - Skip restore if WE triggered the removal (ghost cleanup etc.), and always pass current symbol so canonicalSymbol(null) does not wipe all lines
       if (action === 'remove' && !this.isCommitBlocked) {
-          setTimeout(() => this.syncTrades(this.trades), 100);
+          if (this._ownRemovals?.has(tvId)) return;
+          const sym = this.widget?.symbolInterval?.()?.symbol;
+          setTimeout(() => this.syncTrades(this.trades, sym), 100);
       }
 
       // ≡ƒ¢í∩╕Å v7.32 Track BOTH move and points_changed to guarantee we never miss a final drag endpoint!
@@ -372,7 +378,19 @@ export class TradeLineManager {
       if (!set.sl) {
         set.sl = await this._createShape(tid, 'sl', sl, { color: '#f44336', style: 1, width: 2, text: `SL` });
       } else {
-        this._updateShape(set.sl.tvId, sl);
+        //Sanket v2.0 - Verify the TV shape still exists before updating. If the shape was removed
+        // externally (fossil cleanup, chart clear, widget re-init) _updateShape silently fails and
+        // set.sl stays non-null forever — the line never re-appears AND a second orphan can form
+        // if set.sl is later nulled while the ghost shape persists on the chart.
+        let slExists = false;
+        try { slExists = !!this.widget.chart().getShapeById(set.sl.tvId); } catch(e) {}
+        if (!slExists) {
+          delete this.tvIdMap[set.sl.tvId];
+          set.sl = null;
+          set.sl = await this._createShape(tid, 'sl', sl, { color: '#f44336', style: 1, width: 2, text: `SL` });
+        } else {
+          this._updateShape(set.sl.tvId, sl);
+        }
       }
     } else if (set.sl) { this._destroyShape(set.sl.tvId); set.sl = null; }
 
@@ -381,7 +399,19 @@ export class TradeLineManager {
       if (!set.tp) {
         set.tp = await this._createShape(tid, 'tp', tp, { color: '#4caf50', style: 1, width: 2, text: `TP` });
       } else {
-        this._updateShape(set.tp.tvId, tp);
+        //Sanket v2.0 - Same dead-reference guard as SL above. Without this, a TP moved by drag
+        // then externally destroyed leaves set.tp pointing to a dead tvId. _updateShape silently
+        // returns, the TP never redraws, AND the orphaned ghost shape at the old price stays on
+        // screen — causing the "two TP lines" symptom (old ghost + newly created managed line).
+        let tpExists = false;
+        try { tpExists = !!this.widget.chart().getShapeById(set.tp.tvId); } catch(e) {}
+        if (!tpExists) {
+          delete this.tvIdMap[set.tp.tvId];
+          set.tp = null;
+          set.tp = await this._createShape(tid, 'tp', tp, { color: '#4caf50', style: 1, width: 2, text: `TP` });
+        } else {
+          this._updateShape(set.tp.tvId, tp);
+        }
       }
     } else if (set.tp) { this._destroyShape(set.tp.tvId); set.tp = null; }
   }
@@ -433,6 +463,10 @@ export class TradeLineManager {
 
   _destroyShape(tvId) {
     if (!tvId) return;
+    // Sanket v2.0 - Mark as own removal so the drawing_event 'remove' handler does not trigger a symbol-less syncTrades and wipe all visible lines
+    if (!this._ownRemovals) this._ownRemovals = new Set();
+    this._ownRemovals.add(tvId);
+    setTimeout(() => this._ownRemovals?.delete(tvId), 500);
     try { 
         const chart = this.widget.chart();
         try { chart.removeEntity(tvId); } catch(e) {}
