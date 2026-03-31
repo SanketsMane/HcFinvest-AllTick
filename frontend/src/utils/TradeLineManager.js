@@ -649,7 +649,26 @@ export class TradeLineManager {
       const pnlText = finalPnl >= 0 ? `+$${finalPnl.toFixed(2)}` : `-$${Math.abs(finalPnl).toFixed(2)}`;
       const labelText = `${isBuy ? 'BUY' : 'SELL'} ${quantity} | ${pnlText}`;
 
-      this._updateShape(set.entry.tvId, trade.openPrice || trade.price, labelText);
+      //Sanket v2.0 - CRITICAL: Do NOT call _updateShape here. _updateShape calls setPoints() which
+      // triggers TV's drawing_event 'points_changed' echo → _handler sets isCommitBlocked=true for
+      // 50ms. useInterpolation runs at 60fps (~16ms per frame), so _updateShape is called every 16ms.
+      // Since 16ms < 50ms reset timer, each frame re-sets isCommitBlocked=true before the previous
+      // timer clears it → isCommitBlocked is PERMANENTLY TRUE during live tick flow → every user
+      // drag event (started/move/points_changed) is silently swallowed → SL/TP never responds.
+      // The entry price (trade.openPrice) never changes anyway, so setPoints is a no-op price-wise.
+      // Only the label text changes → use setProperties text-only, which does NOT trigger any echo.
+      this._updateShapeLabel(set.entry.tvId, labelText);
     });
+  }
+
+  _updateShapeLabel(tvId, text) {
+    //Sanket v2.0 - Text-only label update. Does NOT call setPoints so TV never fires points_changed.
+    // Safe to call at 60fps without affecting isCommitBlocked or any drag interaction.
+    if (!this.widget || !tvId || !text) return;
+    try {
+      const shape = this.widget.chart().getShapeById(tvId);
+      if (!shape) return;
+      shape.setProperties({ overrides: { text } });
+    } catch (e) {}
   }
 }
