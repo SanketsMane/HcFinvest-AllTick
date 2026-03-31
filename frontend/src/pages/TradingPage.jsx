@@ -3052,10 +3052,22 @@ import { getAdminMarkupValue, getRetailPrice } from '../utils/priceUtils';
 import Datafeed from '../services/datafeed';
 import { useTheme } from '../context/ThemeContext'
 import { normalizeSymbol, ensureISuffix } from '../utils/symbolUtils'
+import { useInterpolation } from '../hooks/useInterpolation'
 import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
 import All_Tick_Chart from '../components/All_Tick_Chart.jsx'
 import WebSocketTest from '../components/WebSocketTest.jsx'
+
+//Sanket v2.0 - Isolated child component — only this tiny element re-renders at 60 fps;
+// TradingPage itself is NOT triggered by the internal setDisplayPrice RAF calls.
+// Accepts a pre-computed numeric target price (already spread-adjusted) and
+// smoothly lerps toward it so the BUY/SELL button digits animate instead of jump.
+const AnimatedPrice = ({ target, decimals }) => {
+  const price = useInterpolation(target ?? 0, 0.15);
+  if (!target) return <>-</>;
+  const num = typeof price === 'number' ? price : (typeof price === 'object' ? (price?.bid ?? target) : target);
+  return <>{num.toFixed(decimals)}</>;
+};
 
 const TradingPage = () => {
   const navigate = useNavigate()
@@ -5654,6 +5666,21 @@ const TradingPage = () => {
 
                   {/* One-Click Buy/Sell Buttons */}
                   <div className="flex gap-2 mb-3">
+                    {(() => {
+                      //Sanket v2.0 - Compute raw target prices once and pass to AnimatedPrice.
+                      // AnimatedPrice is an isolated child — only IT re-renders at 60 fps via
+                      // useInterpolation; TradingPage itself is NOT affected by the RAF loop.
+                      const sym = selectedInstrument.symbol;
+                      const sellRaw = metaApiPrices[sym]
+                        ? metaApiPrices[sym].bid
+                        : getDisplayPrice(sym, 'SELL', selectedInstrument.bid, selectedInstrument.ask);
+                      const buyRaw = metaApiPrices[sym]
+                        ? metaApiPrices[sym].ask
+                        : getDisplayPrice(sym, 'BUY', selectedInstrument.bid, selectedInstrument.ask);
+                      const decimals = isJpyPair(sym) ? 3
+                        : (isCryptoSymbol(sym) || getBaseSymbol(sym) === 'XAUUSD') ? 2
+                        : 5;
+                      return (<>
                     <button 
                       onClick={() => executeMarketOrder('SELL')}
                       disabled={isExecutingTrade}
@@ -5665,20 +5692,7 @@ const TradingPage = () => {
                       )}
                       <div className="text-white text-[10px] font-medium">SELL</div>
                       <div className="text-white font-mono text-lg font-bold">
-                        {(() => {
-                          // Use MetaAPI prices for the selected instrument when available
-                          let price;
-                          if (metaApiPrices[selectedInstrument.symbol]) {
-                            price = metaApiPrices[selectedInstrument.symbol].bid; // Use bid for SELL
-                          } else {
-                            price = getDisplayPrice(selectedInstrument.symbol, 'SELL', selectedInstrument.bid, selectedInstrument.ask);
-                          }
-                          return isJpyPair(selectedInstrument.symbol)
-                            ? price?.toFixed(3)
-                            : (isCryptoSymbol(selectedInstrument.symbol) || getBaseSymbol(selectedInstrument.symbol) === 'XAUUSD')
-                              ? price?.toFixed(2)
-                              : price?.toFixed(5)
-                        })()}
+                        <AnimatedPrice target={sellRaw} decimals={decimals} />
                       </div>
                     </button>
                     <button 
@@ -5692,22 +5706,11 @@ const TradingPage = () => {
                       )}
                       <div className="text-white text-[10px] font-medium">BUY</div>
                       <div className="text-white font-mono text-lg font-bold">
-                        {(() => {
-                          // Use MetaAPI prices for the selected instrument when available
-                          let price;
-                          if (metaApiPrices[selectedInstrument.symbol]) {
-                            price = metaApiPrices[selectedInstrument.symbol].ask; // Use ask for BUY
-                          } else {
-                            price = getDisplayPrice(selectedInstrument.symbol, 'BUY', selectedInstrument.bid, selectedInstrument.ask);
-                          }
-                          return isJpyPair(selectedInstrument.symbol)
-                            ? price?.toFixed(3)
-                            : (isCryptoSymbol(selectedInstrument.symbol) || getBaseSymbol(selectedInstrument.symbol) === 'XAUUSD')
-                              ? price?.toFixed(2)
-                              : price?.toFixed(5)
-                        })()}
+                        <AnimatedPrice target={buyRaw} decimals={decimals} />
                       </div>
                     </button>
+                      </>);
+                    })()}
                   </div>
 
                   {/* Side Selection for detailed order */}
