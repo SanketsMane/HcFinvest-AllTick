@@ -230,7 +230,18 @@ const Advance_Trading_View_Chart = ({
           (...args) => onTradeModify?.(...args)
         );
         managerRef.current.initialize(widget);
-        managerRef.current.syncTrades(trades, symbol);
+        //Sanket v2.0 - Delay initial syncTrades by 600ms. widget.load() causes TV to internally
+        // re-process the chart layout (symbols, indicators, drawings). Calling createShape
+        // immediately after load returns null because TV is still applying the layout state.
+        // A null tvId silently corrupts set.entry/sl/tp — lines never draw until the next
+        // statechange. The 600ms delay lets TV finish before we create any managed shapes.
+        // Subsequent syncs via useEffect([trades, symbol]) fire on every trade-state change and
+        // work correctly because TV is stable by then.
+        setTimeout(() => {
+          if (managerRef.current) {
+            managerRef.current.syncTrades(trades, symbol);
+          }
+        }, 600);
 
         isInitializingRef.current = false;
       });

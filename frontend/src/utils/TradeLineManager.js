@@ -370,7 +370,30 @@ export class TradeLineManager {
         selectable: false // ≡ƒ¢í∩╕Å v7.46 Stationary Anchor: Entry lines cannot be selected/deleted.
       });
     } else {
-      this._updateShape(set.entry.tvId, entry, labelText);
+      //Sanket v2.0 - Dead-reference guard for entry line. Same pattern as SL/TP below.
+      // Without this, an entry shape removed externally (fossil cleanup, chart re-init, widget.load)
+      // leaves set.entry pointing to a dead tvId. _updateShape returns silently, the entry line
+      // never redraws, and the next syncTrades cycle finds set.entry truthy so it never recreates.
+      let entryExists = false;
+      try { entryExists = !!this.widget.chart().getShapeById(set.entry.tvId); } catch(e) {}
+      if (!entryExists) {
+        delete this.tvIdMap[set.entry.tvId];
+        set.entry = null;
+        set.entry = await this._createShape(tid, 'entry', entry, { color: '#2196F3', style: 1, width: 2, text: labelText, selectable: false });
+      } else {
+        this._updateShape(set.entry.tvId, entry, labelText);
+      }
+    }
+
+    //Sanket v2.0 - Race condition guard: clearAllManagedDrawings() can be called while this async
+    // function is awaiting _createShape (e.g. trades briefly becomes [] between render cycles).
+    // After the await resolves, this.lines[tid] may have been deleted. If we continue writing to
+    // the stale local `set` reference, the new shape is registered in tvIdMap but orphaned from
+    // lines, creating a phantom shape that is never cleaned up and causes duplicate lines on the
+    // next sync. Abort early and let the next syncTrades cycle recreate lines cleanly.
+    if (!this.lines[tid]) {
+      if (set.entry) { this._destroyShape(set.entry.tvId); set.entry = null; }
+      return;
     }
 
     // SL
@@ -393,6 +416,12 @@ export class TradeLineManager {
         }
       }
     } else if (set.sl) { this._destroyShape(set.sl.tvId); set.sl = null; }
+
+    // Race condition guard after SL await
+    if (!this.lines[tid]) {
+      if (set.sl) { this._destroyShape(set.sl.tvId); set.sl = null; }
+      return;
+    }
 
     // TP
     if (Number.isFinite(tp) && tp > 0) {
@@ -438,6 +467,11 @@ export class TradeLineManager {
                 }
             }
         );
+        //Sanket v2.0 - Guard against null tvId: createShape returns null when the chart is still
+        // processing a widget.load() or in a non-interactive state. If we store tvIdMap[null],
+        // every subsequent lookup (getShapeById, removeEntity) silently fails and the shape is
+        // stuck in a zombie "non-null set.entry" state that never retries creation.
+        if (!tvId) return null;
         this.tvIdMap[tvId] = { tradeId, type };
         return { tvId, price };
     } catch (e) { return null; }
@@ -499,6 +533,12 @@ export class TradeLineManager {
   async _commitTrade(tradeId, type, price) {
     const tid = String(tradeId);
     
+    //Sanket v2.0 - Guard against destroyed widget. _commitTrade is called via a 250ms setTimeout.
+    // By the time the timer fires, the widget may have been destroyed (e.g., component unmount,
+    // theme change forcing widget rebuild). Without this guard, the symbolInterval() call throws
+    // a TypeError which propagates as an unhandled rejection and silently kills the commit.
+    if (!this.widget) return;
+
     // v7.51 State-Preserving Commit
     const trade = this.getTradeById(tid);
     if (!trade) return;
