@@ -68,22 +68,33 @@ const Advance_Trading_View_Chart = ({
     if (!userId || !widgetRef.current || !chartReadyRef.current) return;
 
     try {
-      //Sanket v2.0 - Clear managed SL/TP/entry lines before saving so they don't get baked into
-      // the layoutJson. Stale shape IDs in saved state cause "Can't find source" errors and
-      // TradingView schema mismatches on next load. Re-sync after save to restore them.
-      const manager = managerRef.current;
-      if (manager) manager.clearAllManagedDrawings();
-
       widgetRef.current.save((layoutJson) => {
-        // Re-sync trade lines immediately after snapshot is captured
-        if (manager) manager.syncTrades(manager.trades || [], symbol);
+        //Sanket v2.0 - Strip 'sources' (price line shapes) from saved layout.
+        // Managed SL/TP/entry shapes have dynamic TV IDs that become stale on next session.
+        // Loading stale shape IDs causes TV schema errors and "Can't find source" floods.
+        // Trade lines are always re-created fresh by TradeLineManager on chart ready.
+        try {
+          if (layoutJson?.charts) {
+            layoutJson.charts.forEach(chart => {
+              if (chart.panes) {
+                chart.panes.forEach(pane => {
+                  if (pane.sources) {
+                    pane.sources = pane.sources.filter(s =>
+                      s.type !== 'HorzLine' && s.type !== 'PriceLine'
+                    );
+                  }
+                });
+              }
+            });
+          }
+        } catch (e) {}
 
         fetch(`${API_URL}/chart/save`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId,
-            symbol: 'GLOBAL', // Save to a global layout for full sync
+            symbol: 'GLOBAL',
             layoutJson
           })
         }).then(res => res.json())
@@ -110,7 +121,27 @@ const Advance_Trading_View_Chart = ({
       const data = await res.json();
       
       if (data.success && data.layoutJson) {
-        widget.load(data.layoutJson);
+        //Sanket v2.0 - Strip stale price line sources from saved layout before loading.
+        // Old sessions may have baked-in HorzLine/PriceLine shapes with dead IDs → schema errors on load.
+        try {
+          const layout = data.layoutJson;
+          if (layout?.charts) {
+            layout.charts.forEach(chart => {
+              if (chart.panes) {
+                chart.panes.forEach(pane => {
+                  if (pane.sources) {
+                    pane.sources = pane.sources.filter(s =>
+                      s.type !== 'HorzLine' && s.type !== 'PriceLine'
+                    );
+                  }
+                });
+              }
+            });
+          }
+          widget.load(layout);
+        } catch (e) {
+          widget.load(data.layoutJson);
+        }
       } else {
       }
     } catch (err) {
