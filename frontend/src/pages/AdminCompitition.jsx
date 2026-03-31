@@ -1,3 +1,6 @@
+
+// AdminCompitition.jsx
+
 import React, { useState, useEffect } from 'react';
 import AdminCreateCompitition from './AdminCreateCompitition';
 import AdminLayout from '../components/AdminLayout';
@@ -11,6 +14,9 @@ const AdminCompetition = () => {
 
   const [activeTab, setActiveTab] = useState('ongoing');
   const [open, setOpen] = useState(false);
+
+  const [selectedCompetition, setSelectedCompetition] = useState(null);
+
 
   const [competitions, setCompetitions] = useState({
     ongoing: [],
@@ -80,11 +86,19 @@ const AdminCompetition = () => {
   const handleView = (competition) => {
     navigate(`/admin/competition-details/${competition.id}`);
   };
-
+/* 
   const handleEdit = (competition) => {
     console.log("Edit competition:", competition);
     setOpen(true);
   };
+ */
+
+  const handleEdit = (competition) => {
+  console.log("Edit competition:", competition);
+
+  setSelectedCompetition(competition.raw); // ✅ IMPORTANT
+  setOpen(true);
+};
 
   const handleDelete = async (competition) => {
 
@@ -176,12 +190,20 @@ const AdminCompetition = () => {
               Create Competition
             </button>
           </div>
-
+{/* 
           <AdminCreateCompitition
             open={open}
             onClose={() => setOpen(false)}
           />
-
+ */}
+ <AdminCreateCompitition
+  open={open}
+  onClose={() => {
+    setOpen(false);
+    setSelectedCompetition(null); // reset
+  }}
+  editData={selectedCompetition}   // ✅ NEW PROP
+/>
           {/* Tabs */}
           <div
             style={{

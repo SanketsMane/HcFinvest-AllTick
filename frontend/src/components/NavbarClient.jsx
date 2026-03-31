@@ -8,7 +8,6 @@ import { API_URL } from "../config/api";
 
 const NavbarClient = ({ title, subtitle }) => {
   const navigate = useNavigate();
-  
 
   const [open, setOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -36,28 +35,34 @@ const NavbarClient = ({ title, subtitle }) => {
   // ✅ Fetch announcements + detect new
   const fetchAnnouncements = async () => {
     try {
-      const res = await axios.get(
-        `${API_URL}/announcement/get/announcements`
-      );
+      const res = await axios.get(`${API_URL}/announcement/get/announcements`);
 
       const data = res.data || [];
       setAnnouncements(data);
 
       const lastSeen = localStorage.getItem("lastSeenAnnouncement");
+      const alreadyOpened = sessionStorage.getItem("announcementOpened");
 
+      // ✅ ALWAYS check announcements
       if (data.length > 0) {
         const latest = new Date(data[0].createdAt).getTime();
 
+        // 🔴 Detect new
         if (!lastSeen || latest > Number(lastSeen)) {
           setHasNew(true);
 
           const newItems = data.filter(
             (item) =>
-              new Date(item.createdAt).getTime() >
-              Number(lastSeen || 0)
+              new Date(item.createdAt).getTime() > Number(lastSeen || 0),
           );
 
           setNewIds(newItems.map((item) => item._id));
+        }
+
+        // ✅ ALWAYS OPEN ON LOGIN (only once per session)
+        if (!alreadyOpened) {
+          setNotifOpen(true);
+          sessionStorage.setItem("announcementOpened", "true");
         }
       }
     } catch (error) {
@@ -82,7 +87,6 @@ const NavbarClient = ({ title, subtitle }) => {
 
   return (
     <div className="flex items-center justify-between mb-6 border-b border-gray-300 pb-4">
-      
       {/* LEFT */}
       <div>
         <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
@@ -91,7 +95,6 @@ const NavbarClient = ({ title, subtitle }) => {
 
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-4 relative">
-
         {/* 🔔 ANNOUNCEMENT BELL */}
         <div className="relative">
           <div
@@ -101,14 +104,9 @@ const NavbarClient = ({ title, subtitle }) => {
 
               // ✅ Mark as seen (BUT DO NOT CLEAR newIds)
               if (announcements.length > 0) {
-                const latest = new Date(
-                  announcements[0].createdAt
-                ).getTime();
+                const latest = new Date(announcements[0].createdAt).getTime();
 
-                localStorage.setItem(
-                  "lastSeenAnnouncement",
-                  latest
-                );
+                localStorage.setItem("lastSeenAnnouncement", latest);
 
                 setHasNew(false);
 
@@ -139,9 +137,7 @@ const NavbarClient = ({ title, subtitle }) => {
 
               <div className="max-h-72 overflow-y-auto">
                 {announcements.length === 0 ? (
-                  <p className="p-3 text-gray-500 text-sm">
-                    No announcements
-                  </p>
+                  <p className="p-3 text-gray-500 text-sm">No announcements</p>
                 ) : (
                   announcements.map((item) => (
                     <div
@@ -231,11 +227,9 @@ const NavbarClient = ({ title, subtitle }) => {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
 };
 
 export default NavbarClient;
-
