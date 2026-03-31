@@ -32,6 +32,19 @@ const Advance_Trading_View_Chart = ({
   const isInitializingRef = useRef(false);
   const lastSetSymbolRef = useRef(null);
   const saveTimeoutRef = useRef(null);
+  //Sanket v2.0 - Refs that always hold the latest trades/symbol props without stale closure.
+  // The onChartReady useEffect has empty deps [] so its inner setTimeout captures stale values
+  // from mount time (trades=[], symbol='XAUUSD'). If trades arrive after mount but before the
+  // chart finishes initializing, the 600ms timeout fires with empty trades and no lines draw.
+  // Refs update on every render synchronously — no stale-closure risk.
+  const tradesRef = useRef(trades);
+  tradesRef.current = trades;
+  const symbolRef = useRef(symbol);
+  symbolRef.current = symbol;
+  // Gate: prevents useEffect([trades, symbol, isChartReady]) from syncing before the initial
+  // 600ms TV-settle delay completes. Without this gate, the effect fires immediately on
+  // isChartReady transition (TV still mid-load after widget.load()) and createShape returns null.
+  const initialSyncDoneRef = useRef(false);
   
   const [isChartReady, setIsChartReady] = useState(false);
   const chartReadyRef = useRef(false);
@@ -231,15 +244,17 @@ const Advance_Trading_View_Chart = ({
         );
         managerRef.current.initialize(widget);
         //Sanket v2.0 - Delay initial syncTrades by 600ms. widget.load() causes TV to internally
-        // re-process the chart layout (symbols, indicators, drawings). Calling createShape
-        // immediately after load returns null because TV is still applying the layout state.
-        // A null tvId silently corrupts set.entry/sl/tp — lines never draw until the next
-        // statechange. The 600ms delay lets TV finish before we create any managed shapes.
-        // Subsequent syncs via useEffect([trades, symbol]) fire on every trade-state change and
-        // work correctly because TV is stable by then.
+        // re-process the chart layout. createShape called during this window returns null because
+        // TV is still applying the layout state. The 600ms delay lets TV finish before we create
+        // any managed shapes.
+        // IMPORTANT: Read from tradesRef/symbolRef (not stale closure). The onChartReady callback
+        // is inside useEffect([]) so trades/symbol captured here are the MOUNT-TIME values (empty
+        // array). tradesRef.current is updated every render — always holds the latest trades.
+        initialSyncDoneRef.current = false;
         setTimeout(() => {
           if (managerRef.current) {
-            managerRef.current.syncTrades(trades, symbol);
+            managerRef.current.syncTrades(tradesRef.current, symbolRef.current);
+            initialSyncDoneRef.current = true; // Unlock subsequent useEffect syncs
           }
         }, 600);
 
@@ -303,18 +318,15 @@ const Advance_Trading_View_Chart = ({
   }, [normalizedSymbol, isChartReady, trades, symbol]);
 
   // ─── Sync trades ──────────────────────────────────────────────────────────
+  // Sanket v2.0 - Added isChartReady as dep so this fires when chart becomes ready with
+  // already-loaded trades (handles the race where trades arrive before onChartReady fires).
+  // initialSyncDoneRef gate prevents premature sync before the 600ms TV-settle delay completes.
   useEffect(() => {
-    if (managerRef.current) {
-      managerRef.current.syncTrades(trades, symbol);
-    }
-  }, [trades, symbol]);
-
-  useEffect(() => {
-    if (managerRef.current) {
-      managerRef.current.setAdminSpreads(adminSpreads);
-      managerRef.current.syncTrades(trades, symbol);
-    }
-  }, [adminSpreads, trades, symbol]);
+    if (!managerRef.current || !isChartReady) return;
+    managerRef.current.setAdminSpreads(adminSpreads);
+    if (!initialSyncDoneRef.current) return; // Wait for 600ms initial sync to complete first
+    managerRef.current.syncTrades(trades, symbol);
+  }, [adminSpreads, trades, symbol, isChartReady]);
 
   // ─── Live price stream listener ───────────────────────────────────────────
   useEffect(() => {
