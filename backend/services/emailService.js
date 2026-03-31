@@ -233,7 +233,8 @@ class EmailService {
         data: { otp, purpose: purposeText, expiry_minutes: 10 },
         category: 'otp'
       })
-    } catch {
+    } catch (err) {
+      console.error(`🚨 Fallback in sendOTPEmail for ${email} because:`, err.message)
       return this.sendEmail({
         to: email,
         subject: `Your OTP Code - ${this.appName}`,
@@ -323,35 +324,88 @@ class EmailService {
 
   _getOTPEmailHTML(otp, purposeText) {
     return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f9f9f9; border-radius: 8px;">
-      <h2 style="color: #1a1a1a;">Your Verification Code</h2>
-      <p style="color: #555;">Use this code to ${purposeText}:</p>
-      <div style="background: #fff; border: 2px dashed #f97316; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
-        <span style="font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #f97316;">${otp}</span>
-      </div>
-      <p style="color: #888; font-size: 13px;">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
-      <p style="color: #888; font-size: 12px; margin-top: 24px;">— ${this.appName} Team</p>
-    </div>`
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.3);">
+        <tr><td style="background:linear-gradient(135deg,#f97316,#ea580c);padding:32px 40px;text-align:center;">
+          <h1 style="margin:0;color:#fff;font-size:24px;font-weight:700;letter-spacing:1px;">${this.appName}</h1>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">Professional Trading Platform</p>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <h2 style="margin:0 0 8px;color:#fff;font-size:22px;">Your Verification Code</h2>
+          <p style="margin:0 0 28px;color:#aaa;font-size:15px;line-height:1.6;">Use this code to ${purposeText}:</p>
+          <div style="text-align:center;margin:32px 0;">
+            <div style="display:inline-block;background:#f97316;border-radius:10px;padding:20px 48px;">
+              <span style="font-size:42px;font-weight:800;letter-spacing:14px;color:#fff;font-family:monospace;">${otp}</span>
+            </div>
+          </div>
+          <p style="margin:0 0 8px;color:#888;font-size:13px;text-align:center;">⏱ This code expires in <strong style="color:#f97316;">10 minutes</strong>.</p>
+        </td></tr>
+        <tr><td style="background:#111;padding:24px 40px;text-align:center;border-top:1px solid #2a2a2a;">
+          <p style="margin:0;color:#666;font-size:12px;">© ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
   }
 
   _getWelcomeEmailHTML(firstName) {
     return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f9f9f9; border-radius: 8px;">
-      <h2 style="color: #1a1a1a;">Welcome to ${this.appName}, ${firstName || 'Trader'}! 🎉</h2>
-      <p style="color: #555;">Your account is ready. Start exploring the platform and take your trading to the next level.</p>
-      <p style="color: #888; font-size: 12px; margin-top: 24px;">— ${this.appName} Team</p>
-    </div>`
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.3);">
+        <tr><td style="background:linear-gradient(135deg,#f97316,#ea580c);padding:32px 40px;text-align:center;">
+          <h1 style="margin:0;color:#fff;font-size:24px;font-weight:700;letter-spacing:1px;">${this.appName}</h1>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <h2 style="margin:0 0 8px;color:#fff;font-size:24px;">Welcome aboard, ${firstName || 'Trader'}! 🎉</h2>
+          <p style="margin:0 0 24px;color:#aaa;font-size:15px;line-height:1.7;">Your account is ready. You're now part of a professional trading community.</p>
+        </td></tr>
+        <tr><td style="background:#111;padding:24px 40px;text-align:center;border-top:1px solid #2a2a2a;">
+          <p style="margin:0;color:#666;font-size:12px;">© ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
   }
 
   _getPasswordResetEmailHTML(resetUrl) {
     return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f9f9f9; border-radius: 8px;">
-      <h2 style="color: #1a1a1a;">Password Reset Request</h2>
-      <p style="color: #555;">Click the button below to reset your password. This link expires in <strong>60 minutes</strong>.</p>
-      <a href="${resetUrl}" style="display: inline-block; margin: 20px 0; padding: 12px 28px; background: #f97316; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold;">Reset Password</a>
-      <p style="color: #888; font-size: 13px;">If you did not request this, you can safely ignore this email.</p>
-      <p style="color: #888; font-size: 12px; margin-top: 24px;">— ${this.appName} Team</p>
-    </div>`
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.3);">
+        <tr><td style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:32px 40px;text-align:center;">
+          <h1 style="margin:0;color:#fff;font-size:24px;font-weight:700;letter-spacing:1px;">${this.appName}</h1>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <h2 style="margin:0 0 8px;color:#fff;font-size:22px;">Reset your password</h2>
+          <p style="margin:0 0 28px;color:#aaa;font-size:15px;line-height:1.6;">Click the button below to set a new password.</p>
+          <div style="text-align:center;margin:28px 0;">
+            <a href="${resetUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:700;">Reset Password</a>
+          </div>
+          <p style="margin:0 0 8px;color:#888;font-size:13px;text-align:center;">This link expires in <strong style="color:#dc2626;">60 minutes</strong>.</p>
+        </td></tr>
+        <tr><td style="background:#111;padding:24px 40px;text-align:center;border-top:1px solid #2a2a2a;">
+          <p style="margin:0;color:#666;font-size:12px;">© ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
   }
 }
 
