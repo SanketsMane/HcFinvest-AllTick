@@ -496,7 +496,8 @@ class AllTickApiService {
       
       //Sanket v2.0 - Store prices with plain uppercase symbol (no .i suffix)
       const targetSymbol = String(symbol).toUpperCase().replace(/\.I$/i, '');
-      const payloadString = JSON.stringify({ ...data, symbol: targetSymbol });
+      //Sanket v2.0 - Add receivedAt so freshness check uses server receive time, not exchange tick time
+      const payloadString = JSON.stringify({ ...data, symbol: targetSymbol, receivedAt: Date.now() });
       
       // 1. Store the newest price in Redis HSET (Strictly canonical .i only)
       await redisClient.hset('live_prices', targetSymbol, payloadString);

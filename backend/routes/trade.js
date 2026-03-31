@@ -65,8 +65,8 @@ router.post('/open', async (req, res) => {
       if (priceStr) {
         const cachedPrice = JSON.parse(priceStr);
         // Relaxed to 300s (5 minutes) for opening trades
-        // Check both .timestamp and .time for compatibility
-        if (!isPriceFresh(cachedPrice.timestamp || cachedPrice.time, 300)) {
+        //Sanket v2.0 - Use receivedAt (server receive time) for freshness, fallback to exchange timestamp
+        if (!isPriceFresh(cachedPrice.receivedAt || cachedPrice.timestamp || cachedPrice.time, 300)) {
           console.warn(`[Trade Route] Stale price detected for ${symbol}: ${cachedPrice.time}`);
           return res.status(400).json({
             success: false,
@@ -272,8 +272,8 @@ router.post('/close', async (req, res) => {
         const priceStr = await redisClient.hget('live_prices', tradeObj.symbol.toUpperCase().replace(/\.I$/i, ''));
         if (priceStr) {
           const cachedPrice = JSON.parse(priceStr);
-          // Check both .timestamp and .time for compatibility
-          if (!isPriceFresh(cachedPrice.timestamp || cachedPrice.time, 600)) { // Relaxed 600s for closing
+          //Sanket v2.0 - Use receivedAt (server receive time) for freshness, fallback to exchange timestamp
+          if (!isPriceFresh(cachedPrice.receivedAt || cachedPrice.timestamp || cachedPrice.time, 600)) { // Relaxed 600s for closing
             console.warn(`[Trade Route] Stale price detected on CLOSE for ${tradeObj.symbol}: ${cachedPrice.time}`);
             return res.status(400).json({
               success: false,
