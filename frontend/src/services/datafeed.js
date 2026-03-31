@@ -497,7 +497,10 @@ const Datafeed = {
       priceUpdate: handlePriceUpdate,
       candleUpdate: handleCandleUpdate,
       symbol: symbolInfo.name,
-      dataGapMonitor
+      dataGapMonitor,
+      //Sanket v2.0 - Expose callback and bar ref so updateInterpolatedTick can push smooth candle updates
+      _onRealtimeCallback: onRealtimeCallback,
+      get _currentBar() { return currentBar; }
     };
 
     console.log(`[DATAFEED] 👂 Real-time subscription: ${symbolInfo.name}`);
@@ -526,6 +529,27 @@ const Datafeed = {
       if (sub.symbol) priceStreamService.unsubscribeBars(sub.symbol);
       delete Datafeed._subscribers[subscriberUID];
     }
+  },
+
+  //Sanket v2.0 - Feed interpolated smooth price into active chart candles to prevent jumpy chart during slow ticks
+  updateInterpolatedTick(symbol, midPrice) {
+    if (!midPrice || !isFinite(midPrice) || midPrice <= 0) return;
+    const canonSymbol = String(symbol || '').toUpperCase().replace(/\.I$/i, '');
+    const subs = Datafeed._subscribers || {};
+    Object.values(subs).forEach(sub => {
+      const subSymbol = String(sub.symbol || '').toUpperCase().replace(/\.I$/i, '');
+      if (subSymbol !== canonSymbol) return;
+      if (sub._onRealtimeCallback && sub._currentBar) {
+        const bar = sub._currentBar;
+        const updated = {
+          ...bar,
+          high: Math.max(bar.high, midPrice),
+          low: Math.min(bar.low, midPrice),
+          close: midPrice
+        };
+        try { sub._onRealtimeCallback(updated); } catch {}
+      }
+    });
   }
 };
 

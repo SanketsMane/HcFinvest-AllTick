@@ -272,7 +272,10 @@ const Advance_Trading_View_Chart = ({
   // ─── Live price stream listener ───────────────────────────────────────────
   useEffect(() => {
     const handlePriceUpdate = (e) => {
-      if (e.detail?.symbol === symbol) {
+      //Sanket v2.0 - Normalize both sides so XAUUSD.i matches XAUUSD tick events
+      const tickSymbol = String(e.detail?.symbol || '').toUpperCase().replace(/\.I$/i, '');
+      const chartSymbol = String(symbol || '').toUpperCase().replace(/\.I$/i, '');
+      if (tickSymbol === chartSymbol) {
         const { bid, ask } = e.detail;
         currentPriceRef.current = bid; // Keep bid as primary ref for simplicity
         setTargetPrice({ bid, ask });
