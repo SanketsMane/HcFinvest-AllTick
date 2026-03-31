@@ -3069,6 +3069,82 @@ const AnimatedPrice = ({ target, decimals }) => {
   return <>{num.toFixed(decimals)}</>;
 };
 
+//Sanket v2.0 - Animated positions table row. The whole <tr> re-renders at 60fps driven by
+// useInterpolation on the live bid/ask for this trade's symbol. Only the current-price and
+// P/L cells visually change; all other cells render the same static trade fields.
+// Isolated as a component so TradingPage itself is never triggered by the RAF loop.
+const AnimatedTradeRow = ({ trade, rawBid, rawAsk, fallbackPnl, priceDecimals, isDarkMode, onModify, onClose }) => {
+  const smooth = useInterpolation(
+    (rawBid > 0 || rawAsk > 0) ? { bid: rawBid || 0, ask: rawAsk || 0 } : 0,
+    0.15
+  );
+  const sb = typeof smooth === 'object' && smooth !== null ? smooth.bid : 0;
+  const sa = typeof smooth === 'object' && smooth !== null ? smooth.ask : 0;
+  const side = String(trade.side || '').toUpperCase();
+  const smoothPrice = side === 'BUY' ? sb : sa;
+  const validPrice = smoothPrice > 0 ? smoothPrice : null;
+  const pnl = validPrice !== null
+    ? (side === 'BUY'
+        ? (validPrice - trade.openPrice) * trade.quantity * trade.contractSize
+        : (trade.openPrice - validPrice) * trade.quantity * trade.contractSize)
+    : (fallbackPnl || 0);
+  const fmt = (p) => p ? p.toFixed(priceDecimals) : '-';
+  return (
+    <tr className={`border-t ${isDarkMode ? 'border-gray-800 hover:bg-[#1a1a1a]' : 'border-gray-200 hover:bg-gray-50'}`}>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{new Date(trade.openedAt).toLocaleTimeString()}</td>
+      <td className={`py-2 px-3 text-xs font-medium ${isDarkMode ? '' : 'text-gray-900'}`}>{trade.symbol}</td>
+      <td className={`py-2 px-3 text-xs font-medium ${trade.side === 'BUY' ? 'text-blue-500' : 'text-red-500'}`}>{trade.side}</td>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.quantity}</td>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{fmt(trade.openPrice)}</td>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{fmt(validPrice)}</td>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.stopLoss ? fmt(trade.stopLoss) : '-'}</td>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.takeProfit ? fmt(trade.takeProfit) : '-'}</td>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.commission?.toFixed(2) || '0.00'}</td>
+      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.swap?.toFixed(2) || '0.00'}</td>
+      <td className={`py-2 px-3 text-xs font-medium ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>${pnl.toFixed(2)}</td>
+      <td className="py-2 px-3">
+        <div className="flex items-center gap-1">
+          <button onClick={() => onModify(trade)} className="p-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors" title="Modify SL/TP"><Pencil size={12} /></button>
+          <button onClick={() => onClose(trade)} className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors" title="Close Trade"><X size={12} /></button>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
+//Sanket v2.0 - Animated bid / spread pill / ask for the instruments panel.
+// Only these three blocks re-render at 60fps; the outer <button> row does not.
+const AnimatedInstrumentPrices = ({ rawBid, rawAsk, markup, isJpyPairBool, isPointBased, isDarkMode }) => {
+  const smooth = useInterpolation(
+    (rawBid > 0 || rawAsk > 0) ? { bid: rawBid || 0, ask: rawAsk || 0 } : 0,
+    0.15
+  );
+  const sb = typeof smooth === 'object' && smooth !== null ? smooth.bid : 0;
+  const sa = typeof smooth === 'object' && smooth !== null ? smooth.ask : 0;
+  const retBid = sb > 0 ? sb - markup : 0;
+  const retAsk = sa > 0 ? sa + markup : 0;
+  const effectiveSpread = retBid > 0 && retAsk > 0 ? retAsk - retBid : 0;
+  const decimals = retBid > 100 ? 2 : 5;
+  const spreadStr = effectiveSpread > 0
+    ? (isJpyPairBool ? (effectiveSpread * 100).toFixed(1)
+        : isPointBased ? effectiveSpread.toFixed(2)
+        : (effectiveSpread * 10000).toFixed(1))
+    : '-';
+  return (
+    <>
+      <div className="text-right w-16">
+        <div className="text-red-500 text-xs font-mono">{retBid > 0 ? retBid.toFixed(decimals) : '...'}</div>
+        <div className="text-gray-600 text-[9px]">Bid</div>
+      </div>
+      <div className={`px-1.5 py-0.5 rounded text-[10px] font-medium min-w-[28px] text-center mx-1.5 ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>{spreadStr}</div>
+      <div className="text-right w-14">
+        <div className="text-green-500 text-xs font-mono">{retAsk > 0 ? retAsk.toFixed(decimals) : '...'}</div>
+        <div className="text-gray-600 text-[9px]">Ask</div>
+      </div>
+    </>
+  );
+};
+
 const TradingPage = () => {
   const navigate = useNavigate()
   const { accountId } = useParams()
@@ -4783,10 +4859,9 @@ const TradingPage = () => {
                   filteredInstruments.map(inst => {
                     //Sanket v2.0 - Apply admin markup to displayed bid/ask so instruments panel matches execution prices
                     const markup = getAdminMarkupValue(inst.symbol, adminSpreads);
-                    const retailBid = inst.bid > 0 ? inst.bid - markup : 0;
-                    const retailAsk = inst.ask > 0 ? inst.ask + markup : 0;
-                    const effectiveSpread = retailBid > 0 && retailAsk > 0 ? retailAsk - retailBid : 0;
                     const sym = getBaseSymbol(inst.symbol);
+                    //Sanket v2.0 - retailBid/retailAsk/effectiveSpread now computed inside AnimatedInstrumentPrices
+                    // at 60fps so the instruments list price digits animate instead of jump every 300ms.
                     const isPointBased = isMetalSymbol(sym) || isCryptoSymbol(sym) || ['USOIL','UKOIL','NGAS','COPPER','US30','US500','US100','UK100','GER40','FRA40','JP225','HK50','AUS200','ES35'].includes(sym);
 
                     return (
@@ -4807,29 +4882,14 @@ const TradingPage = () => {
                         <div className="text-green-500 text-[10px]">+{inst.change?.toFixed(2) || '0.00'}%</div>
                       </div>
                       <div className="flex-1" />
-                      <div className="text-right w-16">
-                        <div className="text-red-500 text-xs font-mono">
-                          {retailBid > 0 ? retailBid.toFixed(retailBid > 100 ? 2 : 5) : '...'}
-                        </div>
-                        <div className="text-gray-600 text-[9px]">Bid</div>
-                      </div>
-                      <div className={`px-1.5 py-0.5 rounded text-[10px] font-medium min-w-[28px] text-center mx-1.5 ${
-                        isDarkMode 
-                          ? 'bg-gray-800 text-gray-300' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {effectiveSpread > 0 ? (
-                          isJpyPair(inst.symbol) ? (effectiveSpread * 100).toFixed(1) :
-                          isPointBased ? effectiveSpread.toFixed(2) :
-                          (effectiveSpread * 10000).toFixed(1)
-                        ) : '-'}
-                      </div>
-                      <div className="text-right w-14">
-                        <div className="text-green-500 text-xs font-mono">
-                          {retailAsk > 0 ? retailAsk.toFixed(retailAsk > 100 ? 2 : 5) : '...'}
-                        </div>
-                        <div className="text-gray-600 text-[9px]">Ask</div>
-                      </div>
+                      <AnimatedInstrumentPrices
+                        rawBid={inst.bid}
+                        rawAsk={inst.ask}
+                        markup={markup}
+                        isJpyPairBool={isJpyPair(inst.symbol)}
+                        isPointBased={isPointBased}
+                        isDarkMode={isDarkMode}
+                      />
                     </button>
                     )
                   })
@@ -5111,72 +5171,30 @@ const TradingPage = () => {
                                       lastValidPricesRef.current[targetSym] ||
                                       lastValidPricesRef.current[targetSym.toUpperCase()];
 
-                      const inst = instruments.find(i => i.symbol === trade.symbol) || selectedInstrument
-                      
-                      // Normalize side for safety (matching calculateEquity)
-                      const side = String(trade.side || '').toUpperCase();
-
-                      const rawPrice = livePrice 
-                        ? (side === 'BUY' ? (livePrice.rawBid || livePrice.bid) : (livePrice.rawAsk || livePrice.ask))
-                        : (side === 'BUY' ? (inst.rawBid || inst.bid) : (inst.rawAsk || inst.ask))
-                      //Sanket v2.0 - Guard against 0/undefined price: use cached PnL as fallback
-                      const currentPrice = (rawPrice && rawPrice > 0) ? rawPrice : null;
-                      //Sanket v2.0 - For display, show last valid price instead of '-' when current tick is missing
-                      const displayPrice = currentPrice || (lastValidPricesRef.current[targetSym.toUpperCase()] 
-                        ? (side === 'BUY' 
-                          ? (lastValidPricesRef.current[targetSym.toUpperCase()].rawBid || lastValidPricesRef.current[targetSym.toUpperCase()].bid) 
-                          : (lastValidPricesRef.current[targetSym.toUpperCase()].rawAsk || lastValidPricesRef.current[targetSym.toUpperCase()].ask))
-                        : null);
-                      const pnl = currentPrice
-                        ? (side === 'BUY' 
-                          ? (currentPrice - trade.openPrice) * trade.quantity * trade.contractSize
-                          : (trade.openPrice - currentPrice) * trade.quantity * trade.contractSize)
-                        : (lastTradePnlRef.current[trade._id] || 0);
-                      
-                      // Format price based on symbol type
-                      const formatPrice = (price) => {
-                        if (!price) return '-'
-                        if (isJpyPair(trade.symbol)) return price.toFixed(3)
-                        if (isCryptoSymbol(trade.symbol) || getBaseSymbol(trade.symbol) === 'XAUUSD') return price.toFixed(2)
-                        if (getBaseSymbol(trade.symbol) === 'XAGUSD') return price.toFixed(4)
-                        return price.toFixed(5)
-                      }
-                      
+                      const inst = instruments.find(i => i.symbol === trade.symbol) || selectedInstrument;
+                      //Sanket v2.0 - Resolve raw bid/ask with all fallbacks; passed to AnimatedTradeRow
+                      // which interpolates them internally at 60fps so current-price and P/L columns
+                      // never jump. TradingPage re-renders only at the normal 300ms price-stream rate.
+                      const cachePrices = lastValidPricesRef.current[targetSym.toUpperCase()];
+                      const rawBid = (livePrice?.rawBid || livePrice?.bid) || (cachePrices?.rawBid || cachePrices?.bid) || (inst?.rawBid || inst?.bid) || 0;
+                      const rawAsk = (livePrice?.rawAsk || livePrice?.ask) || (cachePrices?.rawAsk || cachePrices?.ask) || (inst?.rawAsk || inst?.ask) || 0;
+                      const priceDecimals = isJpyPair(trade.symbol) ? 3
+                        : (isCryptoSymbol(trade.symbol) || getBaseSymbol(trade.symbol) === 'XAUUSD') ? 2
+                        : getBaseSymbol(trade.symbol) === 'XAGUSD' ? 4
+                        : 5;
                       return (
-                        <tr key={trade._id} className={`border-t ${isDarkMode ? 'border-gray-800 hover:bg-[#1a1a1a]' : 'border-gray-200 hover:bg-gray-50'}`}>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{new Date(trade.openedAt).toLocaleTimeString()}</td>
-                          <td className={`py-2 px-3 text-xs font-medium ${isDarkMode ? '' : 'text-gray-900'}`}>{trade.symbol}</td>
-                          <td className={`py-2 px-3 text-xs font-medium ${trade.side === 'BUY' ? 'text-blue-500' : 'text-red-500'}`}>{trade.side}</td>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.quantity}</td>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{formatPrice(trade.openPrice)}</td>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{formatPrice(displayPrice)}</td>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.stopLoss ? formatPrice(trade.stopLoss) : '-'}</td>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.takeProfit ? formatPrice(trade.takeProfit) : '-'}</td>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.commission?.toFixed(2) || '0.00'}</td>
-                          <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.swap?.toFixed(2) || '0.00'}</td>
-                          <td className={`py-2 px-3 text-xs font-medium ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            ${pnl.toFixed(2)}
-                          </td>
-                          <td className="py-2 px-3">
-                            <div className="flex items-center gap-1">
-                              <button 
-                                onClick={() => openModifyModal(trade)}
-                                className="p-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
-                                title="Modify SL/TP"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                              <button 
-                                onClick={() => openCloseModal(trade)}
-                                className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
-                                title="Close Trade"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
+                        <AnimatedTradeRow
+                          key={trade._id}
+                          trade={trade}
+                          rawBid={rawBid}
+                          rawAsk={rawAsk}
+                          fallbackPnl={lastTradePnlRef.current[trade._id] || 0}
+                          priceDecimals={priceDecimals}
+                          isDarkMode={isDarkMode}
+                          onModify={openModifyModal}
+                          onClose={openCloseModal}
+                        />
+                      );
                     })
                   )}
                 </tbody>
