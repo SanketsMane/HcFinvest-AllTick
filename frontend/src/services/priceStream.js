@@ -102,10 +102,24 @@ class PriceStreamService {
         this.categories = categories
       }
       
-      // NOTE: Do NOT dispatch priceUpdate events from priceStream.
-      // Chart candle aggregation is handled exclusively by the tickUpdate event handler below.
-      // priceStream (both per-tick and 1s interval) was causing chart candles to be updated
-      // redundantly — inflating volume and H/L on every snapshot even during quiet markets.
+      // NOTE: We now dispatch priceUpdate events from priceStream as a robust fallback.
+      // While tickUpdate (high frequency) is the preferred driver for smooth chart movement,
+      // priceStream ensuring the chart moves at least every 1s if the tick stream is quiet.
+      if (prices) {
+        const priceEventTarget = getPriceEvents();
+        Object.entries(updated || prices).forEach(([symbol, p]) => {
+          if (p && p.bid > 0) {
+            priceEventTarget.dispatchEvent(new CustomEvent('priceUpdate', {
+              detail: {
+                symbol: symbol,
+                bid: p.bid,
+                ask: p.ask,
+                time: timestamp || new Date().toISOString()
+              }
+            }));
+          }
+        });
+      }
 
       // Notify all price subscribers with updated prices only (throttled)
       this.subscribers.forEach((callback, id) => {

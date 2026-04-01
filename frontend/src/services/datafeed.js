@@ -613,8 +613,12 @@ const Datafeed = {
     };
 
     console.log(`[DATAFEED] 👂 Real-time subscription: ${symbolInfo.name}`);
-    priceEventTarget.addEventListener("candleUpdate", handleCandleUpdate);
-    priceEventTarget.addEventListener("priceUpdate", handlePriceUpdate);
+    const sub = Datafeed._subscribers[subscriberUID];
+    sub.handleCandleUpdate = handleCandleUpdate;
+    sub.handlePriceUpdate = handlePriceUpdate;
+
+    getPriceEvents().addEventListener("candleUpdate", sub.handleCandleUpdate);
+    getPriceEvents().addEventListener("priceUpdate", sub.handlePriceUpdate);
     
     // Return cleanup function so TradingView can call it when unsubscribing
     return function cleanup() {
@@ -633,8 +637,8 @@ const Datafeed = {
   unsubscribeBars: (subscriberUID) => {
     const sub = Datafeed._subscribers && Datafeed._subscribers[subscriberUID];
     if (sub) {
-      priceEventTarget.removeEventListener("priceUpdate", sub.priceUpdate);
-      priceEventTarget.removeEventListener("candleUpdate", sub.candleUpdate);
+      getPriceEvents().removeEventListener("priceUpdate", sub.handlePriceUpdate);
+      getPriceEvents().removeEventListener("candleUpdate", sub.handleCandleUpdate);
       if (sub.dataGapMonitor) clearInterval(sub.dataGapMonitor);
       if (sub.symbol) priceStreamService.unsubscribeBars(sub.symbol);
       delete Datafeed._subscribers[subscriberUID];
