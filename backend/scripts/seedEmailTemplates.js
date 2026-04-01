@@ -257,7 +257,7 @@ const defaultTemplates = [
                                                                                             border-radius:8px;
                                                                                             display:inline-block;
                                                                                           ">
-                                                                                            {{OTP}}
+                                                                                            {{otp}}
                                                                                           </span>
                                                                                         </div>
 
