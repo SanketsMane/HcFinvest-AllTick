@@ -213,9 +213,8 @@ const Datafeed = {
       }
 
       //Sanket v2.0 - Differentiate sessions to prevent timeline gaps
-      // Crypto is true 24/7; most other market sessions have a 1-hour reset/pause
       const isCrypto = s.includes("BTC") || s.includes("ETH") || s.includes("BNB") || s.includes("SOL") || s.includes("LTC") || s.includes("XRP") || s.includes("ADA") || s.includes("DOGE");
-      const session = isCrypto ? "24x7" : "2200-2100:23456,1700-1600:7,1700-1600:1"; // Standard Forex session (Sun-Fri)
+      const session = "24x7"; 
 
       const symbolInfo = {
         name: normalizedName,

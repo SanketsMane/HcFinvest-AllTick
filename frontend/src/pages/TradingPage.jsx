@@ -6229,29 +6229,6 @@ const TradingPage = () => {
                 </button>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-white/5">
-                <p className="text-[10px] text-white/40 uppercase font-bold mb-2">Batch Actions</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <button 
-                    onClick={() => { setShowCloseModal(false); handleCloseAllTrades('all'); }}
-                    className="py-2 bg-red-500/10 text-red-400 text-[10px] font-semibold border border-red-500/20 rounded active:scale-95 transition-all hover:bg-red-500/20"
-                  >
-                    Close All
-                  </button>
-                  <button 
-                    onClick={() => { setShowCloseModal(false); handleCloseAllTrades('profit'); }}
-                    className="py-2 bg-green-500/10 text-green-400 text-[10px] font-semibold border border-green-500/20 rounded active:scale-95 transition-all hover:bg-green-500/20"
-                  >
-                    All Profit
-                  </button>
-                  <button 
-                    onClick={() => { setShowCloseModal(false); handleCloseAllTrades('loss'); }}
-                    className="py-2 bg-orange-500/10 text-orange-400 text-[10px] font-semibold border border-orange-500/20 rounded active:scale-95 transition-all hover:bg-orange-500/20"
-                  >
-                    All Loss
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
