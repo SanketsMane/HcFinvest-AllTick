@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Datafeed from "../services/datafeed.js";
-import { getPriceEvents } from '../services/priceStream';
+import { getPriceEvents } from '../services/eventSystem';
 import { TradeLineManager } from "../utils/TradeLineManager.js";
 import { useInterpolation } from "../hooks/useInterpolation";
 import { API_URL } from "../config/api";
