@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { API_URL } from "../config/api";
+import { getSafeJSON } from "../utils/safeLocalStorage";
 
 const NavbarClient = ({ title, subtitle }) => {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ const NavbarClient = ({ title, subtitle }) => {
   const [hasNew, setHasNew] = useState(false);
   const [newIds, setNewIds] = useState([]); // 🔵 track new announcements
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getSafeJSON("user", {});
 
   const initial =
     `${user?.firstName || ""} ${user?.lastName || ""}`

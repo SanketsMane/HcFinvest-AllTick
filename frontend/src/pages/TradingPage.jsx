@@ -2920,6 +2920,7 @@
 
 import { API_URL } from '../config/api'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { getSafeJSON } from '../utils/safeLocalStorage';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon, Clock, ChevronDown, Check, ShieldAlert, Lock, ShieldCheck, ShieldX } from 'lucide-react'
 import marketDataApiService from '../services/marketDataApi'
@@ -3077,7 +3078,7 @@ const TradingPage = () => {
   const [selectedInstrument, setSelectedInstrument] = useState(() => {
     try {
       const savedActiveTab = localStorage.getItem('activeTab') || 'XAUUSD'
-      const savedOpenTabs = JSON.parse(localStorage.getItem('openTabs') || '[]')
+      const savedOpenTabs = getSafeJSON('openTabs', [])
       // Ensure all loaded symbols are normalized
       const normalizedActiveTab = ensureISuffix(savedActiveTab);
       const activeTabData = savedOpenTabs.find(t => ensureISuffix(t.symbol) === normalizedActiveTab)
@@ -3100,8 +3101,7 @@ const TradingPage = () => {
   const [selectedSide, setSelectedSide] = useState('BUY') // BUY or SELL
   const [openTabs, setOpenTabs] = useState(() => {
     try {
-      const saved = localStorage.getItem('openTabs')
-      return saved ? JSON.parse(saved) : [
+      return saved ? getSafeJSON('openTabs', []) : [
         { symbol: 'XAUUSD', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 },
         { symbol: 'EURUSD', name: 'Euro vs US Dollar', bid: 0, ask: 0, spread: 0 }
       ]
@@ -3225,7 +3225,7 @@ const TradingPage = () => {
 
   const categories = ['All', 'Forex', 'Metals', 'Crypto', 'Indices']
 
-  const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), [])
+  const user = useMemo(() => getSafeJSON('user', {}), [])
 
   useEffect(() => {
     fetchAccount()
@@ -3457,7 +3457,7 @@ const TradingPage = () => {
     // Check auth status on mount
     const checkAuthStatus = async () => {
       const token = localStorage.getItem('token')
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      const user = getSafeJSON('user', {})
       if (!token || !user._id) {
         navigate('/user/login')
         return

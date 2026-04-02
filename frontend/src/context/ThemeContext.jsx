@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { API_URL } from '../config/api'
+import { getSafeJSON, setSafeJSON } from '../utils/safeLocalStorage'
 
 const ThemeContext = createContext()
 
@@ -51,8 +52,7 @@ export const ThemeProvider = ({ children }) => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
       return false;
     }
-    const saved = localStorage.getItem('darkMode')
-    return saved !== null ? JSON.parse(saved) : true // Default to dark mode
+    return getSafeJSON('darkMode', true);
   })
 
   // Effect to handle route changes and force light mode if entering admin
@@ -136,7 +136,7 @@ export const ThemeProvider = ({ children }) => {
     }
     
     // Save preference
-    localStorage.setItem('darkMode', JSON.stringify(isDarkMode))
+    setSafeJSON('darkMode', isDarkMode)
   }, [isDarkMode])
 
   useEffect(() => {

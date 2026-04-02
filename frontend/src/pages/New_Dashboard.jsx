@@ -1,5 +1,6 @@
 // New_Dashboard.jsx
 
+import { getSafeJSON } from '../utils/safeLocalStorage';
 import {
   ArrowRight,
   Wallet,
@@ -31,7 +32,7 @@ const New_Dashboard = () => {
   const [livePrices, setLivePrices] = useState({});
   const [loading, setLoading] = useState(true);
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getSafeJSON("user", {});
 
   const navigate = useNavigate();
 
@@ -85,7 +86,7 @@ const defaultBanner = [
   }, []);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = getSafeJSON("user", {});
 
     const fetchUserAccounts = async () => {
       try {
