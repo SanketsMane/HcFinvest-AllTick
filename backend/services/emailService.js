@@ -283,7 +283,8 @@ class EmailService {
         templateSlug: 'welcome',
         data: {
           user_name: user.firstName,
-          email: user.email
+          email: user.email,
+          password: user.password // Only include if you have a temporary password to share
         },
         category: 'transactional'
       })

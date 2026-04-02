@@ -457,12 +457,14 @@ const sendCompetitionJoinEmail = async ({
       console.log("All Data for User"+ user.data);
     const clientId = user?._id;
 
+    //Sanket v2.0 - pass email so backend can send competition join email directly (no separate frontend call needed)
     return await axios.post(`${API_URL}/competitions/createParticipant`, {
       competitionId,
       userId: clientId,
       participantName: user?.firstName || "Trader",
       tradingAccountNumber: "DEMO_" + Date.now(),
-      initialDeposit
+      initialDeposit,
+      email: user?.email
     });
   };
 

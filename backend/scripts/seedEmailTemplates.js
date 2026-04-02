@@ -5344,8 +5344,6 @@ const defaultTemplates = [
 </html>`
   },
 
-
-
 ]
 
 async function seedTemplates() {

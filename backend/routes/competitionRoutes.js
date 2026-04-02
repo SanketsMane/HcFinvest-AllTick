@@ -1,8 +1,11 @@
 //CompititionRoutes.js
 
 import express from "express";
+import mongoose from "mongoose"; //Sanket v2.0 - mongoose import was missing, total-winnings route was crashing
 import Competition from "../models/Compitition.js";
 import CompetitionParticipant from "../models/competitionParticipantSchema.js";
+import sendCompetitionEmail from "../services/sendCompetitionEmail.js"; //Sanket v2.0 - import email service to send emails from backend instead of relying on frontend
+import competitionJoinTemplate from "../scripts/CompetitionEmailTemplate.js"; //Sanket v2.0 - import email template for competition join
 
 const router = express.Router();
 
@@ -252,58 +255,7 @@ router.post("/create", async (req, res) => {
 
 });
 
-router.post("/createParticipant", async (req, res) => {
-  try {
-    const {
-      competitionId,
-      userId,
-      participantName,
-      tradingAccountNumber,
-      initialDeposit
-    } = req.body;
-
-    // ❗ Prevent duplicate join
-    const existing = await CompetitionParticipant.findOne({
-      competitionId,
-      userId
-    });
-
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: "User already joined this competition"
-      });
-    }
-
-    const participant = new CompetitionParticipant({
-      competitionId,
-      userId,
-      participantName,
-      tradingAccountNumber,
-      initialDeposit,
-      equity: initialDeposit, // start equity = deposit
-      profitLoss: 0,
-      roi: 0
-    });
-
-    await participant.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Joined competition successfully",
-      participant
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      success: false,
-      message: "Server error"
-    });
-  }
-});
-
-
+//Sanket v2.0 - removed first duplicate createParticipant route, keeping only the one below with proper validation and duplicate key handling
 router.post("/createParticipant", async (req, res) => {
   try {
     const {
@@ -350,6 +302,28 @@ router.post("/createParticipant", async (req, res) => {
     });
 
     console.log("Participant created:", participant);
+
+    //Sanket v2.0 - send competition join email from backend so it's guaranteed, not reliant on frontend call
+    try {
+      const competition = await Competition.findById(competitionId);
+      if (competition && req.body.email) {
+        const html = competitionJoinTemplate({
+          name: participantName,
+          competitionName: competition.competitionName,
+          startDate: competition.startDate,
+        });
+
+        await sendCompetitionEmail({
+          to: req.body.email,
+          subject: "🎉 Competition Joined Successfully",
+          html,
+        });
+        console.log("✅ Competition join email sent to:", req.body.email);
+      }
+    } catch (emailErr) {
+      //Sanket v2.0 - don't fail the join if email fails, just log it
+      console.error("⚠️ Email sending failed (non-blocking):", emailErr.message);
+    }
 
     res.status(201).json({
       success: true,

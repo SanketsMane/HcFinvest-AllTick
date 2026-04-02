@@ -227,15 +227,11 @@ const competitionEmailTemplate = ({ name, competitionName, startDate }) => {
                                                                                             <table width="100%" border="0" cellpadding="0" cellspacing="0"
                                                                                               style="margin-top:20px;margin-bottom:20px;border:1px solid #ddd;border-radius:6px;background:#f9fafc;padding:10px">
 
+                                                                                              <!-- //Sanket v2.0 - removed JS-style comments that were rendering as visible text in email -->
                                                                                               <tr>
                                                                                                 <td><strong>Participant Name :</strong></td>
                                                                                                 <td>${name}</td>
                                                                                               </tr>
-
-                                                                                              // <tr>
-                                                                                              //   <td><strong>Email :</strong></td>
-                                                                                              //   <td>${email}</td>
-                                                                                              // </tr>
 
                                                                                               <tr>
                                                                                                 <td><strong>Competition Name :</strong></td>
@@ -246,11 +242,6 @@ const competitionEmailTemplate = ({ name, competitionName, startDate }) => {
                                                                                                 <td><strong>Start Date :</strong></td>
                                                                                                 <td>${startDate}</td>
                                                                                               </tr>
-
-                                                                                              // <tr>
-                                                                                              //   <td><strong>End Date :</strong></td>
-                                                                                              //   <td>${endDate}</td>
-                                                                                              // </tr>
 
                                                                                               <tr>
                                                                                                 <td><strong>Status :</strong></td>
