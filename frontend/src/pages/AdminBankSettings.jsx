@@ -387,28 +387,28 @@ const AdminBankSettings = () => {
   return (
     <AdminLayout title="Bank Settings" subtitle="Manage bank accounts and payment methods">
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl mb-8 w-fit shadow-inner">
         <button
           onClick={() => setActiveTab('methods')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${
             activeTab === 'methods' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-dark-800 text-gray-400 hover:text-white'
+              ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' 
+              : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           Payment Methods
         </button>
         <button
           onClick={() => setActiveTab('requests')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+          className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 flex items-center gap-2 ${
             activeTab === 'requests' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-dark-800 text-gray-400 hover:text-white'
+              ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' 
+              : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           Bank Requests
           {requestStats.pending > 0 && (
-            <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full animate-pulse shadow-lg shadow-red-100">
               {requestStats.pending}
             </span>
           )}
@@ -417,37 +417,40 @@ const AdminBankSettings = () => {
 
       {/* Bank Requests Tab */}
       {activeTab === 'requests' && (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
+        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm shadow-slate-100 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 sm:p-8 border-b border-slate-50">
             <div>
-              <h2 className="text-white font-semibold text-lg">User Bank/UPI Requests</h2>
-              <p className="text-gray-500 text-sm">Approve or reject user bank account submissions</p>
+              <h2 className="text-slate-900 font-black text-2xl tracking-tight">Bank Verification Requests</h2>
+              <p className="text-slate-500 text-sm font-medium mt-1">Review and manage user-submitted payout methods</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-fit">
               {['Pending', 'Approved', 'Rejected'].map(status => (
                 <button
                   key={status}
                   onClick={() => setRequestFilter(status)}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                     requestFilter === status
-                      ? status === 'Pending' ? 'bg-yellow-500 text-black' :
-                        status === 'Approved' ? 'bg-green-500 text-white' :
-                        'bg-red-500 text-white'
-                      : 'bg-dark-700 text-gray-400 hover:text-white'
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+                      : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  {status} ({requestStats[status.toLowerCase()] || 0})
+                  {status} <span className="ml-1 opacity-50">({requestStats[status.toLowerCase()] || 0})</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="p-4 space-y-3">
+          <div className="p-6 sm:p-8 space-y-4">
             {bankRequests.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No {requestFilter.toLowerCase()} requests</p>
+              <div className="text-center py-20 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <RefreshCw size={24} className="text-slate-300" />
+                </div>
+                <p className="text-slate-500 font-bold italic">No {requestFilter.toLowerCase()} requests found</p>
+              </div>
             ) : (
               bankRequests.map((req) => (
-                <div key={req._id} className="bg-dark-700 rounded-xl p-4 border border-gray-700">
+                <div key={req._id} className="bg-white rounded-2xl p-6 border border-slate-100 hover:border-slate-200 hover:shadow-xl hover:shadow-slate-100 transition-all group">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -466,7 +469,7 @@ const AdminBankSettings = () => {
                       </div>
                       
                       <div className="mb-3">
-                        <p className="text-white font-medium">{req.userId?.firstName} {req.userId?.lastName}</p>
+                        <p className="text-slate-900 font-medium">{req.userId?.firstName} {req.userId?.lastName}</p>
                         <p className="text-gray-500 text-sm">{req.userId?.email}</p>
                         <p className="text-gray-500 text-xs font-mono">User ID: {req.userId?._id}</p>
                       </div>
@@ -475,19 +478,19 @@ const AdminBankSettings = () => {
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
                             <p className="text-gray-500">Bank Name</p>
-                            <p className="text-white">{req.bankName}</p>
+                            <p className="text-slate-900">{req.bankName}</p>
                           </div>
                           <div>
                             <p className="text-gray-500">Account Number</p>
-                            <p className="text-white font-mono">{req.accountNumber}</p>
+                            <p className="text-slate-900 font-mono">{req.accountNumber}</p>
                           </div>
                           <div>
                             <p className="text-gray-500">Account Holder</p>
-                            <p className="text-white">{req.accountHolderName}</p>
+                            <p className="text-slate-900">{req.accountHolderName}</p>
                           </div>
                           <div>
                             <p className="text-gray-500">IFSC Code</p>
-                            <p className="text-white font-mono">{req.ifscCode}</p>
+                            <p className="text-slate-900 font-mono">{req.ifscCode}</p>
                           </div>
                         </div>
                       ) : (
@@ -536,295 +539,310 @@ const AdminBankSettings = () => {
       {activeTab === 'methods' && (
         <>
           {/* Header Actions */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-8">
             <button 
               onClick={fetchPaymentMethods}
-              className="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-gray-400"
+              className="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-2xl text-slate-400 hover:text-blue-600 transition-all shadow-sm active:scale-95"
+              title="Refresh"
             >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
             </button>
             <button 
               onClick={() => { resetForm(); setEditingMethod(null); setShowAddModal(true) }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 font-black text-xs uppercase tracking-widest active:scale-95"
             >
-              <Plus size={16} />
+              <Plus size={18} />
               Add Payment Method
             </button>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <RefreshCw size={24} className="animate-spin text-gray-500" />
+            <div className="flex flex-col items-center justify-center h-80 bg-white rounded-3xl border border-slate-200 shadow-sm">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 animate-pulse">
+                <RefreshCw size={32} className="animate-spin text-blue-400" />
+              </div>
+              <p className="text-slate-500 font-bold italic">Loading secure data...</p>
             </div>
           ) : (
             <>
               {/* Bank Accounts */}
-          <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden mb-6">
-            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <Building2 size={20} className="text-blue-500" />
-                </div>
-                <div>
-                  <h2 className="text-white font-semibold">Bank Accounts</h2>
-                  <p className="text-gray-500 text-sm">Bank transfer deposit methods</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 space-y-3">
-              {bankMethods.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No bank accounts added yet</p>
-              ) : (
-                bankMethods.map((bank) => (
-                  <div key={bank._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-dark-700 rounded-xl border border-gray-700">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-dark-600 rounded-lg flex items-center justify-center">
-                        <Building2 size={24} className="text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-white font-medium">{bank.bankName}</p>
-                        <p className="text-gray-500 text-sm">A/C: {bank.accountNumber} | IFSC: {bank.ifscCode}</p>
-                        <p className="text-gray-500 text-sm">Holder: {bank.accountHolderName}</p>
-                      </div>
+              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden mb-8 shadow-sm shadow-slate-100">
+                <div className="flex items-center justify-between p-6 sm:p-8 border-b border-slate-50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
+                      <Building2 size={24} className="text-blue-600" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleStatus(bank)}
-                        className={`px-3 py-1 rounded-full text-xs ${
-                          bank.isActive ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-400'
-                        }`}
-                      >
-                        {bank.isActive ? 'Active' : 'Inactive'}
-                      </button>
-                      <button 
-                        onClick={() => openEditModal(bank)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(bank._id)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <div>
+                      <h2 className="text-slate-900 font-black text-xl tracking-tight">Bank Accounts</h2>
+                      <p className="text-slate-500 text-sm font-medium">Standard transfer gateways</p>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* UPI Methods */}
-          <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden mb-6">
-            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                  <Smartphone size={20} className="text-purple-500" />
                 </div>
-                <div>
-                  <h2 className="text-white font-semibold">UPI IDs</h2>
-                  <p className="text-gray-500 text-sm">UPI payment methods</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="p-4 space-y-3">
-              {upiMethods.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No UPI IDs added yet</p>
-              ) : (
-                upiMethods.map((upi) => (
-                  <div key={upi._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-dark-700 rounded-xl border border-gray-700">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-dark-600 rounded-lg flex items-center justify-center">
-                        <Smartphone size={24} className="text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-white font-medium">UPI ID</p>
-                        <p className="text-purple-400 text-lg font-mono">{upi.upiId}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleStatus(upi)}
-                        className={`px-3 py-1 rounded-full text-xs ${
-                          upi.isActive ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-400'
-                        }`}
-                      >
-                        {upi.isActive ? 'Active' : 'Inactive'}
-                      </button>
-                      <button 
-                        onClick={() => openEditModal(upi)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(upi._id)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* QR Codes */}
-          <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                  <QrCode size={20} className="text-orange-500" />
-                </div>
-                <div>
-                  <h2 className="text-white font-semibold">QR Codes</h2>
-                  <p className="text-gray-500 text-sm">QR code payment methods</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 space-y-3">
-              {qrMethods.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No QR codes added yet</p>
-              ) : (
-                qrMethods.map((qr) => (
-                  <div key={qr._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-dark-700 rounded-xl border border-gray-700">
-                    <div className="flex items-center gap-4">
-                      {qr.qrCodeImage ? (
-                        <img src={qr.qrCodeImage} alt="QR Code" className="w-16 h-16 rounded-lg object-cover" />
-                      ) : (
-                        <div className="w-16 h-16 bg-dark-600 rounded-lg flex items-center justify-center">
-                          <QrCode size={32} className="text-orange-400" />
+                <div className="p-6 sm:p-8 space-y-4">
+                  {bankMethods.length === 0 ? (
+                    <p className="text-slate-400 text-center py-10 font-bold italic">No bank profiles added yet</p>
+                  ) : (
+                    bankMethods.map((bank) => (
+                      <div key={bank._id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group">
+                        <div className="flex items-center gap-5">
+                          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                            <Building2 size={28} className="text-blue-500" />
+                          </div>
+                          <div>
+                            <p className="text-slate-900 font-black text-lg">{bank.bankName}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                              <p className="text-slate-500 text-sm font-bold">A/C: <span className="text-slate-900 font-mono tracking-wider">{bank.accountNumber}</span></p>
+                              <p className="text-slate-500 text-sm font-bold">IFSC: <span className="text-slate-900 font-mono">{bank.ifscCode}</span></p>
+                            </div>
+                            <p className="text-slate-400 text-xs font-black uppercase tracking-widest mt-2">Holder: {bank.accountHolderName}</p>
+                          </div>
                         </div>
-                      )}
-                      <div>
-                        <p className="text-white font-medium">QR Code Payment</p>
-                        <p className="text-gray-500 text-sm">Scan to pay</p>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleToggleStatus(bank)}
+                            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-all ${
+                              bank.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'
+                            }`}
+                          >
+                            {bank.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                          <div className="h-8 w-px bg-slate-200 hidden lg:block mx-1"></div>
+                          <button 
+                            onClick={() => openEditModal(bank)}
+                            className="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-xl text-slate-400 hover:text-blue-600 transition-all shadow-sm"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(bank._id)}
+                            className="p-3 bg-white border border-slate-200 hover:border-red-400 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* UPI Methods */}
+              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden mb-8 shadow-sm shadow-slate-100">
+                <div className="flex items-center justify-between p-6 sm:p-8 border-b border-slate-50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center shadow-inner">
+                      <Smartphone size={24} className="text-purple-600" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleStatus(qr)}
-                        className={`px-3 py-1 rounded-full text-xs ${
-                          qr.isActive ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-400'
-                        }`}
-                      >
-                        {qr.isActive ? 'Active' : 'Inactive'}
-                      </button>
-                      <button 
-                        onClick={() => openEditModal(qr)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(qr._id)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <div>
+                      <h2 className="text-slate-900 font-black text-xl tracking-tight">UPI Management</h2>
+                      <p className="text-slate-500 text-sm font-medium">Digital wallet endpoints</p>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Currency Markups Section */}
-          <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <DollarSign size={20} className="text-green-500" />
                 </div>
-                <div>
-                  <h2 className="text-white font-semibold">Currency Markups</h2>
-                  <p className="text-gray-500 text-sm">Set exchange rates and markups for deposits</p>
+
+                <div className="p-6 sm:p-8 space-y-4">
+                  {upiMethods.length === 0 ? (
+                    <p className="text-slate-400 text-center py-10 font-bold italic">No active UPI IDs</p>
+                  ) : (
+                    upiMethods.map((upi) => (
+                      <div key={upi._id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-purple-200 transition-all group">
+                        <div className="flex items-center gap-5">
+                          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                            <Smartphone size={28} className="text-purple-500" />
+                          </div>
+                          <div>
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Global UPI Endpoint</p>
+                            <p className="text-purple-600 text-2xl font-black font-mono tracking-tight">{upi.upiId}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleToggleStatus(upi)}
+                            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-all ${
+                              upi.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'
+                            }`}
+                          >
+                            {upi.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                          <div className="h-8 w-px bg-slate-200 hidden lg:block mx-1"></div>
+                          <button 
+                            onClick={() => openEditModal(upi)}
+                            className="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-xl text-slate-400 hover:text-blue-600 transition-all shadow-sm"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(upi._id)}
+                            className="p-3 bg-white border border-slate-200 hover:border-red-400 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button 
-                  onClick={addAllCurrencies}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 text-sm"
-                >
-                  <Globe size={14} />
-                  Add All Currencies
-                </button>
-                <button 
-                  onClick={fetchLiveRates}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-purple-500/20 text-purple-500 rounded-lg hover:bg-purple-500/30 text-sm"
-                >
-                  <RefreshCw size={14} />
-                  Fetch Live Rates
-                </button>
-                <button 
-                  onClick={() => { resetCurrencyForm(); setEditingCurrency(null); setShowCurrencyModal(true) }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 text-sm"
-                >
-                  <Plus size={14} />
-                  Add Currency
-                </button>
-              </div>
-            </div>
 
-            <div className="p-4 space-y-3">
+              {/* QR Codes */}
+              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden mb-8 shadow-sm shadow-slate-100">
+                <div className="flex items-center justify-between p-6 sm:p-8 border-b border-slate-50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center shadow-inner">
+                      <QrCode size={24} className="text-orange-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-slate-900 font-black text-xl tracking-tight">QR Gateways</h2>
+                      <p className="text-slate-500 text-sm font-medium">Instant scan to pay profiles</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 sm:p-8 space-y-4">
+                  {qrMethods.length === 0 ? (
+                    <p className="text-slate-400 text-center py-10 font-bold italic">No QR scan methods configured</p>
+                  ) : (
+                    qrMethods.map((qr) => (
+                      <div key={qr._id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-orange-200 transition-all group">
+                        <div className="flex items-center gap-5">
+                          {qr.qrCodeImage ? (
+                            <div className="relative group/qr">
+                              <img src={qr.qrCodeImage} alt="QR Code" className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md group-hover/qr:scale-110 transition-transform cursor-pointer" />
+                              <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover/qr:opacity-100 transition-opacity flex items-center justify-center">
+                                <QrCode size={20} className="text-white" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                              <QrCode size={32} className="text-slate-300" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-slate-900 font-black text-lg">Visual QR Scan</p>
+                            <p className="text-slate-500 text-sm font-medium">Direct deposit method via image scan</p>
+                            <span className="inline-block mt-2 px-2 py-0.5 bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-md border border-orange-100">Instant Verification</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleToggleStatus(qr)}
+                            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-all ${
+                              qr.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'
+                            }`}
+                          >
+                            {qr.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                          <div className="h-8 w-px bg-slate-200 hidden lg:block mx-1"></div>
+                          <button 
+                            onClick={() => openEditModal(qr)}
+                            className="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-xl text-slate-400 hover:text-blue-600 transition-all shadow-sm"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(qr._id)}
+                            className="p-3 bg-white border border-slate-200 hover:border-red-400 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Currency Markups Section */}
+              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden mb-8 shadow-sm shadow-slate-100">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 sm:p-8 border-b border-slate-50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center shadow-inner">
+                      <Globe size={24} className="text-green-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-slate-900 font-black text-xl tracking-tight">Global Forex Rates</h2>
+                      <p className="text-slate-500 text-sm font-medium">Manage currency conversions and profit margins</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button 
+                      onClick={addAllCurrencies}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all font-bold text-xs uppercase tracking-widest"
+                    >
+                      <Globe size={14} />
+                      Add All
+                    </button>
+                    <button 
+                      onClick={fetchLiveRates}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-all font-bold text-xs uppercase tracking-widest"
+                    >
+                      <RefreshCw size={14} />
+                      Refetch Live
+                    </button>
+                    <button 
+                      onClick={() => { resetCurrencyForm(); setEditingCurrency(null); setShowCurrencyModal(true) }}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 font-bold text-xs uppercase tracking-widest"
+                    >
+                      <Plus size={14} />
+                      Add Custom
+                    </button>
+                  </div>
+                </div>
+            <div className="p-6 sm:p-8 space-y-4">
               {currencyMarkups.length === 0 ? (
-                <div className="text-center py-6">
-                  <Globe size={48} className="text-gray-600 mx-auto mb-3" />
-                  <p className="text-gray-500 mb-4">No currencies configured yet</p>
+                <div className="text-center py-16 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                  <Globe size={48} className="text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500 font-bold italic mb-6">No active currency configs found</p>
                   <button 
                     onClick={addAllCurrencies}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    className="px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-100 font-black text-xs uppercase tracking-widest transition-all"
                   >
-                    Add All Common Currencies with Live Rates
+                    Load Standard Presets
                   </button>
                 </div>
               ) : (
                 currencyMarkups.map((curr) => (
-                  <div key={curr._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-dark-700 rounded-xl border border-gray-700">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-dark-600 rounded-lg flex items-center justify-center text-2xl">
+                  <div key={curr._id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-green-200 transition-all group">
+                    <div className="flex items-center gap-5">
+                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-3xl font-black text-slate-900 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
                         {curr.symbol}
                       </div>
                       <div>
-                        <p className="text-white font-medium">{curr.currency}</p>
-                        <p className="text-gray-500 text-sm">
-                          Rate: 1 USD = {curr.symbol}{curr.rateToUSD?.toFixed(2)} | 
-                          Markup: <span className="text-yellow-500">{curr.markup}%</span>
-                        </p>
-                        <p className="text-green-400 text-xs">
-                          Effective: 1 USD = {curr.symbol}{((curr.rateToUSD || 0) * (1 + (curr.markup || 0) / 100)).toFixed(2)}
+                        <div className="flex items-center gap-3">
+                          <p className="text-slate-900 font-black text-xl tracking-tight">{curr.currency}</p>
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-widest rounded">Forex Ready</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm font-bold">
+                          <p className="text-slate-500">Live Rate: <span className="text-slate-900 font-mono">1 USD = {curr.symbol}{curr.rateToUSD?.toFixed(2)}</span></p>
+                          <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                          <p className="text-slate-500">Markup: <span className="text-blue-600">+{curr.markup}%</span></p>
+                        </div>
+                        <p className="text-green-600 text-xs font-black uppercase tracking-widest mt-2 flex items-center gap-1">
+                          <Check size={12} /> Final Rate: 1 USD = {curr.symbol}{((curr.rateToUSD || 0) * (1 + (curr.markup || 0) / 100)).toFixed(2)}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs ${
-                        curr.isActive ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-400'
-                      }`}>
-                        {curr.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                      <button 
+                    <div className="flex items-center gap-3">
+                      <button
                         onClick={() => updateLiveRate(curr.currency)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-purple-400 hover:text-purple-300"
-                        title="Update live rate"
+                        className="p-3 bg-white border border-slate-200 hover:border-purple-400 rounded-xl text-slate-400 hover:text-purple-600 transition-all shadow-sm"
+                        title="Sync Live Rate"
                       >
-                        <RefreshCw size={16} />
+                        <RefreshCw size={18} />
                       </button>
+                      <div className="h-8 w-px bg-slate-200 hidden lg:block mx-1"></div>
                       <button 
                         onClick={() => openEditCurrencyModal(curr)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white"
+                        className="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-xl text-slate-400 hover:text-blue-600 transition-all shadow-sm"
                       >
-                        <Edit size={16} />
+                        <Edit size={18} />
                       </button>
                       <button 
                         onClick={() => handleDeleteCurrency(curr._id)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-red-500"
+                        className="p-3 bg-white border border-slate-200 hover:border-red-400 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </div>
@@ -832,150 +850,48 @@ const AdminBankSettings = () => {
               )}
             </div>
           </div>
-            </>
-          )}
         </>
       )}
+    </>
+  )}
 
-      {/* Currency Modal */}
-      {showCurrencyModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">
-                {editingCurrency ? 'Edit Currency' : 'Add Currency'}
-              </h2>
-              <button onClick={() => setShowCurrencyModal(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-400 text-sm mb-1">Currency Code</label>
-                  <input
-                    type="text"
-                    value={currencyForm.currency}
-                    onChange={(e) => setCurrencyForm({ ...currencyForm, currency: e.target.value.toUpperCase() })}
-                    placeholder="e.g., INR"
-                    maxLength={3}
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white uppercase"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-1">Symbol</label>
-                  <input
-                    type="text"
-                    value={currencyForm.symbol}
-                    onChange={(e) => setCurrencyForm({ ...currencyForm, symbol: e.target.value })}
-                    placeholder="e.g., ₹"
-                    maxLength={3}
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-400 text-sm mb-1">Exchange Rate (1 USD = ?)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={currencyForm.rateToUSD}
-                  onChange={(e) => setCurrencyForm({ ...currencyForm, rateToUSD: parseFloat(e.target.value) || 0 })}
-                  placeholder="e.g., 83.50"
-                  className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
-                />
-                <p className="text-gray-500 text-xs mt-1">Base exchange rate without markup</p>
-              </div>
-
-              <div>
-                <label className="block text-gray-400 text-sm mb-1">Markup Percentage (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={currencyForm.markup}
-                  onChange={(e) => setCurrencyForm({ ...currencyForm, markup: parseFloat(e.target.value) || 0 })}
-                  placeholder="e.g., 2.5"
-                  className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
-                />
-                <p className="text-gray-500 text-xs mt-1">Additional percentage added to the exchange rate</p>
-              </div>
-
-              {/* Preview */}
-              <div className="bg-dark-700 rounded-lg p-4">
-                <p className="text-gray-400 text-sm mb-2">Conversion Preview</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-white">$100 USD</span>
-                  <span className="text-gray-500">→</span>
-                  <span className="text-green-400 font-medium">
-                    {currencyForm.symbol}{((100 * currencyForm.rateToUSD) * (1 + currencyForm.markup / 100)).toFixed(2)} {currencyForm.currency}
-                  </span>
-                </div>
-                <p className="text-yellow-500 text-xs mt-2">
-                  User pays {currencyForm.symbol}{((100 * currencyForm.rateToUSD) * (1 + currencyForm.markup / 100)).toFixed(2)} to deposit $100 USD
-                </p>
-              </div>
-
-              {/* Active Status */}
-              <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
-                <span className="text-gray-400">Active Status</span>
-                <button
-                  onClick={() => setCurrencyForm({ ...currencyForm, isActive: !currencyForm.isActive })}
-                  className={`w-12 h-6 rounded-full transition-colors ${
-                    currencyForm.isActive ? 'bg-green-500' : 'bg-gray-600'
-                  }`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                    currencyForm.isActive ? 'translate-x-6' : 'translate-x-0.5'
-                  }`} />
-                </button>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowCurrencyModal(false)}
-                  className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveCurrency}
-                  className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"
-                >
-                  {editingCurrency ? 'Update' : 'Add Currency'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Payment Method Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">
-                {editingMethod ? 'Edit Payment Method' : 'Add Payment Method'}
-              </h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-xl border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-8 border-b border-slate-50">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center shadow-inner">
+                  <CreditCard size={28} className="text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-slate-900 font-black text-2xl tracking-tight">
+                    {editingMethod ? 'Refine Method' : 'Add Gateway'}
+                  </h3>
+                  <p className="text-slate-500 font-medium text-sm">Configure deposit parameters</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setShowAddModal(false); setEditingMethod(null); }} 
+                className="text-slate-400 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all"
+              >
+                <X size={28} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              {/* Type Selection */}
+
+            <div className="p-8 space-y-6">
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Payment Type</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className="block text-slate-900 text-xs font-black uppercase tracking-widest mb-3 italic">Gateway Architecture</label>
+                <div className="grid grid-cols-3 gap-3">
                   {['Bank Transfer', 'UPI', 'QR Code'].map((type) => (
                     <button
                       key={type}
+                      type="button"
                       onClick={() => setForm({ ...form, type })}
-                      className={`p-3 rounded-lg border text-sm ${
+                      className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${
                         form.type === type 
-                          ? 'border-blue-500 bg-blue-500/20 text-blue-500' 
-                          : 'border-gray-700 text-gray-400 hover:border-gray-600'
+                          ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md shadow-blue-50' 
+                          : 'border-slate-100 text-slate-400 hover:border-slate-200'
                       }`}
                     >
                       {type}
@@ -984,129 +900,209 @@ const AdminBankSettings = () => {
                 </div>
               </div>
 
-              {/* Bank Transfer Fields */}
               {form.type === 'Bank Transfer' && (
-                <>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-1">Bank Name</label>
-                    <input
-                      type="text"
-                      value={form.bankName}
-                      onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-                      placeholder="e.g., HDFC Bank"
-                      className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-1">Account Holder Name</label>
-                    <input
-                      type="text"
-                      value={form.accountHolderName}
-                      onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
-                      placeholder="e.g., John Doe"
-                      className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-5 animate-in slide-in-from-top-2">
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="col-span-2">
+                      <label className="block text-slate-700 text-sm font-bold mb-2">Banking Institution</label>
+                      <input
+                        type="text"
+                        value={form.bankName}
+                        onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                        placeholder="e.g., Chase, HDFC, Barclays"
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-slate-900 font-bold placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
+                      />
+                    </div>
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">Account Number</label>
+                      <label className="block text-slate-700 text-sm font-bold mb-2">Account Number</label>
                       <input
                         type="text"
                         value={form.accountNumber}
                         onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-                        placeholder="e.g., 1234567890"
-                        className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
+                        placeholder="0000 0000 0000"
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-slate-900 font-mono font-bold placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">IFSC Code</label>
+                      <label className="block text-slate-700 text-sm font-bold mb-2">IFSC / SWIFT Code</label>
                       <input
                         type="text"
                         value={form.ifscCode}
                         onChange={(e) => setForm({ ...form, ifscCode: e.target.value })}
-                        placeholder="e.g., HDFC0001234"
-                        className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
+                        placeholder="AAAA0123456"
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-slate-900 font-mono font-bold placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
                       />
                     </div>
                   </div>
-                </>
+                  <div>
+                    <label className="block text-slate-700 text-sm font-bold mb-2">Beneficiary Name</label>
+                    <input
+                      type="text"
+                      value={form.accountHolderName}
+                      onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
+                      placeholder="Legal Name on Account"
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-slate-900 font-bold placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
               )}
 
-              {/* UPI Fields */}
               {form.type === 'UPI' && (
-                <div>
-                  <label className="block text-gray-400 text-sm mb-1">UPI ID</label>
+                <div className="animate-in slide-in-from-top-2">
+                  <label className="block text-slate-700 text-sm font-bold mb-2">Unified Payment ID (UPI ID)</label>
                   <input
                     type="text"
                     value={form.upiId}
                     onChange={(e) => setForm({ ...form, upiId: e.target.value })}
-                    placeholder="e.g., yourname@upi"
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
+                    placeholder="user@bankname"
+                    className="w-full bg-purple-50 border-2 border-purple-100 rounded-2xl px-5 py-5 text-purple-700 font-mono font-black text-xl placeholder-purple-300 focus:outline-none focus:border-purple-500 focus:bg-white transition-all shadow-inner"
                   />
+                  <p className="text-slate-400 text-xs mt-3 italic">Direct digital wallet endpoint for instant processing</p>
                 </div>
               )}
 
-              {/* QR Code Fields */}
               {form.type === 'QR Code' && (
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">QR Code Image</label>
-                  <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center">
+                <div className="space-y-4 animate-in slide-in-from-top-2">
+                  <label className="block text-slate-700 text-sm font-bold mb-2">Visual Scan Media</label>
+                  <div className="relative group/upload h-64 bg-slate-50 border-4 border-dashed border-slate-100 rounded-[2rem] flex flex-col items-center justify-center transition-all hover:bg-slate-100 hover:border-orange-200">
+                    <input
+                      type="file"
+                      onChange={handleImageUpload}
+                      accept="image/*"
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    />
                     {form.qrCodeImage ? (
-                      <div className="space-y-3">
-                        <img src={form.qrCodeImage} alt="QR Preview" className="w-32 h-32 mx-auto rounded-lg" />
-                        <button
-                          onClick={() => setForm({ ...form, qrCodeImage: '' })}
-                          className="text-red-500 text-sm"
-                        >
-                          Remove Image
-                        </button>
+                      <div className="relative w-full h-full p-4">
+                        <img src={form.qrCodeImage} alt="QR Preview" className="w-full h-full object-contain rounded-2xl" />
+                        <div className="absolute inset-x-0 bottom-6 flex justify-center">
+                          <span className="bg-orange-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl">Replace Asset</span>
+                        </div>
                       </div>
                     ) : (
-                      <label className="cursor-pointer">
-                        <Upload size={32} className="mx-auto text-gray-500 mb-2" />
-                        <p className="text-gray-400 text-sm">Click to upload QR code image</p>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      <div className="text-center p-8">
+                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover/upload:scale-110 transition-transform">
+                          <Upload size={32} className="text-slate-300 group-hover:text-orange-500 transition-colors" />
+                        </div>
+                        <p className="text-slate-500 font-bold">Drop QR Media here</p>
+                        <p className="text-slate-400 text-xs mt-1">High resolution PNG/JPG recommended</p>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Active Status */}
-              <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
-                <span className="text-gray-400">Active Status</span>
-                <button
-                  onClick={() => setForm({ ...form, isActive: !form.isActive })}
-                  className={`w-12 h-6 rounded-full transition-colors ${
-                    form.isActive ? 'bg-green-500' : 'bg-gray-600'
-                  }`}
+            <div className="p-8 bg-slate-50/50 border-t border-slate-50 rounded-b-[2.5rem] flex gap-4">
+              <button
+                onClick={() => { setShowAddModal(false); setEditingMethod(null); }}
+                className="flex-1 bg-white border-2 border-slate-100 text-slate-500 py-4 rounded-2xl hover:bg-slate-100 hover:text-slate-900 transition-all font-black text-xs uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="flex-1 bg-blue-600 text-white font-black py-4 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all active:scale-95 text-xs uppercase tracking-widest"
+              >
+                {editingMethod ? 'Save Changes' : 'Deploy Gateway'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Currency Modal */}
+      {showCurrencyModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-slate-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center shadow-inner">
+                    <DollarSign size={28} className="text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-slate-900 font-black text-2xl tracking-tight">
+                      {editingCurrency ? 'Update Rate' : 'New Currency'}
+                    </h3>
+                    <p className="text-slate-500 font-medium text-sm">Forex profile configuration</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => { setShowCurrencyModal(false); setEditingCurrency(null); }} 
+                  className="text-slate-400 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all"
                 >
-                  <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                    form.isActive ? 'translate-x-6' : 'translate-x-0.5'
-                  }`} />
+                  <X size={28} />
                 </button>
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
-                >
-                  {editingMethod ? 'Update' : 'Create'}
-                </button>
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-slate-700 text-sm font-bold mb-2">ISO Code</label>
+                  <input
+                    type="text"
+                    value={currencyForm.currency}
+                    onChange={(e) => setCurrencyForm({ ...currencyForm, currency: e.target.value.toUpperCase() })}
+                    placeholder="USD, EUR, INR"
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-slate-900 font-black text-xl placeholder-slate-400 focus:outline-none focus:border-green-500 focus:bg-white transition-all shadow-inner"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 text-sm font-bold mb-2">Symbol</label>
+                  <input
+                    type="text"
+                    value={currencyForm.symbol}
+                    onChange={(e) => setCurrencyForm({ ...currencyForm, symbol: e.target.value })}
+                    placeholder="$, €, ₹"
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-slate-900 font-black text-xl placeholder-slate-400 focus:outline-none focus:border-green-500 focus:bg-white transition-all shadow-inner text-center"
+                  />
+                </div>
               </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm font-bold mb-2">Base Conversion (to 1 USD)</label>
+                <div className="relative">
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$1.00 = </span>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={currencyForm.rateToUSD}
+                    onChange={(e) => setCurrencyForm({ ...currencyForm, rateToUSD: parseFloat(e.target.value) })}
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-20 pr-5 py-4 text-slate-900 font-black text-xl placeholder-slate-400 focus:outline-none focus:border-green-500 focus:bg-white transition-all shadow-inner"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm font-bold mb-2">Profit Markup (%)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={currencyForm.markup}
+                    onChange={(e) => setCurrencyForm({ ...currencyForm, markup: parseFloat(e.target.value) })}
+                    className="w-full bg-blue-50 border-2 border-blue-100 rounded-2xl px-5 py-4 text-blue-700 font-black text-xl placeholder-blue-300 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
+                  />
+                  <Percent size={20} className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-400" />
+                </div>
+                <p className="text-slate-400 text-xs mt-3 italic">Final rate seen by users: {(currencyForm.rateToUSD * (1 + currencyForm.markup / 100)).toFixed(2)} {currencyForm.currency}</p>
+              </div>
+            </div>
+
+            <div className="p-8 bg-slate-50/50 border-t border-slate-50 rounded-b-[2.5rem] flex gap-4">
+              <button
+                onClick={() => { setShowCurrencyModal(false); setEditingCurrency(null); }}
+                className="flex-1 bg-white border-2 border-slate-100 text-slate-500 py-4 rounded-2xl hover:bg-slate-100 hover:text-slate-900 transition-all font-black text-xs uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCurrency}
+                className="flex-1 bg-green-600 text-white font-black py-4 rounded-2xl hover:bg-green-700 shadow-xl shadow-green-100 transition-all active:scale-95 text-xs uppercase tracking-widest"
+              >
+                {editingCurrency ? 'Sync Changes' : 'Activate Forex'}
+              </button>
             </div>
           </div>
         </div>

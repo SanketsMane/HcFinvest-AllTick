@@ -130,22 +130,22 @@ const AdminAccounts = () => {
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 flex">
-      <aside className={`${sidebarExpanded ? 'w-52' : 'w-16'} bg-dark-900 border-r border-gray-800 flex flex-col transition-all duration-300`} onMouseEnter={() => setSidebarExpanded(true)} onMouseLeave={() => setSidebarExpanded(false)}>
+    <div className="min-h-screen bg-slate-50 flex">
+      <aside className={`${sidebarExpanded ? 'w-52' : 'w-16'} bg-white border-r border-slate-200 flex flex-col transition-all duration-300 shadow-sm`} onMouseEnter={() => setSidebarExpanded(true)} onMouseLeave={() => setSidebarExpanded(false)}>
         <div className="p-4 flex items-center justify-center gap-2">
-          <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center"><span className="text-white font-bold text-sm">A</span></div>
-          {sidebarExpanded && <span className="text-white font-semibold">Admin</span>}
+          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center shadow-md shadow-blue-200"><span className="text-white font-bold text-sm">A</span></div>
+          {sidebarExpanded && <span className="text-slate-900 font-semibold tracking-tight">Admin Console</span>}
         </div>
-        <nav className="flex-1 px-2">
+        <nav className="flex-1 px-2 mt-4">
           {menuItems.map((item) => (
-            <button key={item.name} onClick={() => navigate(item.path)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${activeMenu === item.name ? 'bg-red-500 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}>
+            <button key={item.name} onClick={() => navigate(item.path)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200 ${activeMenu === item.name ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-blue-600 hover:bg-slate-50'}`}>
               <item.icon size={18} className="flex-shrink-0" />
               {sidebarExpanded && <span className="text-sm font-medium whitespace-nowrap">{item.name}</span>}
             </button>
           ))}
         </nav>
-        <div className="p-2 border-t border-gray-800">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white transition-colors rounded-lg">
+        <div className="p-2 border-t border-slate-100">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 rounded-lg">
             <LogOut size={18} />
             {sidebarExpanded && <span className="text-sm font-medium">Log Out</span>}
           </button>
@@ -153,109 +153,109 @@ const AdminAccounts = () => {
       </aside>
 
       <main className="flex-1 overflow-auto">
-        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
           <div>
-            <h1 className="text-xl font-semibold text-white">Account Management</h1>
-            <p className="text-gray-500 text-sm">Manage all user trading accounts</p>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Account Management</h1>
+            <p className="text-slate-500 text-xs mt-0.5">Manage all user trading accounts</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search accounts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 w-64"
+                className="bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 w-72 transition-all"
               />
             </div>
-            <button onClick={fetchAccounts} className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors">
-              <RefreshCw size={18} className={`text-gray-400 ${loading ? 'animate-spin' : ''}`} />
+            <button onClick={fetchAccounts} className="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-sm group">
+              <RefreshCw size={18} className={`text-slate-400 group-hover:text-slate-900 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </header>
 
-        <div className="p-6">
-          {success && <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-500 flex items-center gap-2"><Check size={18} /> {success}</div>}
-          {error && <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-500">{error}</div>}
+        <div className="p-6 max-w-7xl mx-auto">
+          {success && <div className="mb-4 p-4 bg-green-50 border border-green-100 rounded-xl text-green-600 flex items-center gap-2 font-medium animate-in fade-in slide-in-from-top-4 shadow-sm"><Check size={18} /> {success}</div>}
+          {error && <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 font-medium animate-in fade-in slide-in-from-top-4 shadow-sm">{error}</div>}
 
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-              <p className="text-gray-500 text-sm">Total Accounts</p>
-              <p className="text-white text-2xl font-bold">{accounts.length}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm border-b-4 border-b-blue-500">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Accounts</p>
+              <p className="text-slate-900 text-3xl font-black">{accounts.length}</p>
             </div>
-            <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-              <p className="text-gray-500 text-sm">Active</p>
-              <p className="text-green-500 text-2xl font-bold">{accounts.filter(a => a.status === 'Active').length}</p>
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm border-b-4 border-b-green-500">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Active</p>
+              <p className="text-green-600 text-3xl font-black">{accounts.filter(a => a.status === 'Active').length}</p>
             </div>
-            <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-              <p className="text-gray-500 text-sm">Suspended</p>
-              <p className="text-red-500 text-2xl font-bold">{accounts.filter(a => a.status === 'Suspended').length}</p>
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm border-b-4 border-b-red-500">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Suspended</p>
+              <p className="text-red-600 text-3xl font-black">{accounts.filter(a => a.status === 'Suspended').length}</p>
             </div>
-            <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-              <p className="text-gray-500 text-sm">Total Balance</p>
-              <p className="text-white text-2xl font-bold">${accounts.reduce((sum, a) => sum + (a.balance || 0), 0).toLocaleString()}</p>
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm border-b-4 border-b-purple-500">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Balance</p>
+              <p className="text-slate-900 text-3xl font-black">${accounts.reduce((sum, a) => sum + (a.balance || 0), 0).toLocaleString()}</p>
             </div>
           </div>
 
           {/* Accounts Table */}
-          <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Account ID</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Type</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Balance</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Leverage</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Status</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Actions</th>
+                <tr className="border-b border-slate-100 bg-slate-50/50">
+                  <th className="text-left text-slate-500 text-xs font-bold uppercase tracking-wider py-4 px-6">Account ID</th>
+                  <th className="text-left text-slate-500 text-xs font-bold uppercase tracking-wider py-4 px-6">User</th>
+                  <th className="text-left text-slate-500 text-xs font-bold uppercase tracking-wider py-4 px-6">Type</th>
+                  <th className="text-left text-slate-500 text-xs font-bold uppercase tracking-wider py-4 px-6">Balance</th>
+                  <th className="text-left text-slate-500 text-xs font-bold uppercase tracking-wider py-4 px-6">Leverage</th>
+                  <th className="text-left text-slate-500 text-xs font-bold uppercase tracking-wider py-4 px-6">Status</th>
+                  <th className="text-left text-slate-500 text-xs font-bold uppercase tracking-wider py-4 px-6">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="7" className="text-center py-8"><RefreshCw size={24} className="text-gray-500 animate-spin mx-auto" /></td></tr>
-                ) : filteredAccounts.length === 0 ? (
-                  <tr><td colSpan="7" className="text-center py-8 text-gray-500">{searchTerm ? 'No accounts found' : 'No trading accounts yet'}</td></tr>
-                ) : (
-                  filteredAccounts.map((account) => (
-                    <tr key={account._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                      <td className="py-4 px-4">
-                        <span className="text-accent-green font-mono text-sm">{account.accountId}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div>
-                          <p className="text-white font-medium">{account.userId?.firstName || 'Unknown'}</p>
-                          <p className="text-gray-500 text-sm">{account.userId?.email}</p>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-gray-400">{account.accountTypeId?.name || 'N/A'}</td>
-                      <td className="py-4 px-4 text-white font-medium">${account.balance?.toLocaleString() || 0}</td>
-                      <td className="py-4 px-4 text-gray-400">{account.leverage}</td>
-                      <td className="py-4 px-4">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          account.status === 'Active' ? 'bg-green-500/20 text-green-500' :
-                          account.status === 'Suspended' ? 'bg-red-500/20 text-red-500' :
-                          'bg-gray-500/20 text-gray-500'
-                        }`}>
-                          {account.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => openEditModal(account)} className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white" title="Edit">
-                            <Edit size={16} />
-                          </button>
-                          <button onClick={() => { setSelectedAccount(account); setShowResetPinModal(true); setError(''); }} className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-yellow-500" title="Reset PIN">
-                            <Lock size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="7" className="text-center py-12"><RefreshCw size={24} className="text-slate-400 animate-spin mx-auto" /></td></tr>
+                  ) : filteredAccounts.length === 0 ? (
+                    <tr><td colSpan="7" className="text-center py-12 text-slate-400 font-medium">{searchTerm ? 'No accounts found matching your search' : 'No trading accounts yet'}</td></tr>
+                  ) : (
+                    filteredAccounts.map((account) => (
+                      <tr key={account._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors duration-150">
+                        <td className="py-5 px-6">
+                          <span className="text-blue-600 font-mono text-sm font-bold bg-blue-50 px-2 py-1 rounded">{account.accountId}</span>
+                        </td>
+                        <td className="py-5 px-6">
+                          <div>
+                            <p className="text-slate-900 font-bold">{account.userId?.firstName || 'Unknown'}</p>
+                            <p className="text-slate-500 text-xs">{account.userId?.email}</p>
+                          </div>
+                        </td>
+                        <td className="py-5 px-6 text-slate-500 text-sm font-medium">{account.accountTypeId?.name || 'N/A'}</td>
+                        <td className="py-5 px-6 text-slate-900 font-black">${account.balance?.toLocaleString() || 0}</td>
+                        <td className="py-5 px-6 text-slate-500 text-sm font-medium">{account.leverage}</td>
+                        <td className="py-5 px-6">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${
+                            account.status === 'Active' ? 'bg-green-100 text-green-700' :
+                            account.status === 'Suspended' ? 'bg-red-100 text-red-700' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>
+                            {account.status}
+                          </span>
+                        </td>
+                        <td className="py-5 px-6">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => openEditModal(account)} className="p-2 hover:bg-blue-50 rounded-lg transition-all text-slate-400 hover:text-blue-600 shadow-sm" title="Edit Properties">
+                              <Edit size={16} />
+                            </button>
+                            <button onClick={() => { setSelectedAccount(account); setShowResetPinModal(true); setError(''); }} className="p-2 hover:bg-yellow-50 rounded-lg transition-all text-slate-400 hover:text-yellow-600 shadow-sm" title="Reset PIN">
+                              <Lock size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
             </table>
           </div>
         </div>
@@ -263,22 +263,23 @@ const AdminAccounts = () => {
 
       {/* Edit Account Modal */}
       {showEditModal && selectedAccount && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white font-semibold text-lg">Edit Account</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-white"><X size={20} /></button>
+              <h3 className="text-slate-900 font-bold text-xl">Edit Account</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
 
-            <div className="mb-4 p-3 bg-dark-700 rounded-lg">
-              <p className="text-gray-400 text-sm">Account ID</p>
-              <p className="text-accent-green font-mono">{selectedAccount.accountId}</p>
+            <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Account ID</p>
+              <p className="text-blue-600 font-mono font-bold text-lg">{selectedAccount.accountId}</p>
+              <p className="text-slate-400 text-xs mt-1">User: {selectedAccount.userId?.firstName || selectedAccount.userId?.email}</p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Leverage</label>
-                <select value={editForm.leverage} onChange={(e) => setEditForm({ ...editForm, leverage: e.target.value })} className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none">
+                <label className="block text-slate-700 text-sm font-semibold mb-2">Leverage</label>
+                <select value={editForm.leverage} onChange={(e) => setEditForm({ ...editForm, leverage: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-blue-500 transition-colors">
                   <option value="1:50">1:50</option>
                   <option value="1:100">1:100</option>
                   <option value="1:200">1:200</option>
@@ -288,25 +289,25 @@ const AdminAccounts = () => {
               </div>
 
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Exposure Limit ($)</label>
-                <input type="number" value={editForm.exposureLimit} onChange={(e) => setEditForm({ ...editForm, exposureLimit: e.target.value })} className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none" />
+                <label className="block text-slate-700 text-sm font-semibold mb-2">Exposure Limit ($)</label>
+                <input type="number" value={editForm.exposureLimit} onChange={(e) => setEditForm({ ...editForm, exposureLimit: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-blue-500 transition-colors" />
               </div>
 
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Status</label>
-                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none">
-                  <option value="Active">Active</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Closed">Closed</option>
+                <label className="block text-slate-700 text-sm font-semibold mb-2">Account Status</label>
+                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-900 focus:outline-none focus:border-blue-500 transition-colors">
+                  <option value="Active" className="text-green-600">Active</option>
+                  <option value="Suspended" className="text-red-600">Suspended</option>
+                  <option value="Closed" className="text-slate-500">Closed</option>
                 </select>
               </div>
             </div>
 
-            {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+            {error && <p className="text-red-600 text-sm font-medium mt-4 p-3 bg-red-50 rounded-lg">{error}</p>}
 
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowEditModal(false)} className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600">Cancel</button>
-              <button onClick={handleUpdateAccount} className="flex-1 bg-red-500 text-white font-medium py-3 rounded-lg hover:bg-red-600">Update</button>
+            <div className="flex gap-3 mt-8">
+              <button onClick={() => setShowEditModal(false)} className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+              <button onClick={handleUpdateAccount} className="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95">Update Account</button>
             </div>
           </div>
         </div>
@@ -314,36 +315,37 @@ const AdminAccounts = () => {
 
       {/* Reset PIN Modal */}
       {showResetPinModal && selectedAccount && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white font-semibold text-lg">Reset Account PIN</h3>
-              <button onClick={() => { setShowResetPinModal(false); setNewPin(''); }} className="text-gray-400 hover:text-white"><X size={20} /></button>
+              <h3 className="text-slate-900 font-bold text-xl">Reset Account PIN</h3>
+              <button onClick={() => { setShowResetPinModal(false); setNewPin(''); }} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
 
-            <div className="mb-4 p-3 bg-dark-700 rounded-lg">
-              <p className="text-gray-400 text-sm">Account ID</p>
-              <p className="text-accent-green font-mono">{selectedAccount.accountId}</p>
-              <p className="text-gray-500 text-sm mt-1">User: {selectedAccount.userId?.firstName || selectedAccount.userId?.email}</p>
+            <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Account Info</p>
+              <p className="text-blue-600 font-mono font-bold text-lg">{selectedAccount.accountId}</p>
+              <p className="text-slate-500 font-medium text-sm mt-1">{selectedAccount.userId?.firstName || selectedAccount.userId?.email}</p>
             </div>
 
             <div className="mb-6">
-              <label className="block text-gray-400 text-sm mb-2">New 4-digit PIN</label>
+              <label className="block text-slate-700 text-sm font-semibold mb-2 text-center">New 4-digit Secure PIN</label>
               <input
                 type="text"
                 maxLength={4}
                 value={newPin}
                 onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="Enter new PIN"
-                className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white text-center text-2xl tracking-widest focus:outline-none focus:border-red-500"
+                placeholder="0 0 0 0"
+                className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl px-4 py-5 text-slate-900 text-center text-4xl font-black tracking-[1em] focus:outline-none focus:border-blue-500 transition-all"
               />
+              <p className="text-slate-400 text-xs text-center mt-3">Resetting PIN will take effect immediately</p>
             </div>
 
-            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+            {error && <p className="text-red-600 text-sm font-medium mb-4 p-3 bg-red-50 rounded-lg">{error}</p>}
 
             <div className="flex gap-3">
-              <button onClick={() => { setShowResetPinModal(false); setNewPin(''); }} className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600">Cancel</button>
-              <button onClick={handleResetPin} className="flex-1 bg-red-500 text-white font-medium py-3 rounded-lg hover:bg-red-600">Reset PIN</button>
+              <button onClick={() => { setShowResetPinModal(false); setNewPin(''); }} className="flex-1 bg-slate-100 text-slate-700 font-bold py-4 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+              <button onClick={handleResetPin} className="flex-1 bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95">Reset Secure PIN</button>
             </div>
           </div>
         </div>

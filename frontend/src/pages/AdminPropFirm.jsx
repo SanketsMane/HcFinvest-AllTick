@@ -17,10 +17,16 @@ import {
   ToggleLeft,
   ToggleRight,
   Settings,
-  X
+  X,
+  ArrowUpRight,
+  Activity,
+  Layers
 } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 const AdminPropFirm = () => {
+  const { modeColors } = useTheme()
+  // ... (keeping all state logic)
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState('challenges')
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false)
@@ -80,7 +86,6 @@ const AdminPropFirm = () => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      // Fetch settings
       const settingsRes = await fetch(`${API_URL}/prop/admin/settings`)
       const settingsData = await settingsRes.json()
       if (settingsData.success) {
@@ -92,21 +97,18 @@ const AdminPropFirm = () => {
         })
       }
 
-      // Fetch challenges
       const challengesRes = await fetch(`${API_URL}/prop/admin/challenges`)
       const challengesData = await challengesRes.json()
       if (challengesData.success) {
         setChallenges(challengesData.challenges || [])
       }
 
-      // Fetch participants
       const accountsRes = await fetch(`${API_URL}/prop/admin/accounts?limit=50`)
       const accountsData = await accountsRes.json()
       if (accountsData.success) {
         setParticipants(accountsData.accounts || [])
       }
 
-      // Fetch dashboard stats
       const dashRes = await fetch(`${API_URL}/prop/admin/dashboard`)
       const dashData = await dashRes.json()
       if (dashData.success) {
@@ -129,11 +131,9 @@ const AdminPropFirm = () => {
       const data = await res.json()
       if (data.success) {
         setChallengeModeEnabled(newValue)
-        alert(newValue ? 'Challenge mode enabled! Users can now buy challenges.' : 'Challenge mode disabled.')
       }
     } catch (error) {
       console.error('Error toggling challenge mode:', error)
-      alert('Failed to update challenge mode')
     }
   }
 
@@ -142,19 +142,15 @@ const AdminPropFirm = () => {
       const res = await fetch(`${API_URL}/prop/admin/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          challengeModeEnabled,
-          ...settings
-        })
+        body: JSON.stringify({ challengeModeEnabled, ...settings })
       })
       const data = await res.json()
       if (data.success) {
-        alert('Settings saved successfully!')
         setShowSettingsModal(false)
+        fetchData()
       }
     } catch (error) {
       console.error('Error saving settings:', error)
-      alert('Failed to save settings')
     }
   }
 
@@ -172,327 +168,346 @@ const AdminPropFirm = () => {
       stepsCount: challenge.stepsCount || 2,
       fundSize: challenge.fundSize || 10000,
       challengeFee: challenge.challengeFee || 99,
-      rules: {
-        ...defaultChallengeForm.rules,
-        ...challenge.rules
-      },
-      fundedSettings: {
-        ...defaultChallengeForm.fundedSettings,
-        ...challenge.fundedSettings
-      },
+      rules: { ...defaultChallengeForm.rules, ...challenge.rules },
+      fundedSettings: { ...defaultChallengeForm.fundedSettings, ...challenge.fundedSettings },
       isActive: challenge.isActive !== false
     })
     setShowChallengeModal(true)
   }
 
   const saveChallenge = async () => {
-    if (!challengeForm.name) {
-      alert('Please enter a challenge name')
-      return
-    }
+    if (!challengeForm.name) return
     try {
       const url = editingChallenge 
         ? `${API_URL}/prop/admin/challenges/${editingChallenge._id}`
         : `${API_URL}/prop/admin/challenges`
-      const method = editingChallenge ? 'PUT' : 'POST'
-      
       const res = await fetch(url, {
-        method,
+        method: editingChallenge ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(challengeForm)
       })
       const data = await res.json()
       if (data.success) {
-        alert(editingChallenge ? 'Challenge updated!' : 'Challenge created!')
         setShowChallengeModal(false)
         fetchData()
-      } else {
-        alert(data.message || 'Failed to save challenge')
       }
     } catch (error) {
       console.error('Error saving challenge:', error)
-      alert('Failed to save challenge')
     }
   }
 
   const deleteChallenge = async (challengeId) => {
     if (!confirm('Are you sure you want to delete this challenge?')) return
     try {
-      const res = await fetch(`${API_URL}/prop/admin/challenges/${challengeId}`, {
-        method: 'DELETE'
-      })
+      const res = await fetch(`${API_URL}/prop/admin/challenges/${challengeId}`, { method: 'DELETE' })
       const data = await res.json()
-      if (data.success) {
-        alert('Challenge deleted!')
-        fetchData()
-      } else {
-        alert(data.message || 'Failed to delete challenge')
-      }
+      if (data.success) fetchData()
     } catch (error) {
       console.error('Error deleting challenge:', error)
-      alert('Failed to delete challenge')
     }
   }
 
   const updateFormRules = (field, value) => {
-    setChallengeForm({
-      ...challengeForm,
-      rules: { ...challengeForm.rules, [field]: value }
-    })
+    setChallengeForm({ ...challengeForm, rules: { ...challengeForm.rules, [field]: value } })
   }
 
   const updateFormFunded = (field, value) => {
-    setChallengeForm({
-      ...challengeForm,
-      fundedSettings: { ...challengeForm.fundedSettings, [field]: value }
-    })
+    setChallengeForm({ ...challengeForm, fundedSettings: { ...challengeForm.fundedSettings, [field]: value } })
   }
 
   const getStatusColor = (status) => {
     const s = status?.toUpperCase()
     switch (s) {
-      case 'ACTIVE': return 'bg-blue-500/20 text-blue-500'
-      case 'PASSED': return 'bg-green-500/20 text-green-500'
-      case 'FUNDED': return 'bg-purple-500/20 text-purple-500'
-      case 'FAILED': return 'bg-red-500/20 text-red-500'
-      case 'EXPIRED': return 'bg-orange-500/20 text-orange-500'
-      default: return 'bg-gray-500/20 text-gray-400'
+      case 'ACTIVE': return 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+      case 'PASSED': return 'bg-green-500/10 text-green-600 border-green-500/20'
+      case 'FUNDED': return 'bg-purple-500/10 text-purple-600 border-purple-500/20'
+      case 'FAILED': return 'bg-red-500/10 text-red-600 border-red-500/20'
+      case 'EXPIRED': return 'bg-orange-500/10 text-orange-600 border-orange-500/20'
+      default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20'
     }
   }
 
   const getStatusIcon = (status) => {
     const s = status?.toUpperCase()
     switch (s) {
-      case 'ACTIVE': return <Clock size={14} />
+      case 'ACTIVE': return <Clock size={12} />
       case 'PASSED': 
-      case 'FUNDED': return <CheckCircle size={14} />
+      case 'FUNDED': return <CheckCircle size={12} />
       case 'FAILED': 
-      case 'EXPIRED': return <XCircle size={14} />
+      case 'EXPIRED': return <XCircle size={12} />
       default: return null
     }
   }
 
   return (
-    <AdminLayout title="Prop Firm Challenges" subtitle="Manage trading challenges and funded accounts">
-      {/* Challenge Mode Toggle */}
-      <div className="bg-dark-800 rounded-xl p-5 border border-gray-800 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${challengeModeEnabled ? 'bg-green-500/20' : 'bg-gray-500/20'}`}>
-              <Trophy size={24} className={challengeModeEnabled ? 'text-green-500' : 'text-gray-500'} />
+    <AdminLayout title="Prop Firm Ecosystem" subtitle="Orchestrate trading challenges and funded capital infrastructure">
+      {/* Infrastructure Control Center */}
+      <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-[2.5rem] p-8 border-4 shadow-sm mb-8 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+          <Layers size={140} className="text-slate-900 group-hover:rotate-12 transition-transform duration-700" />
+        </div>
+        
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+          <div className="flex items-center gap-8">
+            <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center shadow-2xl transition-all duration-500 ${challengeModeEnabled ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/20 rotate-3' : 'bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20'}`}>
+              <Trophy size={48} className="text-white group-hover:scale-110 transition-transform" />
             </div>
             <div>
-              <h3 className="text-white font-semibold text-lg">Challenge Mode</h3>
-              <p className="text-gray-500 text-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-2 h-2 rounded-full ${challengeModeEnabled ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
+                <h3 style={{ color: modeColors.text }} className="font-black text-3xl tracking-tight leading-none">Prop Protocol V2</h3>
+              </div>
+              <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">
                 {challengeModeEnabled 
-                  ? 'Users can buy and participate in challenges' 
-                  : 'Challenge purchases are disabled for users'}
+                  ? 'Active Authorization: Users permitted to join the pool' 
+                  : 'Protocol Locked: Capital entry points suspended'}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          
+          <div className="flex items-center gap-6">
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="p-2 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-white"
-              title="Settings"
+              style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textSecondary }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center border-2 border-transparent hover:border-slate-200 transition-all hover:text-blue-600 active:scale-95 shadow-inner"
+              title="Protocol Settings"
             >
-              <Settings size={20} />
+              <Settings size={28} />
             </button>
             <button
               onClick={toggleChallengeMode}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-4 px-10 py-5 rounded-[1.50rem] font-black text-[12px] uppercase tracking-widest transition-all active:scale-95 border-b-4 ${
                 challengeModeEnabled 
-                  ? 'bg-green-500 text-white hover:bg-green-600' 
-                  : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-xl shadow-green-500/30 border-green-800' 
+                  : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-xl shadow-slate-500/30 border-slate-900'
               }`}
             >
-              {challengeModeEnabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-              {challengeModeEnabled ? 'ON' : 'OFF'}
+              {challengeModeEnabled ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+              {challengeModeEnabled ? 'Protocol Online' : 'Protocol Offline'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <Trophy size={18} className="text-yellow-500" />
-            <p className="text-gray-500 text-sm">Active Challenges</p>
+      {/* Stats Portfolio */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {[
+          { title: 'Pool Types', value: stats.totalChallenges || challenges.length, subtitle: 'Configured capital benchmarks', icon: Target, color: 'blue' },
+          { title: 'Fleet Mass', value: stats.totalAccounts || 0, subtitle: 'Current active participants', icon: Users, color: 'indigo' },
+          { title: 'Target Hit', value: stats.passedAccounts || 0, subtitle: 'Qualified terminal accounts', icon: Trophy, color: 'green' },
+          { title: 'Liquidated', value: stats.failedAccounts || 0, subtitle: 'Accounts below drawdown limit', icon: Activity, color: 'red' }
+        ].map((stat, idx) => (
+          <div key={idx} style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-[2rem] p-6 border shadow-sm group hover:shadow-xl transition-all relative overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 bg-${stat.color}-500/10 rounded-2xl flex items-center justify-center border border-${stat.color}-500/20 group-hover:scale-110 transition-transform`}>
+                <stat.icon size={24} className={`text-${stat.color}-600`} />
+              </div>
+              <div style={{ backgroundColor: modeColors.bgSecondary }} className="px-2 py-1 rounded-lg">
+                <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60">Fleet Stats</span>
+              </div>
+            </div>
+            <p style={{ color: modeColors.textSecondary }} className="text-xs font-black uppercase tracking-widest italic opacity-70 mb-1">{stat.title}</p>
+            <p style={{ color: modeColors.text }} className="text-4xl font-black tracking-tight">{stat.value}</p>
+            <p style={{ color: modeColors.textMuted }} className="text-[10px] font-bold mt-3 flex items-center gap-1 opacity-60">
+               {stat.subtitle}
+            </p>
           </div>
-          <p className="text-white text-2xl font-bold">{stats.totalChallenges || challenges.length}</p>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <Users size={18} className="text-blue-500" />
-            <p className="text-gray-500 text-sm">Total Participants</p>
-          </div>
-          <p className="text-white text-2xl font-bold">{stats.totalAccounts || 0}</p>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle size={18} className="text-green-500" />
-            <p className="text-gray-500 text-sm">Passed</p>
-          </div>
-          <p className="text-white text-2xl font-bold">{stats.passedAccounts || 0}</p>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <XCircle size={18} className="text-red-500" />
-            <p className="text-gray-500 text-sm">Failed</p>
-          </div>
-          <p className="text-white text-2xl font-bold">{stats.failedAccounts || 0}</p>
-        </div>
+        ))}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('challenges')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'challenges' ? 'bg-yellow-500 text-black' : 'bg-dark-700 text-gray-400 hover:text-white'
-          }`}
-        >
-          Challenges
-        </button>
-        <button
-          onClick={() => setActiveTab('participants')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'participants' ? 'bg-yellow-500 text-black' : 'bg-dark-700 text-gray-400 hover:text-white'
-          }`}
-        >
-          Participants
-        </button>
+      {/* Advanced Navigation Ecosystem */}
+      <div className="flex flex-wrap items-center justify-between gap-6 mb-10">
+        <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="flex p-2 rounded-[1.5rem] border-2 shadow-sm">
+          {[
+            { id: 'challenges', label: 'Capital Pools', icon: Target },
+            { id: 'participants', label: 'Fleet Registry', icon: Users }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-3 px-8 py-4 rounded-[1.2rem] font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
+                activeTab === tab.id 
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20' 
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'challenges' && (
+          <button 
+            onClick={openAddChallenge}
+            className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.2rem] font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-500/30 hover:opacity-90 active:scale-95 transition-all border-b-4 border-blue-800"
+          >
+            <Plus size={18} />
+            Initialize Pool
+          </button>
+        )}
       </div>
 
       {/* Challenges Tab */}
       {activeTab === 'challenges' && (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-800">
-            <h2 className="text-white font-semibold text-lg">Challenge Types</h2>
-            <button 
-              onClick={openAddChallenge}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-400 transition-colors"
-            >
-              <Plus size={16} />
-              <span className="hidden sm:inline">Add Challenge</span>
-            </button>
-          </div>
-
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {challenges.length === 0 ? (
-              <div className="col-span-2 text-center py-12">
-                <Trophy size={48} className="text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-500">No challenges created yet</p>
-                <p className="text-gray-600 text-sm">Click "Add Challenge" to create your first challenge</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          {challenges.length === 0 ? (
+            <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="col-span-full rounded-[3rem] border-4 border-dashed p-20 text-center">
+              <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                <Trophy size={48} className="text-slate-300" />
               </div>
-            ) : (
-              challenges.map((challenge) => (
-                <div key={challenge._id} className="bg-dark-700 rounded-xl p-5 border border-gray-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-semibold text-lg">{challenge.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs ${challenge.isActive ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-400'}`}>
-                      {challenge.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div>
-                      <p className="text-gray-500 text-sm">Account Size</p>
-                      <p className="text-white font-medium">${(challenge.fundSize || 0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-sm">Profit Target</p>
-                      <p className="text-green-500 font-medium">{challenge.profitTarget || 8}%</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-sm">Max Drawdown</p>
-                      <p className="text-red-500 font-medium">{challenge.maxDrawdown || 10}%</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-sm">Duration</p>
-                      <p className="text-white font-medium">{challenge.durationDays || 30} days</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-600">
-                    <div>
-                      <p className="text-yellow-500 font-bold text-xl">${(challenge.challengeFee || 0).toLocaleString()}</p>
-                      <p className="text-gray-500 text-sm">{challenge.stepsCount === 0 ? 'Instant Fund' : challenge.stepsCount === 1 ? '1-Step' : '2-Step'}</p>
+              <h3 style={{ color: modeColors.text }} className="text-2xl font-black mb-2 tracking-tight">Vortex Empty</h3>
+              <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60">No active capital benchmarks found in the registry</p>
+            </div>
+          ) : (
+            challenges.map((challenge, idx) => (
+              <div 
+                key={challenge._id} 
+                className="rounded-[2.5rem] border-4 shadow-sm hover:shadow-2xl transition-all duration-500 group overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4"
+                style={{ 
+                  backgroundColor: modeColors.card, 
+                  borderColor: modeColors.border,
+                  animationDelay: `${idx * 100}ms` 
+                }}
+              >
+                <div className="p-8 pb-0">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border-2 ${challenge.isActive ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                      {challenge.isActive ? 'Protocol Active' : 'Registry Standby'}
                     </div>
                     <div className="flex gap-2">
                       <button 
                         onClick={() => openEditChallenge(challenge)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white"
+                        style={{ backgroundColor: modeColors.bgSecondary }}
+                        className="p-3 rounded-xl text-slate-400 hover:text-blue-600 transition-colors border border-transparent hover:border-slate-200"
                       >
                         <Edit size={16} />
                       </button>
                       <button 
                         onClick={() => deleteChallenge(challenge._id)}
-                        className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-red-500"
+                        style={{ backgroundColor: modeColors.bgSecondary }}
+                        className="p-3 rounded-xl text-slate-400 hover:text-red-600 transition-colors border border-transparent hover:border-slate-200"
                       >
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
+                  
+                  <h3 style={{ color: modeColors.text }} className="text-2xl font-black tracking-tight mb-2 group-hover:text-blue-600 transition-colors uppercase italic">{challenge.name}</h3>
+                  <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-8 leading-relaxed line-clamp-2">
+                    {challenge.description || 'No operational description provided for this capital benchmark.'}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-5 rounded-[1.5rem] border-2 border-transparent group-hover:border-slate-200 transition-all">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Provision Size</p>
+                      <p style={{ color: modeColors.text }} className="text-2xl font-black tracking-tighter">${(challenge.fundSize || 0).toLocaleString()}</p>
+                    </div>
+                    <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-5 rounded-[1.5rem] border-2 border-transparent group-hover:border-slate-200 transition-all">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Entry Quantum</p>
+                      <p className="text-2xl font-black tracking-tighter text-blue-600">${(challenge.challengeFee || 0).toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-8">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                        <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest">Yield Target</span>
+                      </div>
+                      <span className="text-xs font-black text-green-600">+{challenge.profitTarget || 8}%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                        <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest">Max Drawdown</span>
+                      </div>
+                      <span className="text-xs font-black text-red-600">-{challenge.maxDrawdown || 10}%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                        <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest">Temporal Limit</span>
+                      </div>
+                      <span style={{ color: modeColors.text }} className="text-xs font-black uppercase">{challenge.durationDays || 30} Operational Days</span>
+                    </div>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+
+                <div style={{ backgroundColor: modeColors.bgSecondary }} className="mt-auto p-6 flex items-center justify-between border-t border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-slate-100">
+                      <Activity size={14} className="text-blue-600" />
+                    </div>
+                    <span style={{ color: modeColors.textSecondary }} className="text-[9px] font-black uppercase tracking-widest opacity-60">
+                      {challenge.stepsCount === 0 ? 'Instant Provisioning' : `${challenge.stepsCount}-Phase Verification`}
+                    </span>
+                  </div>
+                  <ArrowUpRight size={18} className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
       {/* Participants Tab */}
       {activeTab === 'participants' && (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
-            <h2 className="text-white font-semibold text-lg">Challenge Participants</h2>
-            <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-[2.5rem] border-4 overflow-hidden shadow-sm">
+          <div style={{ borderBottomColor: modeColors.border }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-8 border-b-2">
+            <div>
+              <h2 style={{ color: modeColors.text }} className="text-2xl font-black tracking-tight mb-1">Fleet Registry</h2>
+              <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Operational status of all active capital participants</p>
+            </div>
+            <div className="relative group">
+              <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
               <input
                 type="text"
-                placeholder="Search participants..."
+                placeholder="SEARCH REGISTRY..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
+                style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                className="w-full sm:w-80 border-2 rounded-2xl pl-14 pr-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all shadow-inner"
               />
             </div>
           </div>
 
           {/* Mobile Card View */}
-          <div className="block lg:hidden p-4 space-y-3">
+          <div className="block lg:hidden p-6 space-y-4">
             {participants.length === 0 ? (
-              <div className="text-center py-12">
-                <Users size={48} className="text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-500">No participants yet</p>
+              <div className="text-center py-20">
+                <Users size={48} className="text-slate-200 mx-auto mb-4" />
+                <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60">No participants registered</p>
               </div>
             ) : (
               participants.map((p) => (
-                <div key={p._id} className="bg-dark-700 rounded-xl p-4 border border-gray-700">
-                  <div className="flex items-center justify-between mb-3">
+                <div key={p._id} style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="rounded-[2rem] p-6 border-2 hover:border-slate-300 transition-all">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-white font-medium">{p.userId?.firstName || p.userId?.email || 'Unknown'}</p>
-                      <p className="text-gray-500 text-sm">{p.challengeId?.name || 'Challenge'}</p>
+                      <p style={{ color: modeColors.text }} className="font-black text-sm uppercase italic leading-none mb-1">{p.userId?.firstName || p.userId?.email || 'Unknown'}</p>
+                      <p style={{ color: modeColors.textSecondary }} className="text-[9px] font-black uppercase tracking-widest opacity-60">{p.challengeId?.name || 'Standard Pool'}</p>
                     </div>
-                    <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusColor(p.status)}`}>
+                    <span className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 ${getStatusColor(p.status)}`}>
                       {getStatusIcon(p.status)}
                       {p.status}
                     </span>
                   </div>
-                  <div className="mb-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-500">Balance</span>
-                      <span className="text-white">${(p.currentBalance || 0).toLocaleString()}</span>
+                  <div className="mb-4">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2">
+                      <span style={{ color: modeColors.textSecondary }}>Equity Mass</span>
+                      <span style={{ color: modeColors.text }}>${(p.currentBalance || 0).toLocaleString()}</span>
                     </div>
-                    <div className="w-full bg-dark-600 rounded-full h-2">
+                    <div style={{ backgroundColor: modeColors.border }} className="w-full rounded-full h-2.5 overflow-hidden border border-white/10 shadow-inner">
                       <div 
-                        className={`h-2 rounded-full ${p.status === 'FAILED' ? 'bg-red-500' : p.status === 'PASSED' ? 'bg-green-500' : 'bg-blue-500'}`}
+                        className={`h-full rounded-full transition-all duration-1000 ${p.status === 'FAILED' ? 'bg-red-500' : p.status === 'PASSED' ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}
                         style={{ width: `${Math.min(((p.currentBalance - p.initialBalance) / p.initialBalance * 100) + 50, 100)}%` }}
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">P&L</span>
-                    <span className={(p.currentBalance - p.initialBalance) >= 0 ? 'text-green-500' : 'text-red-500'}>
-                      {(p.currentBalance - p.initialBalance) >= 0 ? '+' : ''}${((p.currentBalance || 0) - (p.initialBalance || 0)).toLocaleString()}
+                  <div className="flex justify-between items-center bg-white/40 p-3 rounded-xl border border-white/60">
+                    <span style={{ color: modeColors.textSecondary }} className="text-[9px] font-black uppercase tracking-widest">Growth Vector</span>
+                    <span className={`text-[11px] font-black font-mono ${(p.currentBalance - p.initialBalance) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {(p.currentBalance - p.initialBalance) >= 0 ? '+' : ''}${Math.abs((p.currentBalance || 0) - (p.initialBalance || 0)).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -502,44 +517,67 @@ const AdminPropFirm = () => {
 
           {/* Desktop Table */}
           <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Challenge</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Balance</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">P&L</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Status</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Start Date</th>
-                  <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Actions</th>
+                <tr style={{ backgroundColor: modeColors.bgSecondary }}>
+                  <th style={{ color: modeColors.textSecondary }} className="text-left text-[10px] font-black uppercase tracking-[0.2em] py-6 px-8 opacity-60 italic">Operator</th>
+                  <th style={{ color: modeColors.textSecondary }} className="text-left text-[10px] font-black uppercase tracking-[0.2em] py-6 px-8 opacity-60 italic">Benchmark</th>
+                  <th style={{ color: modeColors.textSecondary }} className="text-left text-[10px] font-black uppercase tracking-[0.2em] py-6 px-8 opacity-60 italic">Mass</th>
+                  <th style={{ color: modeColors.textSecondary }} className="text-left text-[10px] font-black uppercase tracking-[0.2em] py-6 px-8 opacity-60 italic">Growth</th>
+                  <th style={{ color: modeColors.textSecondary }} className="text-left text-[10px] font-black uppercase tracking-[0.2em] py-6 px-8 opacity-60 italic">Status</th>
+                  <th style={{ color: modeColors.textSecondary }} className="text-left text-[10px] font-black uppercase tracking-[0.2em] py-6 px-8 opacity-60 italic">Entry Date</th>
+                  <th style={{ color: modeColors.textSecondary }} className="text-right text-[10px] font-black uppercase tracking-[0.2em] py-6 px-8 opacity-60 italic">Terminal</th>
                 </tr>
               </thead>
               <tbody>
                 {participants.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-gray-500">No participants yet</td>
+                    <td colSpan={7} className="py-32 text-center">
+                      <div className="flex flex-col items-center">
+                        <Users size={64} className="text-slate-100 mb-4" />
+                        <p style={{ color: modeColors.textSecondary }} className="text-[11px] font-black uppercase tracking-widest opacity-40">Registry Database Empty</p>
+                      </div>
+                    </td>
                   </tr>
                 ) : (
                   participants.map((p) => {
                     const pnl = (p.currentBalance || 0) - (p.initialBalance || 0)
                     return (
-                      <tr key={p._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                        <td className="py-4 px-4 text-white font-medium">{p.userId?.firstName || p.userId?.email || 'Unknown'}</td>
-                        <td className="py-4 px-4 text-gray-400">{p.challengeId?.name || 'Challenge'}</td>
-                        <td className="py-4 px-4 text-white">${(p.currentBalance || 0).toLocaleString()}</td>
-                        <td className={`py-4 px-4 font-medium ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {pnl >= 0 ? '+' : ''}${pnl.toLocaleString()}
+                      <tr key={p._id} style={{ borderBottomColor: modeColors.border }} className="border-b transition-colors hover:bg-slate-50/80 group">
+                        <td className="py-6 px-8">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center font-black text-slate-400 group-hover:from-blue-500 group-hover:to-indigo-600 group-hover:text-white transition-all">
+                              {p.userId?.firstName?.[0] || 'U'}
+                            </div>
+                            <div>
+                              <p style={{ color: modeColors.text }} className="font-black text-[13px] uppercase italic tracking-tight">{p.userId?.firstName || p.userId?.email || 'Unknown'}</p>
+                              <p style={{ color: modeColors.textSecondary }} className="text-[9px] font-black uppercase tracking-[0.1em] opacity-40">{p.userId?._id?.slice(-8)}</p>
+                            </div>
+                          </div>
                         </td>
-                        <td className="py-4 px-4">
-                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs w-fit ${getStatusColor(p.status)}`}>
+                        <td className="py-6 px-8">
+                          <span style={{ color: modeColors.textMuted }} className="text-[10px] font-black uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">{p.challengeId?.name || 'Pool'}</span>
+                        </td>
+                        <td className="py-6 px-8">
+                          <p style={{ color: modeColors.text }} className="font-mono font-black text-[14px] tracking-tighter">${(p.currentBalance || 0).toLocaleString()}</p>
+                        </td>
+                        <td className="py-6 px-8">
+                          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl font-black font-mono text-[11px] ${pnl >= 0 ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
+                            {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toLocaleString()}
+                          </div>
+                        </td>
+                        <td className="py-6 px-8">
+                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border-2 shadow-sm ${getStatusColor(p.status)}`}>
                             {getStatusIcon(p.status)}
                             {p.status}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</td>
-                        <td className="py-4 px-4">
-                          <button className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-white">
-                            <Eye size={16} />
+                        <td style={{ color: modeColors.textSecondary }} className="py-6 px-8 text-[11px] font-black uppercase italic group-hover:text-slate-900 transition-colors">
+                          {new Date(p.createdAt).toLocaleDateString(undefined, { year: '2024', month: 'short', day: 'numeric' }).toUpperCase()}
+                        </td>
+                        <td className="py-6 px-8 text-right">
+                          <button style={{ backgroundColor: modeColors.bgSecondary }} className="p-3 rounded-xl text-slate-400 hover:text-blue-600 transition-all border border-transparent hover:border-slate-200 active:scale-95 shadow-sm">
+                            <Eye size={18} />
                           </button>
                         </td>
                       </tr>
@@ -552,63 +590,78 @@ const AdminPropFirm = () => {
         </div>
       )}
 
-      {/* Settings Modal */}
+      {/* Protocol Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">Challenge Settings</h2>
-              <button onClick={() => setShowSettingsModal(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] w-full max-w-lg border-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300"
+          >
+            <div className="p-10 border-b border-slate-100 flex items-center justify-between" style={{ backgroundColor: modeColors.card }}>
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-500/20">
+                  <Settings size={32} className="text-white" />
+                </div>
+                <div>
+                  <h2 style={{ color: modeColors.text }} className="text-2xl font-black tracking-tight">Protocol Config</h2>
+                  <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60 italic">Core Prop Ecosystem Settings</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSettingsModal(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition-all active:scale-90 shadow-sm">
+                <X size={20} className="text-slate-400" />
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Display Name</label>
+            <div className="p-10 space-y-8">
+              <div className="space-y-3">
+                <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Display Identity</label>
                 <input
                   type="text"
                   value={settings.displayName}
                   onChange={(e) => setSettings({...settings, displayName: e.target.value})}
-                  placeholder="Prop Trading Challenge"
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white"
+                  placeholder="PROP TRADING CHALLENGE..."
+                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                  className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all shadow-inner hover:bg-white"
                 />
               </div>
 
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Description</label>
+              <div className="space-y-3">
+                <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Ecosystem Manifest</label>
                 <textarea
                   value={settings.description}
                   onChange={(e) => setSettings({...settings, description: e.target.value})}
-                  placeholder="Trade with our capital..."
+                  placeholder="DESCRIBE THE POOL INFRASTRUCTURE..."
                   rows={3}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white resize-none"
+                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                  className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all shadow-inner hover:bg-white resize-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Terms & Conditions</label>
+              <div className="space-y-3">
+                <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Legal Protocol (T&C)</label>
                 <textarea
                   value={settings.termsAndConditions}
                   onChange={(e) => setSettings({...settings, termsAndConditions: e.target.value})}
-                  placeholder="Enter terms and conditions..."
-                  rows={5}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white resize-none"
+                  placeholder="SPECIFY TERMS AND OPERATIONAL CONDITIONS..."
+                  rows={4}
+                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                  className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all shadow-inner hover:bg-white resize-none"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-4 pt-4">
                 <button
                   onClick={() => setShowSettingsModal(false)}
-                  className="flex-1 py-3 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                  style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textMuted }}
+                  className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-transparent hover:border-slate-200 transition-all active:scale-95 shadow-sm"
                 >
-                  Cancel
+                  Discard
                 </button>
                 <button
                   onClick={saveSettings}
-                  className="flex-1 py-3 bg-yellow-500 text-black font-medium rounded-lg hover:bg-yellow-400"
+                  className="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-blue-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-blue-800"
                 >
-                  Save Settings
+                  Commit Changes
                 </button>
               </div>
             </div>
@@ -616,313 +669,323 @@ const AdminPropFirm = () => {
         </div>
       )}
 
-      {/* Challenge Create/Edit Modal */}
+      {/* Prototype Configuration Modal */}
       {showChallengeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between sticky top-0 bg-dark-800 z-10">
-              <h2 className="text-xl font-bold text-white">
-                {editingChallenge ? 'Edit Challenge' : 'Create New Challenge'}
-              </h2>
-              <button onClick={() => setShowChallengeModal(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] w-full max-w-5xl max-h-[90vh] border-4 shadow-2xl relative overflow-hidden flex flex-col animate-in zoom-in-95 duration-300"
+          >
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10" style={{ backgroundColor: modeColors.card }}>
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-500/20">
+                  <Plus size={32} className="text-white" />
+                </div>
+                <div>
+                  <h2 style={{ color: modeColors.text }} className="text-2xl font-black tracking-tight">
+                    {editingChallenge ? 'Benchmark Modification' : 'Initialize Benchmark'}
+                  </h2>
+                  <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60 italic">Architecting Capital Allocation Parameters</p>
+                </div>
+              </div>
+              <button onClick={() => setShowChallengeModal(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition-all active:scale-90 shadow-sm">
+                <X size={20} className="text-slate-400" />
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
-              {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-gray-400 text-sm mb-2">Challenge Name *</label>
+            <div className="p-10 overflow-y-auto space-y-10 flex-1 custom-scrollbar">
+              {/* Core Identity Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Pool Descriptor</label>
                   <input
                     type="text"
                     value={challengeForm.name}
                     onChange={(e) => setChallengeForm({...challengeForm, name: e.target.value})}
-                    placeholder="e.g., Starter Challenge"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white"
+                    placeholder="PROTOCOL NAME (E.G. TITAN CORE)..."
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all shadow-inner hover:bg-white"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-gray-400 text-sm mb-2">Description</label>
-                  <textarea
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Operational Brief</label>
+                  <input
+                    type="text"
                     value={challengeForm.description}
                     onChange={(e) => setChallengeForm({...challengeForm, description: e.target.value})}
-                    placeholder="Challenge description..."
-                    rows={2}
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white resize-none"
+                    placeholder="SHORT STRATEGY OVERVIEW..."
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all shadow-inner hover:bg-white"
                   />
                 </div>
               </div>
 
-              {/* Challenge Type & Pricing */}
-              <div className="bg-dark-700 rounded-xl p-4 border border-gray-700">
-                <h3 className="text-white font-semibold mb-4">Challenge Type & Pricing</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Challenge Type</label>
+              {/* Matrix Parameters Section */}
+              <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="rounded-[2.5rem] p-8 border-2 shadow-inner relative overflow-hidden">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                  <h4 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.3em] opacity-40 italic">Allocation & Entry Matrix</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Provisioning Logic</label>
                     <select
                       value={challengeForm.stepsCount}
                       onChange={(e) => setChallengeForm({...challengeForm, stepsCount: parseInt(e.target.value)})}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 cursor-pointer"
                     >
-                      <option value={0}>Instant Fund (0-Step)</option>
-                      <option value={1}>1-Step Challenge</option>
-                      <option value={2}>2-Step Challenge</option>
+                      <option value={0}>Instant Provision (0-Phase)</option>
+                      <option value={1}>Linear Verify (1-Phase)</option>
+                      <option value={2}>Quantum Verify (2-Phase)</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Account Size ($)</label>
-                    <input
-                      type="number"
-                      value={challengeForm.fundSize}
-                      onChange={(e) => setChallengeForm({...challengeForm, fundSize: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
-                    />
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Mass Allocation ($)</label>
+                    <div className="relative group">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-400 group-focus-within:text-blue-500 transition-colors">$</span>
+                      <input
+                        type="number"
+                        value={challengeForm.fundSize}
+                        onChange={(e) => setChallengeForm({...challengeForm, fundSize: parseFloat(e.target.value) || 0})}
+                        style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                        className="w-full border-2 rounded-2xl pl-12 pr-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Challenge Fee ($)</label>
-                    <input
-                      type="number"
-                      value={challengeForm.challengeFee}
-                      onChange={(e) => setChallengeForm({...challengeForm, challengeFee: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
-                    />
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Entry Quantum ($)</label>
+                    <div className="relative group">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-blue-600">$</span>
+                      <input
+                        type="number"
+                        value={challengeForm.challengeFee}
+                        onChange={(e) => setChallengeForm({...challengeForm, challengeFee: parseFloat(e.target.value) || 0})}
+                        style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                        className="w-full border-2 rounded-2xl pl-12 pr-6 py-4 font-black text-sm tracking-tighter text-blue-600 focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Drawdown & Profit Rules */}
-              <div className="bg-dark-700 rounded-xl p-4 border border-gray-700">
-                <h3 className="text-white font-semibold mb-4">Drawdown & Profit Rules</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Daily Drawdown %</label>
+              {/* Performance Constraints */}
+              <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="rounded-[2.5rem] p-8 border-2 shadow-inner">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-1.5 h-6 bg-red-500 rounded-full" />
+                  <h4 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.3em] opacity-40 italic">Performance Constraints</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Daily DD %</label>
                     <input
                       type="number"
                       value={challengeForm.rules.maxDailyDrawdownPercent}
                       onChange={(e) => updateFormRules('maxDailyDrawdownPercent', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter text-red-500 focus:outline-none focus:border-red-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Overall Drawdown %</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Overall DD %</label>
                     <input
                       type="number"
                       value={challengeForm.rules.maxOverallDrawdownPercent}
                       onChange={(e) => updateFormRules('maxOverallDrawdownPercent', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter text-red-500 focus:outline-none focus:border-red-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Phase 1 Target %</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Phase 1 Target %</label>
                     <input
                       type="number"
                       value={challengeForm.rules.profitTargetPhase1Percent}
                       onChange={(e) => updateFormRules('profitTargetPhase1Percent', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter text-green-600 focus:outline-none focus:border-green-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Phase 2 Target %</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Phase 2 Target %</label>
                     <input
                       type="number"
+                      disabled={challengeForm.stepsCount < 2}
                       value={challengeForm.rules.profitTargetPhase2Percent}
                       onChange={(e) => updateFormRules('profitTargetPhase2Percent', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
-                      disabled={challengeForm.stepsCount < 2}
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }}
+                      className={`w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter text-green-600 focus:outline-none focus:border-green-500 transition-all hover:bg-slate-50 shadow-sm ${challengeForm.stepsCount < 2 ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Lot Size & Trade Limits */}
-              <div className="bg-dark-700 rounded-xl p-4 border border-gray-700">
-                <h3 className="text-white font-semibold mb-4">Lot Size & Trade Limits</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Min Lot Size</label>
+              {/* Terminal Execution Limits */}
+              <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="rounded-[2.5rem] p-8 border-2 shadow-inner">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
+                  <h4 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.3em] opacity-40 italic">Terminal Execution Limits</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Min Lot Size</label>
                     <input
                       type="number"
                       step="0.01"
                       value={challengeForm.rules.minLotSize}
                       onChange={(e) => updateFormRules('minLotSize', parseFloat(e.target.value) || 0.01)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Max Lot Size</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Max Lot Size</label>
                     <input
                       type="number"
                       value={challengeForm.rules.maxLotSize}
                       onChange={(e) => updateFormRules('maxLotSize', parseFloat(e.target.value) || 100)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Min Trades Required</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Min Pos Count</label>
                     <input
                       type="number"
                       value={challengeForm.rules.minTradesRequired || ''}
                       onChange={(e) => updateFormRules('minTradesRequired', parseInt(e.target.value) || null)}
-                      placeholder="No limit"
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      placeholder="NO LIMIT"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Max Trades/Day</label>
-                    <input
-                      type="number"
-                      value={challengeForm.rules.maxTradesPerDay || ''}
-                      onChange={(e) => updateFormRules('maxTradesPerDay', parseInt(e.target.value) || null)}
-                      placeholder="No limit"
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Max Total Trades</label>
-                    <input
-                      type="number"
-                      value={challengeForm.rules.maxTotalTrades || ''}
-                      onChange={(e) => updateFormRules('maxTotalTrades', parseInt(e.target.value) || null)}
-                      placeholder="No limit"
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Max Concurrent</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Concurrent Cap</label>
                     <input
                       type="number"
                       value={challengeForm.rules.maxConcurrentTrades || ''}
                       onChange={(e) => updateFormRules('maxConcurrentTrades', parseInt(e.target.value) || null)}
-                      placeholder="No limit"
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      placeholder="NO LIMIT"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Max Leverage</label>
+                </div>
+              </div>
+              {/* Risk & Temporal Parameters */}
+              <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="rounded-[2.5rem] p-8 border-2 shadow-inner">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-1.5 h-6 bg-amber-500 rounded-full" />
+                  <h4 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.3em] opacity-40 italic">Risk & Temporal Parameters</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Max Leverage</label>
                     <input
                       type="number"
                       value={challengeForm.rules.maxLeverage}
                       onChange={(e) => updateFormRules('maxLeverage', parseInt(e.target.value) || 100)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Min Hold Time (sec)</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Hold Floor (SEC)</label>
                     <input
                       type="number"
                       value={challengeForm.rules.minTradeHoldTimeSeconds}
                       onChange={(e) => updateFormRules('minTradeHoldTimeSeconds', parseInt(e.target.value) || 0)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* Time & Duration */}
-              <div className="bg-dark-700 rounded-xl p-4 border border-gray-700">
-                <h3 className="text-white font-semibold mb-4">Time & Duration</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Challenge Duration (days)</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Temporal Limit (DAYS)</label>
                     <input
                       type="number"
                       value={challengeForm.rules.challengeExpiryDays}
                       onChange={(e) => updateFormRules('challengeExpiryDays', parseInt(e.target.value) || 30)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Min Trading Days</label>
-                    <input
-                      type="number"
-                      value={challengeForm.rules.tradingDaysRequired || ''}
-                      onChange={(e) => updateFormRules('tradingDaysRequired', parseInt(e.target.value) || null)}
-                      placeholder="No minimum"
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Profit Split %</label>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Profit Split %</label>
                     <input
                       type="number"
                       value={challengeForm.fundedSettings.profitSplitPercent}
                       onChange={(e) => updateFormFunded('profitSplitPercent', parseInt(e.target.value) || 80)}
-                      className="w-full bg-dark-600 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm tracking-tighter focus:outline-none focus:border-blue-500 transition-all hover:bg-slate-50 shadow-sm"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Trading Rules Toggles */}
-              <div className="bg-dark-700 rounded-xl p-4 border border-gray-700">
-                <h3 className="text-white font-semibold mb-4">Trading Rules</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={challengeForm.rules.stopLossMandatory}
-                      onChange={(e) => updateFormRules('stopLossMandatory', e.target.checked)}
-                      className="w-5 h-5 rounded bg-dark-600 border-gray-600 text-yellow-500"
-                    />
-                    <span className="text-white text-sm">Stop Loss Required</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={challengeForm.rules.takeProfitMandatory}
-                      onChange={(e) => updateFormRules('takeProfitMandatory', e.target.checked)}
-                      className="w-5 h-5 rounded bg-dark-600 border-gray-600 text-yellow-500"
-                    />
-                    <span className="text-white text-sm">Take Profit Required</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={challengeForm.rules.allowWeekendHolding}
-                      onChange={(e) => updateFormRules('allowWeekendHolding', e.target.checked)}
-                      className="w-5 h-5 rounded bg-dark-600 border-gray-600 text-yellow-500"
-                    />
-                    <span className="text-white text-sm">Weekend Holding</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={challengeForm.rules.allowNewsTrading}
-                      onChange={(e) => updateFormRules('allowNewsTrading', e.target.checked)}
-                      className="w-5 h-5 rounded bg-dark-600 border-gray-600 text-yellow-500"
-                    />
-                    <span className="text-white text-sm">News Trading</span>
-                  </label>
+              {/* Protocol Logic Toggles */}
+              <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="rounded-[2.5rem] p-8 border-2 shadow-inner">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-1.5 h-6 bg-slate-400 rounded-full" />
+                  <h4 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.3em] opacity-40 italic">Protocol Logic Toggles</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[
+                    { label: 'SL MANDATORY', key: 'stopLossMandatory' },
+                    { label: 'TP MANDATORY', key: 'takeProfitMandatory' },
+                    { label: 'WEEKEND HOLD', key: 'allowWeekendHolding' },
+                    { label: 'NEWS TRADING', key: 'allowNewsTrading' }
+                  ].map((toggle) => (
+                    <label key={toggle.key} className="relative flex items-center group cursor-pointer hover:bg-white p-4 rounded-2xl transition-all border-2 border-transparent hover:border-slate-100 shadow-sm">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={challengeForm.rules[toggle.key]}
+                          onChange={(e) => updateFormRules(toggle.key, e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-all shadow-inner" />
+                        <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-all peer-checked:translate-x-6 shadow-md" />
+                      </div>
+                      <span style={{ color: modeColors.text }} className="ml-4 text-[10px] font-black uppercase tracking-widest opacity-80">{toggle.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
-              {/* Status */}
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={challengeForm.isActive}
-                    onChange={(e) => setChallengeForm({...challengeForm, isActive: e.target.checked})}
-                    className="w-5 h-5 rounded bg-dark-600 border-gray-600 text-yellow-500"
-                  />
-                  <span className="text-white">Active (visible to users)</span>
+              {/* Activation Status */}
+              <div className="flex items-center gap-6 px-4">
+                 <label className="relative flex items-center group cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={challengeForm.isActive}
+                      onChange={(e) => setChallengeForm({...challengeForm, isActive: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-16 h-8 bg-slate-200 rounded-full peer peer-checked:bg-green-500 transition-all shadow-inner" />
+                    <div className="absolute left-1.5 top-1.5 w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-8 shadow-md" />
+                  </div>
+                  <div className="ml-4">
+                    <span style={{ color: modeColors.text }} className="block text-[11px] font-black uppercase tracking-widest">Protocol Online</span>
+                    <span style={{ color: modeColors.textSecondary }} className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Active in Public Registry</span>
+                  </div>
                 </label>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
+              {/* Tactical Actions */}
+              <div className="flex gap-4 pt-10 mt-10 border-t-2 border-slate-100">
                 <button
                   onClick={() => setShowChallengeModal(false)}
-                  className="flex-1 py-3 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                  style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textMuted }}
+                  className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-transparent hover:border-slate-200 transition-all active:scale-95 shadow-sm"
                 >
-                  Cancel
+                  Abort Operation
                 </button>
                 <button
                   onClick={saveChallenge}
-                  className="flex-1 py-3 bg-yellow-500 text-black font-medium rounded-lg hover:bg-yellow-400"
+                  className="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-blue-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-blue-800"
                 >
-                  {editingChallenge ? 'Update Challenge' : 'Create Challenge'}
+                  {editingChallenge ? 'Finalize Modification' : 'Deploy Benchmark'}
                 </button>
               </div>
             </div>

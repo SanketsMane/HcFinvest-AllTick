@@ -5,6 +5,7 @@ import IBCommission from '../models/IBCommissionNew.js'
 import IBWallet from '../models/IBWallet.js'
 import IBLevel from '../models/IBLevel.js'
 import ibEngine from '../services/ibEngineNew.js'
+import IBSettings from '../models/IBSettings.js'
 import mongoose from 'mongoose'
 
 const router = express.Router()
@@ -767,6 +768,37 @@ router.get('/admin/dashboard', async (req, res) => {
   } catch (error) {
     console.error('Error fetching dashboard:', error)
     res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// GET /api/ib/admin/settings - Get IB settings
+router.get('/admin/settings', async (req, res) => {
+  try {
+    const settings = await IBSettings.getSettings()
+    res.json({ success: true, settings })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching settings', error: error.message })
+  }
+})
+
+// PUT /api/ib/admin/settings - Update IB settings
+router.put('/admin/settings', async (req, res) => {
+  try {
+    const settings = await IBSettings.getSettings()
+    
+    const { ibRequirements, commissionSettings, isEnabled, allowNewApplications, autoApprove } = req.body
+
+    if (ibRequirements) settings.ibRequirements = { ...settings.ibRequirements, ...ibRequirements }
+    if (commissionSettings) settings.commissionSettings = { ...settings.commissionSettings, ...commissionSettings }
+    if (isEnabled !== undefined) settings.isEnabled = isEnabled
+    if (allowNewApplications !== undefined) settings.allowNewApplications = allowNewApplications
+    if (autoApprove !== undefined) settings.autoApprove = autoApprove
+
+    await settings.save()
+
+    res.json({ success: true, message: 'Settings updated', settings })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating settings', error: error.message })
   }
 })
 

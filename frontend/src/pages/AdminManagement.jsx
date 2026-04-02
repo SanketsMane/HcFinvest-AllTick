@@ -19,10 +19,14 @@ import {
   Copy,
   Check,
   AlertCircle,
-  Lock
+  Lock,
+  ArrowRight,
+  Clock
 } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 const AdminManagement = () => {
+  const { modeColors } = useTheme()
   const [searchTerm, setSearchTerm] = useState('')
   const [admins, setAdmins] = useState([])
   const [loading, setLoading] = useState(true)
@@ -269,393 +273,349 @@ const AdminManagement = () => {
 
   return (
     <AdminLayout title="Admin Management" subtitle="Manage sub-admins, permissions, and wallets">
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-              <Shield size={20} className="text-blue-500" />
+      {/* Stats Portfolio */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[
+          { title: 'Command Center', value: admins.length, subtitle: 'Total authorized administrators', icon: Shield, color: 'blue' },
+          { title: 'Operational', value: admins.filter(a => a.status === 'ACTIVE').length, subtitle: 'Active status protocols', icon: Check, color: 'green' },
+          { title: 'Network Mass', value: admins.reduce((sum, a) => sum + (a.userCount || 0), 0), subtitle: 'Total sub-admin users', icon: Users, color: 'purple' },
+          { title: 'Liquidity Pool', value: `$${admins.reduce((sum, a) => sum + (a.walletBalance || 0), 0).toLocaleString()}`, subtitle: 'Total admin settlement reserves', icon: Wallet, color: 'yellow' }
+        ].map((stat, idx) => (
+          <div key={idx} style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-[2rem] p-6 border shadow-sm group hover:shadow-xl transition-all relative overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 bg-${stat.color}-500/10 rounded-2xl flex items-center justify-center border border-${stat.color}-500/20 group-hover:scale-110 transition-transform`}>
+                <stat.icon size={24} className={`text-${stat.color}-600`} />
+              </div>
+              <div style={{ backgroundColor: modeColors.bgSecondary }} className="px-2 py-1 rounded-lg">
+                <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60">Admin Stats</span>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-500 text-sm">Total Admins</p>
-              <p className="text-white text-xl font-bold">{admins.length}</p>
-            </div>
+            <p style={{ color: modeColors.textSecondary }} className="text-xs font-black uppercase tracking-widest italic opacity-70 mb-1">{stat.title}</p>
+            <p style={{ color: modeColors.text }} className="text-3xl font-black tracking-tight">{stat.value}</p>
+            <p style={{ color: modeColors.textMuted }} className="text-[10px] font-bold mt-2 flex items-center gap-1 opacity-60 lowercase">
+              <Clock size={10} /> {stat.subtitle}
+            </p>
           </div>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-              <Check size={20} className="text-green-500" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Active Admins</p>
-              <p className="text-white text-xl font-bold">{admins.filter(a => a.status === 'ACTIVE').length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-              <Users size={20} className="text-purple-500" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Total Users</p>
-              <p className="text-white text-xl font-bold">{admins.reduce((sum, a) => sum + (a.userCount || 0), 0)}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-              <Wallet size={20} className="text-yellow-500" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Total Wallet Balance</p>
-              <p className="text-white text-xl font-bold">${admins.reduce((sum, a) => sum + (a.walletBalance || 0), 0).toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Admin List */}
-      <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
-          <h2 className="text-white font-semibold text-lg">Sub-Admins</h2>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+      {/* Infrastructure Ecosystem */}
+      <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-[2.5rem] border overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
+        <div style={{ backgroundColor: modeColors.bgSecondary }} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-8 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+            <h2 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.2em] opacity-60 text-orange-600">Administrator Protocols</h2>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="relative group">
+              <Search size={16} style={{ color: modeColors.textSecondary }} className="absolute left-5 top-1/2 -translate-y-1/2 group-focus-within:text-orange-500 transition-colors" />
               <input
                 type="text"
-                placeholder="Search admins..."
+                placeholder="PROBE REGISTRY..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
+                style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                className="w-full sm:w-80 appearance-none border-2 rounded-2xl pl-12 pr-6 py-3 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:ring-4 focus:ring-orange-500/5 focus:border-orange-500 transition-all shadow-inner"
               />
             </div>
             <button 
               onClick={() => setShowAddModal(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-accent-green text-black rounded-lg hover:bg-accent-green/90 transition-colors font-medium"
+              className="px-8 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-orange-500/25 hover:opacity-90 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              <Plus size={16} />
-              <span>Add Admin</span>
+              <Plus size={18} />
+              Provision Agent
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading admins...</div>
+          <div className="p-24 text-center grayscale opacity-30">
+            <Shield size={48} className="mx-auto mb-4 animate-pulse" />
+            <p className="font-black text-[10px] uppercase tracking-widest">Querying Administration Core...</p>
+          </div>
         ) : filteredAdmins.length === 0 ? (
-          <div className="p-8 text-center">
-            <Shield size={48} className="mx-auto text-gray-600 mb-4" />
-            <p className="text-gray-500">No admins found</p>
-            <p className="text-gray-600 text-sm mt-1">Create your first sub-admin to get started</p>
+          <div className="p-24 text-center grayscale opacity-30">
+            <Shield size={48} className="mx-auto mb-4" />
+            <p className="font-black text-[10px] uppercase tracking-widest">No Authorized Credentials Exist</p>
           </div>
         ) : (
-          <>
-            {/* Mobile Card View */}
-            <div className="block lg:hidden p-4 space-y-3">
-              {filteredAdmins.map((admin) => (
-                <div key={admin._id} className="bg-dark-700 rounded-xl p-4 border border-gray-700">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <span className="text-blue-500 font-bold">{admin.firstName?.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <p className="text-white font-medium">{admin.firstName} {admin.lastName}</p>
-                        <p className="text-gray-500 text-sm">{admin.brandName}</p>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      admin.status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
-                    }`}>
-                      {admin.status}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm mb-3">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Mail size={14} />
-                      <span>{admin.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Link size={14} />
-                      <span>/{admin.urlSlug}/login</span>
-                      <button onClick={() => copyToClipboard(admin.urlSlug)} className="text-blue-500">
-                        {copiedSlug === admin.urlSlug ? <Check size={14} /> : <Copy size={14} />}
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Wallet size={14} />
-                      <span>Balance: ${admin.walletBalance?.toLocaleString() || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Users size={14} />
-                      <span>{admin.userCount || 0} users</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-5 gap-2 pt-3 border-t border-gray-600">
-                    <button 
-                      onClick={() => { setSelectedAdmin(admin); setShowFundModal(true) }}
-                      className="flex items-center justify-center gap-1 py-2 bg-green-500/20 text-green-500 rounded-lg text-xs"
-                    >
-                      <DollarSign size={14} />
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedAdmin({...admin}); setShowPermissionsModal(true) }}
-                      className="flex items-center justify-center gap-1 py-2 bg-purple-500/20 text-purple-500 rounded-lg text-xs"
-                    >
-                      <Key size={14} />
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedAdmin(admin); setShowPasswordModal(true) }}
-                      className="flex items-center justify-center gap-1 py-2 bg-yellow-500/20 text-yellow-500 rounded-lg text-xs"
-                    >
-                      <Lock size={14} />
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedAdmin({...admin}); setShowEditModal(true) }}
-                      className="flex items-center justify-center gap-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg text-xs"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteAdmin(admin)}
-                      className="flex items-center justify-center gap-1 py-2 bg-red-500/20 text-red-500 rounded-lg text-xs"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Admin</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">URL Slug</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Wallet</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Users</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Permissions</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Status</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAdmins.map((admin) => (
-                    <tr key={admin._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <span className="text-blue-500 font-bold">{admin.firstName?.charAt(0)}</span>
-                          </div>
-                          <div>
-                            <p className="text-white font-medium">{admin.firstName} {admin.lastName}</p>
-                            <p className="text-gray-500 text-sm">{admin.email}</p>
-                          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-50">
+                  <th style={{ color: modeColors.textSecondary }} className="py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Admin Identity</th>
+                  <th style={{ color: modeColors.textSecondary }} className="py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60 text-center">Protocol Link</th>
+                  <th style={{ color: modeColors.textSecondary }} className="py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Settlement Vault</th>
+                  <th style={{ color: modeColors.textSecondary }} className="py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60 text-center">Node Density</th>
+                  <th style={{ color: modeColors.textSecondary }} className="py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60 text-center">Privileges</th>
+                  <th style={{ color: modeColors.textSecondary }} className="py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60 text-center">Status</th>
+                  <th style={{ color: modeColors.textSecondary }} className="py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredAdmins.map((admin) => (
+                  <tr key={admin._id} className="hover:bg-slate-50/50 transition-all group">
+                    <td className="py-6 px-8">
+                      <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:rotate-6 transition-transform">
+                          <span className="text-white font-black text-xl">{admin.firstName?.charAt(0)}</span>
                         </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-400">/{admin.urlSlug}</span>
-                          <button 
-                            onClick={() => copyToClipboard(admin.urlSlug)}
-                            className="text-blue-500 hover:text-blue-400"
-                          >
-                            {copiedSlug === admin.urlSlug ? <Check size={14} /> : <Copy size={14} />}
-                          </button>
+                        <div>
+                          <p style={{ color: modeColors.text }} className="font-black text-base tracking-tight leading-none mb-1 group-hover:text-blue-600 transition-colors">{admin.firstName} {admin.lastName}</p>
+                          <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-bold opacity-60 lowercase">{admin.email}</p>
                         </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-white font-medium">${admin.walletBalance?.toLocaleString() || 0}</p>
-                        <p className="text-gray-500 text-xs">Given: ${admin.totalGivenToUsers?.toLocaleString() || 0}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-white">{admin.userCount || 0}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-gray-400">{getPermissionCount(admin.permissions)} permissions</span>
-                      </td>
-                      <td className="py-4 px-4">
+                      </div>
+                    </td>
+                    <td className="py-6 px-8">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <span style={{ backgroundColor: modeColors.bgSecondary }} className="px-3 py-1.5 rounded-xl font-mono text-[10px] font-black tracking-widest text-[#A855F7] border border-purple-500/10 shadow-inner group-hover:bg-white transition-colors">/{admin.urlSlug}</span>
+                        <button 
+                          onClick={() => copyToClipboard(admin.urlSlug)}
+                          className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-purple-600 transition-colors"
+                        >
+                          {copiedSlug === admin.urlSlug ? <Check size={10} className="text-green-500" /> : <Copy size={10} />}
+                          {copiedSlug === admin.urlSlug ? 'Protocol Cached' : 'Replicate Route'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="py-6 px-8">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Wallet size={12} className="text-yellow-600 opacity-40" />
+                        <p style={{ color: modeColors.text }} className="font-black text-base tracking-tight">${admin.walletBalance?.toLocaleString() || 0}</p>
+                      </div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 opacity-60 italic">Pool Reserve: ${admin.totalGivenToUsers?.toLocaleString() || 0}</p>
+                    </td>
+                    <td className="py-6 px-8">
+                      <div className="flex flex-col items-center">
+                        <p style={{ color: modeColors.text }} className="font-black text-base tracking-tight">{admin.userCount || 0}</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 opacity-60">Connected Nodes</p>
+                      </div>
+                    </td>
+                    <td className="py-6 px-8">
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Shield size={12} className="text-purple-600 opacity-40" />
+                          <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest">{getPermissionCount(admin.permissions)} Scopes</span>
+                        </div>
+                        <div className="flex gap-1">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className={`w-1 h-1 rounded-full ${i < getPermissionCount(admin.permissions) ? 'bg-purple-500' : 'bg-slate-200'}`} />
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-6 px-8">
+                      <div className="flex justify-center">
                         <button
                           onClick={() => handleToggleStatus(admin)}
-                          className={`px-3 py-1 rounded-full text-xs ${
-                            admin.status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                          className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border shadow-sm transition-all active:scale-95 ${
+                            admin.status === 'ACTIVE' 
+                              ? 'bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500 hover:text-white' 
+                              : 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500 hover:text-white'
                           }`}
                         >
                           {admin.status}
                         </button>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-1">
-                          <button 
-                            onClick={() => { setSelectedAdmin(admin); setShowFundModal(true) }}
-                            className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-green-500"
-                            title="Fund Wallet"
-                          >
-                            <DollarSign size={16} />
-                          </button>
-                          <button 
-                            onClick={() => { setSelectedAdmin({...admin}); setShowPermissionsModal(true) }}
-                            className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-purple-500"
-                            title="Permissions"
-                          >
-                            <Key size={16} />
-                          </button>
-                          <button 
-                            onClick={() => { setSelectedAdmin(admin); setShowPasswordModal(true) }}
-                            className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-yellow-500"
-                            title="Reset Password"
-                          >
-                            <Lock size={16} />
-                          </button>
-                          <button 
-                            onClick={() => { setSelectedAdmin({...admin}); setShowEditModal(true) }}
-                            className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-blue-500"
-                            title="Edit"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteAdmin(admin)}
-                            className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-gray-400 hover:text-red-500"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                      </div>
+                    </td>
+                    <td className="py-6 px-8 text-right">
+                      <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        <button 
+                          onClick={() => { setSelectedAdmin(admin); setShowFundModal(true) }}
+                          className="p-3 bg-green-500/10 text-green-600 rounded-xl hover:bg-green-500 hover:text-white transition-all active:scale-90 border border-green-500/20"
+                          title="Inject Funds"
+                        >
+                          <DollarSign size={16} />
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedAdmin({...admin}); setShowPermissionsModal(true) }}
+                          className="p-3 bg-purple-500/10 text-purple-600 rounded-xl hover:bg-purple-500 hover:text-white transition-all active:scale-90 border border-purple-500/20"
+                          title="Scope Configuration"
+                        >
+                          <Key size={16} />
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedAdmin(admin); setShowPasswordModal(true) }}
+                          className="p-3 bg-yellow-500/10 text-yellow-600 rounded-xl hover:bg-yellow-500 hover:text-white transition-all active:scale-90 border border-yellow-500/20"
+                          title="Key Reset"
+                        >
+                          <Lock size={16} />
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedAdmin({...admin}); setShowEditModal(true) }}
+                          className="p-3 bg-blue-500/10 text-blue-600 rounded-xl hover:bg-blue-500 hover:text-white transition-all active:scale-90 border border-blue-500/20"
+                          title="Update Profile"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteAdmin(admin)}
+                          className="p-3 bg-red-500/10 text-red-600 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90 border border-red-500/20"
+                          title="Revoke Permission"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* Add Admin Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-gray-700">
-              <h3 className="text-white font-semibold text-lg">Create New Admin</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto border-4 shadow-2xl relative animate-in zoom-in-95 duration-300 custom-scrollbar"
+          >
+            <div className="sticky top-0 z-10 p-8 border-b border-slate-100 flex items-center justify-between" style={{ backgroundColor: modeColors.card }}>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+                  <Plus size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 style={{ color: modeColors.text }} className="text-2xl font-black tracking-tight">Provision Agent</h3>
+                  <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60">Registering new administrative protocol</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition-all active:scale-90">
+                <X size={20} className="text-slate-400" />
               </button>
             </div>
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 text-sm mb-1 block">First Name *</label>
+
+            <div className="p-10 space-y-8">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Identity Core</label>
                   <input
                     type="text"
                     value={newAdmin.firstName}
                     onChange={(e) => setNewAdmin({...newAdmin, firstName: e.target.value})}
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    placeholder="John"
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-orange-500 transition-all shadow-inner group-hover:bg-white"
+                    placeholder="FIRST NAME"
                   />
                 </div>
-                <div>
-                  <label className="text-gray-400 text-sm mb-1 block">Last Name *</label>
+                <div className="space-y-3 pt-6.5 mt-6.5">
+                  <label className="hidden opacity-0">spacer</label>
                   <input
                     type="text"
                     value={newAdmin.lastName}
                     onChange={(e) => setNewAdmin({...newAdmin, lastName: e.target.value})}
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    placeholder="Doe"
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-orange-500 transition-all shadow-inner group-hover:bg-white"
+                    placeholder="LAST NAME"
                   />
                 </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Email *</label>
+
+              <div className="space-y-3">
+                <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Authentication Bridge (Email)</label>
                 <input
                   type="email"
                   value={newAdmin.email}
                   onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="admin@example.com"
+                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                  className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-orange-500 transition-all shadow-inner group-hover:bg-white lowercase"
+                  placeholder="admin@protocol.io"
                 />
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Password *</label>
+
+              <div className="space-y-3">
+                <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Cipher Configuration (Password)</label>
                 <input
                   type="password"
                   value={newAdmin.password}
                   onChange={(e) => setNewAdmin({...newAdmin, password: e.target.value})}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
+                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                  className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-orange-500 transition-all shadow-inner group-hover:bg-white"
                   placeholder="••••••••"
                 />
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">URL Slug * (unique identifier)</label>
-                <div className="flex items-center">
-                  <span className="text-gray-500 bg-dark-600 px-3 py-2 rounded-l-lg border border-r-0 border-gray-700">/</span>
+
+              <div className="space-y-3">
+                <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Protocol Routing (Slug)</label>
+                <div className="flex items-center group">
+                  <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="px-6 py-4 rounded-l-2xl border-2 border-r-0 font-black text-slate-400">/</div>
                   <input
                     type="text"
                     value={newAdmin.urlSlug}
                     onChange={(e) => setNewAdmin({...newAdmin, urlSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
-                    className="flex-1 bg-dark-700 border border-gray-700 rounded-r-lg px-3 py-2 text-white"
-                    placeholder="my-trading"
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="flex-1 border-2 rounded-r-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-orange-500 transition-all shadow-inner group-hover:bg-white"
+                    placeholder="partner-node"
                   />
                 </div>
-                <p className="text-gray-500 text-xs mt-1">Users will access: {window.location.origin}/{newAdmin.urlSlug || 'slug'}/login</p>
+                <p style={{ color: modeColors.textSecondary }} className="text-[9px] font-black uppercase tracking-widest opacity-40 px-2 flex items-center gap-2 italic">
+                  <Link size={10} /> Route: {window.location.origin}/{newAdmin.urlSlug || 'node'}/login
+                </p>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Brand Name</label>
-                <input
-                  type="text"
-                  value={newAdmin.brandName}
-                  onChange={(e) => setNewAdmin({...newAdmin, brandName: e.target.value})}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="My Trading Platform"
-                />
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Brand Signature</label>
+                  <input
+                    type="text"
+                    value={newAdmin.brandName}
+                    onChange={(e) => setNewAdmin({...newAdmin, brandName: e.target.value})}
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-orange-500 transition-all shadow-inner group-hover:bg-white"
+                    placeholder="BRAND IDENTITY"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Signal Contact</label>
+                  <input
+                    type="text"
+                    value={newAdmin.phone}
+                    onChange={(e) => setNewAdmin({...newAdmin, phone: e.target.value})}
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-orange-500 transition-all shadow-inner group-hover:bg-white"
+                    placeholder="+ PHONE"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Phone</label>
-                <input
-                  type="text"
-                  value={newAdmin.phone}
-                  onChange={(e) => setNewAdmin({...newAdmin, phone: e.target.value})}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="+1234567890"
-                />
-              </div>
-              
-              <div>
-                <label className="text-gray-400 text-sm mb-2 block">Default Permissions</label>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto bg-dark-700 rounded-lg p-3">
+
+              <div className="space-y-4">
+                <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Initial Clearance Scopes</label>
+                <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="grid grid-cols-2 gap-3 p-6 rounded-[2rem] border-2 shadow-inner max-h-48 overflow-y-auto custom-scrollbar">
                   {allPermissions.slice(0, 10).map(perm => (
-                    <label key={perm.key} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={newAdmin.permissions[perm.key] || false}
-                        onChange={(e) => setNewAdmin({
-                          ...newAdmin,
-                          permissions: {...newAdmin.permissions, [perm.key]: e.target.checked}
-                        })}
-                        className="rounded"
-                      />
-                      <span className="text-gray-300">{perm.label}</span>
+                    <label key={perm.key} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white transition-all cursor-pointer shadow-sm border border-transparent hover:border-slate-100 group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={newAdmin.permissions[perm.key] || false}
+                          onChange={(e) => setNewAdmin({
+                            ...newAdmin,
+                            permissions: {...newAdmin.permissions, [perm.key]: e.target.checked}
+                          })}
+                          className="w-5 h-5 rounded-lg border-2 border-slate-300 text-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all cursor-pointer"
+                        />
+                      </div>
+                      <span style={{ color: modeColors.textMuted }} className="text-[9px] font-black uppercase tracking-widest group-hover:text-orange-600 transition-colors">{perm.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 p-5 border-t border-gray-700">
+
+            <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex gap-4">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                style={{ backgroundColor: modeColors.card, color: modeColors.textMuted }}
+                className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-slate-200 hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
               >
-                Cancel
+                Terminate
               </button>
               <button
                 onClick={handleCreateAdmin}
-                className="flex-1 py-2 bg-accent-green text-black rounded-lg font-medium hover:bg-accent-green/90"
+                className="flex-[2] py-5 bg-gradient-to-r from-orange-600 to-red-600 text-white font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-orange-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-orange-800"
               >
-                Create Admin
+                Finalize Provisioning
               </button>
             </div>
           </div>
@@ -664,247 +624,312 @@ const AdminManagement = () => {
 
       {/* Edit Admin Modal */}
       {showEditModal && selectedAdmin && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-5 border-b border-gray-700">
-              <h3 className="text-white font-semibold text-lg">Edit Admin</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 text-sm mb-1 block">First Name</label>
-                  <input
-                    type="text"
-                    value={selectedAdmin.firstName}
-                    onChange={(e) => setSelectedAdmin({...selectedAdmin, firstName: e.target.value})}
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] w-full max-w-xl border-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300"
+          >
+            <div className="p-10">
+              <div className="flex items-center gap-6 mb-10">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-500/20">
+                  <Edit size={36} className="text-white" />
                 </div>
                 <div>
-                  <label className="text-gray-400 text-sm mb-1 block">Last Name</label>
-                  <input
-                    type="text"
-                    value={selectedAdmin.lastName}
-                    onChange={(e) => setSelectedAdmin({...selectedAdmin, lastName: e.target.value})}
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  />
+                  <h2 style={{ color: modeColors.text }} className="text-3xl font-black tracking-tight leading-none mb-1">Identity Sync</h2>
+                  <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60">Updating administrative credentials</p>
                 </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Brand Name</label>
-                <input
-                  type="text"
-                  value={selectedAdmin.brandName}
-                  onChange={(e) => setSelectedAdmin({...selectedAdmin, brandName: e.target.value})}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                />
+
+              <div className="space-y-8">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">First Identity</label>
+                    <input
+                      type="text"
+                      value={selectedAdmin.firstName}
+                      onChange={(e) => setSelectedAdmin({...selectedAdmin, firstName: e.target.value})}
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-blue-500 transition-all shadow-inner group-hover:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Last Identity</label>
+                    <input
+                      type="text"
+                      value={selectedAdmin.lastName}
+                      onChange={(e) => setSelectedAdmin({...selectedAdmin, lastName: e.target.value})}
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-blue-500 transition-all shadow-inner group-hover:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Brand Signature</label>
+                  <input
+                    type="text"
+                    value={selectedAdmin.brandName}
+                    onChange={(e) => setSelectedAdmin({...selectedAdmin, brandName: e.target.value})}
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-blue-500 transition-all shadow-inner group-hover:bg-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Operations Loop (Phone)</label>
+                    <input
+                      type="text"
+                      value={selectedAdmin.phone || ''}
+                      onChange={(e) => setSelectedAdmin({...selectedAdmin, phone: e.target.value})}
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-sm focus:outline-none focus:border-blue-500 transition-all shadow-inner group-hover:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Protocol Status</label>
+                    <select
+                      value={selectedAdmin.status}
+                      onChange={(e) => setSelectedAdmin({...selectedAdmin, status: e.target.value})}
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-blue-500 transition-all shadow-inner group-hover:bg-white appearance-none cursor-pointer"
+                    >
+                      <option value="ACTIVE">Active Deployment</option>
+                      <option value="SUSPENDED">Suspended / Frozen</option>
+                      <option value="PENDING">Pending Approval</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Phone</label>
-                <input
-                  type="text"
-                  value={selectedAdmin.phone || ''}
-                  onChange={(e) => setSelectedAdmin({...selectedAdmin, phone: e.target.value})}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Status</label>
-                <select
-                  value={selectedAdmin.status}
-                  onChange={(e) => setSelectedAdmin({...selectedAdmin, status: e.target.value})}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
+
+              <div className="flex gap-4 mt-12">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textMuted }}
+                  className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-transparent hover:border-slate-200 transition-all active:scale-95 shadow-sm"
                 >
-                  <option value="ACTIVE">Active</option>
-                  <option value="SUSPENDED">Suspended</option>
-                  <option value="PENDING">Pending</option>
-                </select>
+                  Discard
+                </button>
+                <button
+                  onClick={handleUpdateAdmin}
+                  className="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-blue-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-blue-800"
+                >
+                  Commit Modifications
+                </button>
               </div>
-            </div>
-            <div className="flex gap-3 p-5 border-t border-gray-700">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateAdmin}
-                className="flex-1 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600"
-              >
-                Save Changes
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Fund Admin Modal */}
+      {/* Liquidity Injection Modal */}
       {showFundModal && selectedAdmin && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl w-full max-w-md">
-            <div className="flex items-center justify-between p-5 border-b border-gray-700">
-              <h3 className="text-white font-semibold text-lg">Fund Admin Wallet</h3>
-              <button onClick={() => setShowFundModal(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="bg-dark-700 rounded-lg p-4">
-                <p className="text-gray-400 text-sm">Admin</p>
-                <p className="text-white font-medium">{selectedAdmin.firstName} {selectedAdmin.lastName}</p>
-                <p className="text-gray-500 text-sm">{selectedAdmin.email}</p>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] w-full max-w-md border-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300"
+          >
+            <div className="p-10 text-center">
+              <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-green-500/20 mx-auto mb-8 group">
+                <DollarSign size={48} className="text-white group-hover:scale-110 transition-transform" />
               </div>
-              <div className="bg-dark-700 rounded-lg p-4">
-                <p className="text-gray-400 text-sm">Current Balance</p>
-                <p className="text-green-500 text-2xl font-bold">${selectedAdmin.walletBalance?.toLocaleString() || 0}</p>
+
+              <h2 style={{ color: modeColors.text }} className="text-3xl font-black tracking-tight mb-2">Liquidity Injection</h2>
+              <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-8">Funding Provision: {selectedAdmin.firstName}</p>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-5 rounded-2xl border-2 border-dashed border-slate-200">
+                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Current Vault</p>
+                  <p className="text-xl font-black text-green-600">${selectedAdmin.walletBalance?.toLocaleString() || 0}</p>
+                </div>
+                <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-5 rounded-2xl border-2 border-dashed border-slate-200">
+                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Active Nodes</p>
+                  <p style={{ color: modeColors.text }} className="text-xl font-black">{selectedAdmin.userCount || 0}</p>
+                </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Amount to Add ($)</label>
-                <input
-                  type="number"
-                  value={fundAmount}
-                  onChange={(e) => setFundAmount(e.target.value)}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="1000"
-                  min="0"
-                />
+
+              <div className="space-y-6 text-left">
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Injection Quantum ($)</label>
+                  <div className="relative group">
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-xl text-green-600">$</span>
+                    <input
+                      type="number"
+                      value={fundAmount}
+                      onChange={(e) => setFundAmount(e.target.value)}
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl pl-12 pr-6 py-5 font-black text-2xl focus:outline-none focus:border-green-500 transition-all shadow-inner group-hover:bg-white"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Authorization Remark</label>
+                  <input
+                    type="text"
+                    value={fundDescription}
+                    onChange={(e) => setFundDescription(e.target.value)}
+                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                    className="w-full border-2 rounded-2xl px-6 py-4 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-green-500 transition-all shadow-inner group-hover:bg-white"
+                    placeholder="PROTOCOL LOG ENTRY..."
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Description (optional)</label>
-                <input
-                  type="text"
-                  value={fundDescription}
-                  onChange={(e) => setFundDescription(e.target.value)}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="Monthly allocation"
-                />
+
+              <div className="flex gap-4 mt-10">
+                <button
+                  onClick={() => setShowFundModal(false)}
+                  style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textMuted }}
+                  className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-transparent hover:border-slate-200 transition-all active:scale-95 shadow-sm"
+                >
+                  Abort
+                </button>
+                <button
+                  onClick={handleFundAdmin}
+                  disabled={!fundAmount || parseFloat(fundAmount) <= 0}
+                  className="flex-[2] bg-gradient-to-r from-green-600 to-emerald-600 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-green-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-green-800 disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  Confirm Provision
+                </button>
               </div>
-            </div>
-            <div className="flex gap-3 p-5 border-t border-gray-700">
-              <button
-                onClick={() => setShowFundModal(false)}
-                className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleFundAdmin}
-                disabled={!fundAmount || parseFloat(fundAmount) <= 0}
-                className="flex-1 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 disabled:opacity-50"
-              >
-                Add Funds
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Permissions Modal */}
+      {/* Clearance Configuration Modal */}
       {showPermissionsModal && selectedAdmin && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-gray-700">
-              <h3 className="text-white font-semibold text-lg">
-                Permissions - {selectedAdmin.firstName} {selectedAdmin.lastName}
-              </h3>
-              <button onClick={() => setShowPermissionsModal(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border-4 shadow-2xl relative animate-in zoom-in-95 duration-300"
+          >
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between" style={{ backgroundColor: modeColors.card }}>
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-purple-500/20">
+                  <Key size={32} className="text-white" />
+                </div>
+                <div>
+                  <h3 style={{ color: modeColors.text }} className="text-2xl font-black tracking-tight">Scope Configuration</h3>
+                  <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60 font-black italic">Targeting Protocol: {selectedAdmin.firstName} {selectedAdmin.lastName}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPermissionsModal(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition-all active:scale-90">
+                <X size={20} className="text-slate-400" />
               </button>
             </div>
-            <div className="p-5">
-              {['Users', 'Trading', 'Accounts', 'Finance', 'KYC', 'IB', 'Copy Trade', 'Settings', 'Reports'].map(category => (
-                <div key={category} className="mb-4">
-                  <h4 className="text-white font-medium mb-2">{category}</h4>
-                  <div className="grid grid-cols-2 gap-2 bg-dark-700 rounded-lg p-3">
+
+            <div className="p-10 overflow-y-auto space-y-10 flex-1 custom-scrollbar">
+              {['Users', 'Trading', 'Accounts', 'Finance', 'KYC', 'IB', 'Copy Trade', 'Settings', 'Reports'].map((category, idx) => (
+                <div key={category} className="animate-in fade-in slide-in-from-left-4 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-1.5 h-6 bg-purple-500 rounded-full" />
+                    <h4 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.3em] opacity-40">{category} Authorization Matrix</h4>
+                  </div>
+                  <div style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-6 rounded-[2rem] border-2 shadow-inner">
                     {allPermissions.filter(p => p.category === category).map(perm => (
-                      <label key={perm.key} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={selectedAdmin.permissions?.[perm.key] || false}
-                          onChange={(e) => setSelectedAdmin({
-                            ...selectedAdmin,
-                            permissions: {...selectedAdmin.permissions, [perm.key]: e.target.checked}
-                          })}
-                          className="rounded"
-                        />
-                        <span className="text-gray-300">{perm.label}</span>
+                      <label key={perm.key} className="flex items-center gap-4 p-4 rounded-xl hover:bg-white transition-all cursor-pointer shadow-sm border border-transparent hover:border-slate-100 group">
+                        <div className="relative flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedAdmin.permissions?.[perm.key] || false}
+                            onChange={(e) => setSelectedAdmin({
+                              ...selectedAdmin,
+                              permissions: {...selectedAdmin.permissions, [perm.key]: e.target.checked}
+                            })}
+                            className="w-5 h-5 rounded-lg border-2 border-slate-300 text-purple-600 focus:ring-4 focus:ring-purple-500/10 transition-all cursor-pointer"
+                          />
+                        </div>
+                        <span style={{ color: modeColors.textMuted }} className="text-[9px] font-black uppercase tracking-widest group-hover:text-purple-600 transition-colors leading-tight">{perm.label}</span>
                       </label>
                     ))}
                   </div>
                 </div>
               ))}
             </div>
-            <div className="flex gap-3 p-5 border-t border-gray-700">
+
+            <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex gap-4">
               <button
                 onClick={() => setShowPermissionsModal(false)}
-                className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                style={{ backgroundColor: modeColors.card, color: modeColors.textMuted }}
+                className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-slate-200 hover:bg-slate-100 transition-all active:scale-95"
               >
-                Cancel
+                Zero Protocol
               </button>
               <button
                 onClick={handleUpdatePermissions}
-                className="flex-1 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600"
+                className="flex-[2] bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-purple-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-purple-800 flex items-center justify-center gap-3"
               >
-                Save Permissions
+                <Shield size={18} />
+                Confirm Authorization Matrix
               </button>
             </div>
           </div>
         </div>
       )}
-
       {/* Password Reset Modal */}
       {showPasswordModal && selectedAdmin && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl w-full max-w-md">
-            <div className="flex items-center justify-between p-5 border-b border-gray-700">
-              <h3 className="text-white font-semibold text-lg">Reset Password</h3>
-              <button onClick={() => { setShowPasswordModal(false); setNewPassword('') }} className="text-gray-400 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="bg-dark-700 rounded-lg p-4">
-                <p className="text-gray-400 text-sm">Admin</p>
-                <p className="text-white font-medium">{selectedAdmin.firstName} {selectedAdmin.lastName}</p>
-                <p className="text-gray-500 text-sm">{selectedAdmin.email}</p>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] w-full max-w-md border-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300"
+          >
+            <div className="p-10 text-center">
+              <div className="w-24 h-24 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-yellow-500/20 mx-auto mb-8 group">
+                <Lock size={48} className="text-white group-hover:rotate-12 transition-transform" />
               </div>
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-yellow-500">
-                  <AlertCircle size={16} />
-                  <span className="text-sm font-medium">Warning</span>
+
+              <h2 style={{ color: modeColors.text }} className="text-3xl font-black tracking-tight mb-2">Credential Rotation</h2>
+              <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-8 font-black italic">Targeting Protocol: {selectedAdmin.firstName}</p>
+
+              <div className="bg-red-500/5 border-2 border-red-500/10 rounded-[2rem] p-6 mb-8 text-left relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 opacity-10">
+                  <AlertCircle size={40} className="text-red-500" />
                 </div>
-                <p className="text-yellow-500/80 text-sm mt-1">This will immediately change the admin's password. They will need to use the new password to login.</p>
+                <div className="flex items-center gap-3 text-red-600 mb-2">
+                  <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Critical Override Alert</span>
+                </div>
+                <p className="text-red-500/80 text-[11px] leading-relaxed font-black uppercase tracking-tight">
+                  Resetting credentials will terminate all active session tokens for this administrator. this action is logged in the immutable audit trail.
+                </p>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">New Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="Enter new password (min 6 characters)"
-                  minLength={6}
-                />
+
+              <div className="space-y-6 text-left">
+                <div className="space-y-3">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">New Master Password</label>
+                  <div className="relative group">
+                    <Key size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-yellow-500 transition-colors" />
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl pl-14 pr-6 py-5 font-black text-sm focus:outline-none focus:border-yellow-500 transition-all shadow-inner group-hover:bg-white"
+                      placeholder="MIN 6 CHARACTERS REQUIRED"
+                      minLength={6}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-3 p-5 border-t border-gray-700">
-              <button
-                onClick={() => { setShowPasswordModal(false); setNewPassword('') }}
-                className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleResetPassword}
-                disabled={!newPassword || newPassword.length < 6}
-                className="flex-1 py-2 bg-yellow-500 text-black rounded-lg font-medium hover:bg-yellow-600 disabled:opacity-50"
-              >
-                Reset Password
-              </button>
+
+              <div className="flex gap-4 mt-10">
+                <button
+                  onClick={() => { setShowPasswordModal(false); setNewPassword('') }}
+                  style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textMuted }}
+                  className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-transparent hover:border-slate-200 transition-all active:scale-95 shadow-sm"
+                >
+                  Abort
+                </button>
+                <button
+                  onClick={handleResetPassword}
+                  disabled={!newPassword || newPassword.length < 6}
+                  className="flex-[2] bg-gradient-to-r from-yellow-600 to-orange-600 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-yellow-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-yellow-800 flex items-center justify-center gap-3 disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  <Key size={18} />
+                  Authorize Rotation
+                </button>
+              </div>
             </div>
           </div>
         </div>
