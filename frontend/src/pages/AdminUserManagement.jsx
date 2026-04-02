@@ -1574,13 +1574,6 @@ const AdminUserManagement = () => {
         <div className="p-8 border-b border-slate-50 space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
-                   <Users size={28} className="text-white" />
-                </div>
-                <div>
-                   <h2 className="text-slate-900 font-black text-2xl tracking-tight uppercase">Identity Registry</h2>
-                   <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">Cross-referencing global user datasets</p>
-                </div>
              </div>
 
              <div className="flex flex-wrap items-center gap-3">
