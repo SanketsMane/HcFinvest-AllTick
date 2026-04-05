@@ -376,7 +376,7 @@ export class TradeLineManager {
     const sl = Number(trade.stopLoss || trade.sl);
     const tp = Number(trade.takeProfit || trade.tp);
 
-    if (!Number.isFinite(entry)) return;
+    if (!Number.isFinite(entry) || entry <= 0) return;
 
     if (!this.lines[tid]) this.lines[tid] = { entry: null, sl: null, tp: null };
     const set = this.lines[tid];
@@ -384,7 +384,12 @@ export class TradeLineManager {
     // ENTRY (Fixed position, but draggable to spawn ghosts)
     const side = String(trade.side || trade.type || '').toLowerCase();
     const isBuy = side.includes('buy') || side.includes('long');
-    const labelText = `${isBuy ? 'BUY' : 'SELL'} ${fmt(entry)}`;
+    const status = String(trade.status || '').toUpperCase();
+    const orderType = String(trade.orderType || '').replace('_', ' ');
+    const isPending = status === 'PENDING' || Boolean(trade.isPendingLine);
+    const labelText = isPending
+      ? `${orderType || (isBuy ? 'BUY' : 'SELL')} @ ${fmt(entry)}`
+      : `${isBuy ? 'BUY' : 'SELL'} ${fmt(entry)}`;
 
     if (!set.entry) {
       set.entry = await this._createShape(tid, 'entry', entry, { 
@@ -676,6 +681,10 @@ export class TradeLineManager {
     }
 
     visibleTrades.forEach(trade => {
+      if (String(trade.status || '').toUpperCase() === 'PENDING' || trade.isPendingLine) {
+        return;
+      }
+
       const tid = String(trade._id || trade.id);
       const set = this.lines[tid];
       if (!set || !set.entry) return;

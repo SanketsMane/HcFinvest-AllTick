@@ -267,6 +267,49 @@ router.get('/history', async (req, res) => {
   const targetMinutes = resolutionToMinutes[resolution] || parseInt(resolution) || 1;
   const isPreferLive = preferLive === '1' || preferLive === 'true';
   const requestLimit = limit ? Math.min(parseInt(limit), 2000) : 1000;
+
+  const normalizeToBucketSeries = (candles, intervalMinutes) => {
+    if (!Array.isArray(candles) || candles.length === 0) return []
+    const intervalMs = intervalMinutes * 60 * 1000
+    const sorted = [...candles].sort((a, b) => Number(a.time) - Number(b.time))
+    const byBucket = new Map()
+
+    sorted.forEach((raw) => {
+      const rawTime = Number(raw.time)
+      if (!Number.isFinite(rawTime) || rawTime <= 0) return
+
+      const tMs = rawTime < 10000000000 ? rawTime * 1000 : rawTime
+      const bucket = Math.floor(tMs / intervalMs) * intervalMs
+
+      const open = Number(raw.open)
+      const high = Number(raw.high)
+      const low = Number(raw.low)
+      const close = Number(raw.close)
+      const volume = Number.isFinite(Number(raw.volume)) ? Number(raw.volume) : 0
+
+      if (![open, high, low, close].every(Number.isFinite)) return
+
+      const existing = byBucket.get(bucket)
+      if (!existing) {
+        byBucket.set(bucket, {
+          time: bucket,
+          open,
+          high,
+          low,
+          close,
+          volume
+        })
+        return
+      }
+
+      existing.high = Math.max(existing.high, high)
+      existing.low = Math.min(existing.low, low)
+      existing.close = close
+      existing.volume = (existing.volume || 0) + volume
+    })
+
+    return [...byBucket.values()].sort((a, b) => a.time - b.time)
+  }
   
   // 🛡️ ELITE: Always use Server Time Authority for "current" requests
   const serverNow = Math.floor(Date.now() / 1000);
@@ -304,7 +347,7 @@ router.get('/history', async (req, res) => {
       return res.json({ success: true, symbol, timeframe, candles: [], count: 0, provider: 'alltick' });
     }
 
-    let finalCandles = result.candles;
+    let finalCandles = normalizeToBucketSeries(result.candles, targetMinutes);
 
     // 🚀 ELITE PIPELINE: Clean -> Fill -> Validate
     
@@ -398,23 +441,145 @@ router.post('/batch', async (req, res) => {
       return res.status(400).json({ success: false, message: 'symbols array required' })
     }
     
-    const prices = {}
-    
-    // ✅ ELITE: Batch Await Price Lookups (Fix v7.77 "Smoking Gun")
-    // We must await each price lookup to avoid returning empty Promise objects.
-    await Promise.all(symbols.map(async (symbol) => {
-      if (alltickApiService.isSymbolSupported(symbol)) {
-        const price = await alltickApiService.getPrice(symbol) // AWAIT FIXED
-        const symbolInfo = alltickApiService.getSymbolInfo(symbol)
-        if (price && price.bid) {
-          prices[symbol] = {
-            bid: price.bid,
-            ask: price.ask,
-            spread: price.spread || 0,
-            time: price.time || new Date().toISOString(),
-            ...symbolInfo
+    const toEpochMs = (raw) => {
+      if (!raw) return 0
+      if (typeof raw === 'number') return raw > 100000000000 ? raw : raw * 1000
+      const parsed = Date.parse(raw)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+
+    const getQuoteFreshness = (timeMs) => {
+      const ageMs = Date.now() - timeMs
+      if (!Number.isFinite(ageMs) || ageMs < 0) return 'UNKNOWN'
+      if (ageMs <= 30_000) return 'LIVE'
+      if (ageMs <= 6 * 60 * 60 * 1000) return 'STALE'
+      return 'OLD'
+    }
+
+    const getFallbackFromCachedHistory = async (symbol) => {
+      const clean = String(symbol || '').toUpperCase().replace(/\.I$/i, '')
+
+      try {
+        const rolling = await storageService.getCandlesFromRedis(clean, '1m', null, null, 2)
+        const lastRolling = Array.isArray(rolling) && rolling.length > 0 ? rolling[rolling.length - 1] : null
+        if (lastRolling && Number(lastRolling.close) > 0) {
+          const close = Number(lastRolling.close)
+          const timeMs = toEpochMs(lastRolling.time)
+          return {
+            bid: close,
+            ask: close,
+            spread: 0,
+            time: timeMs ? new Date(timeMs).toISOString() : new Date().toISOString(),
+            marketState: 'CLOSED',
+            quoteFreshness: 'STALE',
+            source: 'redis_rolling_1m_close'
           }
         }
+      } catch {}
+
+      const histKeys = [
+        `hist:${clean}:1m:end:latest:1000:live`,
+        `hist:${clean}:1m:end:latest:1000:std`
+      ]
+
+      for (const key of histKeys) {
+        try {
+          const payload = await redisClient.get(key)
+          if (!payload) continue
+          const candles = JSON.parse(payload)
+          const last = Array.isArray(candles) && candles.length > 0 ? candles[candles.length - 1] : null
+          if (!last || Number(last.close) <= 0) continue
+          const close = Number(last.close)
+          const timeMs = toEpochMs(last.time)
+          return {
+            bid: close,
+            ask: close,
+            spread: 0,
+            time: timeMs ? new Date(timeMs).toISOString() : new Date().toISOString(),
+            marketState: 'CLOSED',
+            quoteFreshness: 'STALE',
+            source: `redis_history:${key}`
+          }
+        } catch {}
+      }
+
+      try {
+        const latestStored = await storageService.getLatestCloseQuote(clean, '1m')
+        if (latestStored && Number(latestStored.close) > 0) {
+          const close = Number(latestStored.close)
+          const timeMs = toEpochMs(latestStored.time)
+          return {
+            bid: close,
+            ask: close,
+            spread: 0,
+            time: timeMs ? new Date(timeMs).toISOString() : new Date().toISOString(),
+            marketState: 'CLOSED',
+            quoteFreshness: 'STALE',
+            source: latestStored.source || 'storage_latest_close'
+          }
+        }
+      } catch {}
+
+      return null
+    }
+
+    const prices = {}
+    
+    // Return every requested symbol with either live or fallback quote.
+    await Promise.all(symbols.map(async (symbol) => {
+      const symbolInfo = alltickApiService.getSymbolInfo(symbol)
+
+      if (!alltickApiService.isSymbolSupported(symbol)) {
+        prices[symbol] = {
+          bid: 0,
+          ask: 0,
+          spread: 0,
+          time: null,
+          marketState: 'CLOSED',
+          quoteFreshness: 'EMPTY',
+          source: 'unsupported',
+          ...symbolInfo
+        }
+        return
+      }
+
+      const live = await alltickApiService.getPrice(symbol)
+      const liveBid = Number(live?.bid)
+      const liveAsk = Number(live?.ask)
+
+      if (Number.isFinite(liveBid) && liveBid > 0 && Number.isFinite(liveAsk) && liveAsk > 0) {
+        const timeMs = toEpochMs(live?.receivedAt || live?.time)
+        prices[symbol] = {
+          bid: liveBid,
+          ask: liveAsk,
+          spread: Number(live?.spread) || Math.abs(liveAsk - liveBid),
+          time: live?.time || (timeMs ? new Date(timeMs).toISOString() : new Date().toISOString()),
+          marketState: 'OPEN',
+          quoteFreshness: getQuoteFreshness(timeMs || Date.now()),
+          source: 'live',
+          ...symbolInfo
+        }
+        return
+      }
+
+      const fallback = await getFallbackFromCachedHistory(symbol)
+      if (fallback) {
+        prices[symbol] = {
+          ...fallback,
+          ...symbolInfo
+        }
+        return
+      }
+
+      prices[symbol] = {
+        bid: 0,
+        ask: 0,
+        spread: 0,
+        time: null,
+        marketState: 'CLOSED',
+        quoteFreshness: 'EMPTY',
+        source: 'no_quote',
+        ...symbolInfo
       }
     }))
     

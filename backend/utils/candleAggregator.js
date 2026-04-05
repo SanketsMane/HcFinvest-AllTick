@@ -95,12 +95,11 @@ export const fillGaps = (candles, intervalMinutes) => {
     const nextTime = next.time;
 
     // Detect and fill gaps larger than 1.5x the interval (to allow for minor jitter)
-    // but typically it should be exactly intervalMs. 
-    // We skip massive gaps (> 2 days) to avoid generating millions of virtual bars during weekend/shutdowns.
+    // but typically it should be exactly intervalMs.
+    // Skip only truly huge gaps (>7 days) to avoid massive synthetic backfills.
     const gapMs = nextTime - currentTime;
     
-    //Sanket v2.0 - Skip weekend gaps (>48h) to prevent memory overflow, fill intra-session gaps with flat candles
-    if (gapMs > intervalMs * 1.5 && gapMs < (48 * 60 * 60 * 1000)) {
+    if (gapMs > intervalMs * 1.5 && gapMs < (7 * 24 * 60 * 60 * 1000)) {
       //Sanket v2.0 - Use bucket-aligned fill to prevent overshoot: stop BEFORE the next real candle's bucket
       const nextBucket = Math.floor(nextTime / intervalMs) * intervalMs;
       let fillTime = Math.floor(currentTime / intervalMs) * intervalMs + intervalMs;

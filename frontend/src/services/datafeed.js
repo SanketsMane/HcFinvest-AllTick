@@ -1,5 +1,4 @@
 import { API_URL } from "../config/api";
-import { getRetailPrice, wrapOHLC } from "../utils/priceUtils";
 import { normalizeSymbol } from "../utils/symbolUtils";
 import priceStreamService from "./priceStream";
 import { getPriceEvents } from "./eventSystem";
@@ -76,17 +75,9 @@ const normalizeBars = (candles = []) => {
 const applyChartPriceModeToBar = (bar, symbol, adminSpreads, side = 'MID') => {
   if (!bar) return bar;
 
-  if (side === 'BUY' || side === 'SELL') {
-    return {
-      ...bar,
-      open: getRetailPrice(bar.open, symbol, side, adminSpreads),
-      high: getRetailPrice(bar.high, symbol, side, adminSpreads),
-      low: getRetailPrice(bar.low, symbol, side, adminSpreads),
-      close: getRetailPrice(bar.close, symbol, side, adminSpreads)
-    };
-  }
-
-  return wrapOHLC(bar, symbol, adminSpreads);
+  // Keep historical bars raw for all chart modes. Applying retail markup at chart layer
+  // causes drift versus execution prices, open-position mark prices, and header quotes.
+  return bar;
 };
 
 const getChartExecutionPrice = (bid, ask, symbol, adminSpreads, side = 'MID') => {
@@ -94,11 +85,11 @@ const getChartExecutionPrice = (bid, ask, symbol, adminSpreads, side = 'MID') =>
   const numAsk = Number(ask);
 
   if (side === 'BUY') {
-    return getRetailPrice(numAsk, symbol, 'BUY', adminSpreads);
+    return numAsk;
   }
 
   if (side === 'SELL') {
-    return getRetailPrice(numBid, symbol, 'SELL', adminSpreads);
+    return numBid;
   }
 
   return (numBid + numAsk) / 2;
@@ -365,7 +356,7 @@ const Datafeed = {
     let prevRafTime;
     let rafId;
     let hasNewTick = false;   // true while lerp is in-flight; gates RAF pushBar
-    const displayTargetThrottleMs = 180;
+    const displayTargetThrottleMs = 0;
     let lastDisplayTargetAt = 0;
 
     // Seed real-time aggregation from the last historical bar so refresh during a forming
@@ -387,6 +378,16 @@ const Datafeed = {
       if (bar.time < lastPushedBarTime) return; // silently drop backwards-in-time bars
       lastPushedBarTime = bar.time;
       onRealtimeCallback(bar);
+      try {
+        getPriceEvents().dispatchEvent(new CustomEvent('chartBarUpdate', {
+          detail: {
+            symbol: symbolInfo.name,
+            close: bar.close,
+            time: bar.time,
+            side: Datafeed._chartPriceSide
+          }
+        }));
+      } catch {}
     };
 
     // Bootstrap with latest live-preferred history so opening mid-candle (e.g. 15:57 on 15:55 bar)
@@ -519,9 +520,7 @@ const Datafeed = {
       if ((now - lastUpdateTime) < throttleMs) return;
       lastUpdateTime = now;
 
-      //Sanket v2.0 - Use the same side-aware execution price as the active BUY/SELL panel.
-      // MID made the chart sit between the red and blue buttons, which users perceive as wrong.
-      // BUY mode -> chart follows retail ask; SELL mode -> chart follows retail bid.
+      // Keep chart execution price aligned with selected-side execution semantics.
       const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
       if (!isFinite(price) || price <= 0) return;
 
@@ -558,9 +557,7 @@ const Datafeed = {
 
       currentBar.volume = (currentBar.volume || 0) + 1;
 
-      //Sanket v2.0 - Raw OHLC keeps updating on every tick, but the displayed interpolation target
-      // only refreshes every 180ms. This matches the BUY/SELL buttons more closely: interpolation
-      // gets enough distance to visibly animate instead of being constantly reset by 50ms updates.
+      // Refresh display target on every eligible tick for tighter sync with the UI.
       const shouldRefreshDisplayTarget = snapDisplay || (now - lastDisplayTargetAt) >= displayTargetThrottleMs;
       if (!shouldRefreshDisplayTarget) return;
 
@@ -584,7 +581,7 @@ const Datafeed = {
       if (prevRafTime !== undefined && lastMarkupBar !== null &&
           targetClose !== null && displayClose !== null && hasNewTick) {
         const dt = (time - prevRafTime) / 1000;
-        const lerpFactor = Math.min(1, 0.25 * 60 * dt); // 0.25 = snappy but still smooth
+        const lerpFactor = Math.min(1, 0.9 * 60 * dt);
         const diff = targetClose - displayClose;
         if (Math.abs(diff) > 0.00001) {
           displayClose = displayClose + diff * lerpFactor;

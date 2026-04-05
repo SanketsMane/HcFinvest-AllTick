@@ -2974,12 +2974,15 @@ const AnimatedTradeRow = ({ trade, rawBid, rawAsk, fallbackPnl, priceDecimals, i
   const sb = typeof smooth === 'object' && smooth !== null ? smooth.bid : 0;
   const sa = typeof smooth === 'object' && smooth !== null ? smooth.ask : 0;
   const side = String(trade.side || '').toUpperCase();
-  const smoothPrice = side === 'BUY' ? sb : sa;
+  const resolvedBid = sb > 0 ? sb : (sa > 0 ? sa : 0);
+  const resolvedAsk = sa > 0 ? sa : (sb > 0 ? sb : 0);
+  const smoothPrice = side === 'BUY' ? resolvedBid : resolvedAsk;
   const validPrice = smoothPrice > 0 ? smoothPrice : null;
+  const contractSize = Number(trade.contractSize) > 0 ? Number(trade.contractSize) : 100000;
   const pnl = validPrice !== null
     ? (side === 'BUY'
-        ? (validPrice - trade.openPrice) * trade.quantity * trade.contractSize
-        : (trade.openPrice - validPrice) * trade.quantity * trade.contractSize)
+        ? (validPrice - trade.openPrice) * trade.quantity * contractSize
+        : (trade.openPrice - validPrice) * trade.quantity * contractSize) - (trade.commission || 0) - (trade.swap || 0)
     : (fallbackPnl || 0);
   const fmt = (p) => p ? p.toFixed(priceDecimals) : '-';
   return (
@@ -3005,9 +3008,11 @@ const AnimatedTradeRow = ({ trade, rawBid, rawAsk, fallbackPnl, priceDecimals, i
   );
 };
 
+const getTradeCacheKey = (trade = {}) => trade?._id || trade?.id || trade?.tradeId || null;
+
 //Sanket v2.0 - Animated bid / spread pill / ask for the instruments panel.
 // Only these three blocks re-render at 60fps; the outer <button> row does not.
-const AnimatedInstrumentPrices = ({ rawBid, rawAsk, markup, isJpyPairBool, isPointBased, isDarkMode }) => {
+const AnimatedInstrumentPrices = ({ rawBid, rawAsk, markup, isJpyPairBool, isPointBased, isDarkMode, quoteFreshness = 'LIVE' }) => {
   const smooth = useInterpolation(
     (rawBid > 0 || rawAsk > 0) ? { bid: rawBid || 0, ask: rawAsk || 0 } : 0,
     0.15
@@ -3023,16 +3028,17 @@ const AnimatedInstrumentPrices = ({ rawBid, rawAsk, markup, isJpyPairBool, isPoi
         : isPointBased ? effectiveSpread.toFixed(2)
         : (effectiveSpread * 10000).toFixed(1))
     : '-';
+  const isStale = quoteFreshness !== 'LIVE' && quoteFreshness !== 'UNKNOWN';
   return (
     <>
       <div className="text-right w-16">
         <div className="text-red-500 text-xs font-mono">{retBid > 0 ? retBid.toFixed(decimals) : '...'}</div>
-        <div className="text-gray-600 text-[9px]">Bid</div>
+        <div className="text-gray-600 text-[9px]">{isStale ? 'Bid*' : 'Bid'}</div>
       </div>
-      <div className={`px-1.5 py-0.5 rounded text-[10px] font-medium min-w-[28px] text-center mx-1.5 ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>{spreadStr}</div>
+      <div className={`px-1.5 py-0.5 rounded text-[10px] font-medium min-w-[28px] text-center mx-1.5 ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>{isStale ? 'C' : spreadStr}</div>
       <div className="text-right w-14">
         <div className="text-green-500 text-xs font-mono">{retAsk > 0 ? retAsk.toFixed(decimals) : '...'}</div>
-        <div className="text-gray-600 text-[9px]">Ask</div>
+        <div className="text-gray-600 text-[9px]">{isStale ? 'Ask*' : 'Ask'}</div>
       </div>
     </>
   );
@@ -3069,6 +3075,19 @@ const TradingPage = () => {
     if (baseSymbol === 'XAGUSD') return 5000
     return 100000
   }
+  const defaultTabs = [
+    { symbol: 'XAUUSD', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 },
+    { symbol: 'EURUSD', name: 'Euro vs US Dollar', bid: 0, ask: 0, spread: 0 }
+  ]
+  const getTradingStorageKeys = () => {
+    const u = getSafeJSON('user', {})
+    const uid = u?._id || u?.id || 'guest'
+    const aid = accountId || 'default'
+    return {
+      openTabsKey: `hcf_openTabs_${uid}_${aid}`,
+      activeTabKey: `hcf_activeTab_${uid}_${aid}`
+    }
+  }
   
   const [account, setAccount] = useState(null)
   const [challengeAccount, setChallengeAccount] = useState(null)
@@ -3077,8 +3096,9 @@ const TradingPage = () => {
   const [chartLoading, setChartLoading] = useState(false)
   const [selectedInstrument, setSelectedInstrument] = useState(() => {
     try {
-      const savedActiveTab = localStorage.getItem('activeTab') || 'XAUUSD'
-      const savedOpenTabs = getSafeJSON('openTabs', [])
+      const { activeTabKey, openTabsKey } = getTradingStorageKeys()
+      const savedActiveTab = localStorage.getItem(activeTabKey) || 'XAUUSD'
+      const savedOpenTabs = getSafeJSON(openTabsKey, [])
       // Ensure all loaded symbols are normalized
       const normalizedActiveTab = ensureISuffix(savedActiveTab);
       const activeTabData = savedOpenTabs.find(t => ensureISuffix(t.symbol) === normalizedActiveTab)
@@ -3101,15 +3121,21 @@ const TradingPage = () => {
   const [selectedSide, setSelectedSide] = useState('BUY') // BUY or SELL
   const [openTabs, setOpenTabs] = useState(() => {
     try {
-      return saved ? getSafeJSON('openTabs', []) : [
-        { symbol: 'XAUUSD', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 },
-        { symbol: 'EURUSD', name: 'Euro vs US Dollar', bid: 0, ask: 0, spread: 0 }
-      ]
+      const { openTabsKey } = getTradingStorageKeys()
+      const savedTabs = getSafeJSON(openTabsKey, [])
+      return Array.isArray(savedTabs) && savedTabs.length > 0 ? savedTabs : defaultTabs
     } catch { return [{ symbol: 'XAUUSD', name: 'CFDs on Gold (US$ / OZ)', bid: 0, ask: 0, spread: 0 }] }
   })
   const [activeTab, setActiveTab] = useState(() => {
-    try { return localStorage.getItem('activeTab') || 'XAUUSD' } catch { return 'XAUUSD' }
+    try {
+      const { activeTabKey } = getTradingStorageKeys()
+      return localStorage.getItem(activeTabKey) || 'XAUUSD'
+    } catch { return 'XAUUSD' }
   })
+  const activeTabRef = useRef(activeTab)
+  useEffect(() => {
+    activeTabRef.current = activeTab
+  }, [activeTab])
   const [showSymbolPicker, setShowSymbolPicker] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
   const [showTakeProfit, setShowTakeProfit] = useState(false)
@@ -3171,6 +3197,14 @@ const TradingPage = () => {
     { symbol: 'ES35', bid: 0, ask: 0, spread: 0, change: 0, category: 'Indices', starred: false },
   ])
   const [loadingInstruments, setLoadingInstruments] = useState(false) // Don't block UI on prices
+  const [instrumentQuoteCache, setInstrumentQuoteCache] = useState(() => {
+    try {
+      const cached = getSafeJSON('instrument_quote_cache', {})
+      return cached && typeof cached === 'object' ? cached : {}
+    } catch {
+      return {}
+    }
+  })
   const [starredSymbols, setStarredSymbols] = useState(['XAUUSD', 'EURUSD', 'GBPUSD'])
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [openTrades, setOpenTrades] = useState([])
@@ -3187,8 +3221,8 @@ const TradingPage = () => {
     freeMargin: 0,
     floatingPnl: 0
   })
+  const [displayFloatingPnl, setDisplayFloatingPnl] = useState(0)
   const [livePrices, setLivePrices] = useState({}) // Store live prices separately
-  const [metaApiPrices, setMetaApiPrices] = useState({}) // Store MetaAPI chart prices
   const [adminSpreads, setAdminSpreads] = useState({}) // Store admin-set spreads
   
   // Modal states for iOS-style popups
@@ -3222,10 +3256,349 @@ const TradingPage = () => {
   const [killSwitchInputTime, setKillSwitchInputTime] = useState('')
   const [killSwitchDuration, setKillSwitchDuration] = useState({ value: 4, unit: 'hours' })
   const [globalNotification, setGlobalNotification] = useState('')
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false)
+  const [tradingAccountsList, setTradingAccountsList] = useState([])
+  const [challengeAccountsList, setChallengeAccountsList] = useState([])
+  const [switchingAccountId, setSwitchingAccountId] = useState(null)
+  const [accountDropdownSearch, setAccountDropdownSearch] = useState('')
+  const [activeAccountOptionKey, setActiveAccountOptionKey] = useState(null)
+  const [chartSyncTelemetry, setChartSyncTelemetry] = useState({
+    status: 'INIT',
+    driftBps: 0,
+    chartClose: 0,
+    expected: 0,
+    at: 0
+  })
+  const accountDropdownRef = useRef(null)
 
   const categories = ['All', 'Forex', 'Metals', 'Crypto', 'Indices']
 
   const user = useMemo(() => getSafeJSON('user', {}), [])
+
+  const updateQuoteCache = useCallback((priceMap = {}) => {
+    if (!priceMap || typeof priceMap !== 'object') return
+    setInstrumentQuoteCache(prev => {
+      let changed = false
+      const next = { ...prev }
+
+      Object.entries(priceMap).forEach(([symbol, priceData]) => {
+        const bid = Number(priceData?.bid)
+        const askRaw = Number(priceData?.ask)
+        if (!Number.isFinite(bid) || bid <= 0) return
+
+        const ask = Number.isFinite(askRaw) && askRaw > 0 ? askRaw : bid
+        const existing = next[symbol] || {}
+        const quoteTime = priceData?.time || existing.time || new Date().toISOString()
+        const quoteFreshness = priceData?.quoteFreshness || 'LIVE'
+        const marketState = priceData?.marketState || (quoteFreshness === 'LIVE' ? 'OPEN' : 'CLOSED')
+        const spread = Number.isFinite(Number(priceData?.spread))
+          ? Number(priceData.spread)
+          : Math.abs(ask - bid)
+
+        const nextQuote = {
+          bid,
+          ask,
+          spread,
+          time: quoteTime,
+          quoteFreshness,
+          marketState
+        }
+
+        if (
+          existing.bid !== nextQuote.bid ||
+          existing.ask !== nextQuote.ask ||
+          existing.spread !== nextQuote.spread ||
+          existing.time !== nextQuote.time ||
+          existing.quoteFreshness !== nextQuote.quoteFreshness ||
+          existing.marketState !== nextQuote.marketState
+        ) {
+          next[symbol] = nextQuote
+          changed = true
+        }
+      })
+
+      return changed ? next : prev
+    })
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('instrument_quote_cache', JSON.stringify(instrumentQuoteCache))
+    } catch {}
+  }, [instrumentQuoteCache])
+
+  // Canonical quote for the selected symbol used by header, order panel, and execution.
+  const selectedLiveQuote = useMemo(() => {
+    const live = livePrices[selectedInstrument?.symbol] || {}
+    const fallbackBid = Number(selectedInstrument?.bid)
+    const fallbackAsk = Number(selectedInstrument?.ask)
+    const liveBid = Number(live?.bid)
+    const liveAsk = Number(live?.ask)
+
+    const bid = Number.isFinite(liveBid) && liveBid > 0
+      ? liveBid
+      : (Number.isFinite(fallbackBid) && fallbackBid > 0 ? fallbackBid : 0)
+
+    const askFromSources = Number.isFinite(liveAsk) && liveAsk > 0
+      ? liveAsk
+      : (Number.isFinite(fallbackAsk) && fallbackAsk > 0 ? fallbackAsk : bid)
+
+    const ask = askFromSources > 0 ? askFromSources : bid
+    return { bid, ask }
+  }, [livePrices, selectedInstrument?.symbol, selectedInstrument?.bid, selectedInstrument?.ask])
+
+  const chartRenderableTrades = useMemo(() => {
+    const pendingAsLines = (pendingOrders || []).map(order => ({
+      ...order,
+      openPrice: Number(order.pendingPrice || order.openPrice || order.price || 0),
+      price: Number(order.pendingPrice || order.openPrice || order.price || 0),
+      stopLoss: Number(order.stopLoss || order.sl || 0) || 0,
+      takeProfit: Number(order.takeProfit || order.tp || 0) || 0,
+      quantity: Number(order.quantity || 0),
+      status: order.status || 'PENDING',
+      isPendingLine: true
+    }))
+
+    return [...(openTrades || []), ...pendingAsLines]
+  }, [openTrades, pendingOrders])
+
+  const pendingSide = useMemo(() => (pendingOrderType.includes('BUY') ? 'BUY' : 'SELL'), [pendingOrderType])
+
+  const pendingReferencePrice = useMemo(() => {
+    const entry = parseFloat(entryPrice)
+    if (Number.isFinite(entry) && entry > 0) return entry
+    return pendingSide === 'BUY' ? selectedLiveQuote.ask : selectedLiveQuote.bid
+  }, [entryPrice, pendingSide, selectedLiveQuote.ask, selectedLiveQuote.bid])
+
+  const pendingLeverageNum = useMemo(() => parseInt(String(leverage || '1:100').replace('1:', ''), 10) || 100, [leverage])
+
+  const pendingMarginRequired = useMemo(() => {
+    const qty = parseFloat(volume || 0)
+    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(pendingReferencePrice) || pendingReferencePrice <= 0) return 0
+    const contractSize = getMarginContractSize(selectedInstrument?.symbol)
+    return (qty * contractSize * pendingReferencePrice) / pendingLeverageNum
+  }, [volume, pendingReferencePrice, pendingLeverageNum, selectedInstrument?.symbol])
+
+  const pendingTradingPower = useMemo(() => {
+    const equity = Number(accountSummary?.equity || 0)
+    return equity * pendingLeverageNum
+  }, [accountSummary?.equity, pendingLeverageNum])
+
+  const pendingSpreadDisplay = useMemo(() => {
+    const sym = getBaseSymbol(selectedInstrument?.symbol || '')
+    const bid = Number(selectedLiveQuote.bid)
+    const ask = Number(selectedLiveQuote.ask)
+    if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0) return '-'
+
+    const spread = Math.abs(ask - bid)
+    const isPointBased = isMetalSymbol(sym) || isCryptoSymbol(sym) || ['USOIL','UKOIL','NGAS','COPPER','US30','US500','US100','UK100','GER40','FRA40','JP225','HK50','AUS200','ES35'].includes(sym)
+    if (isJpyPair(sym)) return `${(spread * 100).toFixed(1)} pips`
+    if (isPointBased) return `${spread.toFixed(2)} pts`
+    return `${(spread * 10000).toFixed(1)} pips`
+  }, [selectedInstrument?.symbol, selectedLiveQuote.bid, selectedLiveQuote.ask])
+
+  const pendingCommission = useMemo(() => {
+    const qty = parseFloat(volume || 0)
+    if (!Number.isFinite(qty) || qty <= 0) return 0
+    return qty * 10
+  }, [volume])
+
+  const chartPriceSide = useMemo(() => {
+    const activeSymbol = normalizeSymbol(selectedInstrument?.symbol || '')
+    if (!activeSymbol) return selectedSide
+
+    const symbolOpenTrades = (openTrades || []).filter(trade => {
+      const tradeSymbol = normalizeSymbol(trade?.symbol || '')
+      return tradeSymbol === activeSymbol
+    })
+
+    if (symbolOpenTrades.length === 0) return selectedSide
+
+    const uniqueSides = new Set(symbolOpenTrades.map(trade => String(trade?.side || '').toUpperCase()))
+    if (uniqueSides.size === 1) {
+      const onlySide = [...uniqueSides][0]
+      if (onlySide === 'BUY') return 'SELL' // BUY P/L marks on bid
+      if (onlySide === 'SELL') return 'BUY' // SELL P/L marks on ask
+    }
+
+    // Mixed hedge book cannot be represented by one mark side on a single chart line.
+    return 'MID'
+  }, [openTrades, selectedInstrument?.symbol, selectedSide])
+
+  const expectedChartSidePrice = useMemo(() => {
+    if (chartPriceSide === 'SELL') return selectedLiveQuote.bid
+    if (chartPriceSide === 'BUY') return selectedLiveQuote.ask
+    return (selectedLiveQuote.bid + selectedLiveQuote.ask) / 2
+  }, [chartPriceSide, selectedLiveQuote.bid, selectedLiveQuote.ask])
+
+  const getAccountMode = useCallback((acc, isChallenge = false) => {
+    if (isChallenge) return 'Challenge'
+    return (acc?.isDemo || acc?.accountTypeId?.isDemo) ? 'Demo' : 'Real'
+  }, [])
+
+  const getModeBadgeClass = useCallback((mode) => {
+    if (mode === 'Challenge') return 'text-yellow-500 bg-yellow-500/15 border border-yellow-500/30'
+    if (mode === 'Demo') return 'text-blue-500 bg-blue-500/15 border border-blue-500/30'
+    return 'text-emerald-500 bg-emerald-500/15 border border-emerald-500/30'
+  }, [])
+
+  const loadSelectableAccounts = useCallback(async () => {
+    if (!user?._id) return
+
+    const [regularRes, challengeRes] = await Promise.allSettled([
+      fetch(`${API_URL}/trading-accounts/user/${user._id}`),
+      fetch(`${API_URL}/prop/my-accounts/${user._id}`)
+    ])
+
+    if (regularRes.status === 'fulfilled') {
+      try {
+        const regularData = await regularRes.value.json()
+        setTradingAccountsList(regularData.accounts || [])
+      } catch {
+        setTradingAccountsList([])
+      }
+    }
+
+    if (challengeRes.status === 'fulfilled') {
+      try {
+        const challengeData = await challengeRes.value.json()
+        setChallengeAccountsList(challengeData.accounts || [])
+      } catch {
+        setChallengeAccountsList([])
+      }
+    }
+  }, [user?._id])
+
+  useEffect(() => {
+    loadSelectableAccounts()
+  }, [loadSelectableAccounts, accountId])
+
+  useEffect(() => {
+    setSwitchingAccountId(null)
+  }, [accountId, accountType])
+
+  useEffect(() => {
+    if (!showAccountDropdown) return
+    const handleOutsideClick = (event) => {
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
+        setShowAccountDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [showAccountDropdown])
+
+  const handleSwitchTradingAccount = useCallback((targetAccountId, targetType = null) => {
+    if (!targetAccountId) return
+    const alreadyActive = String(targetAccountId) === String(accountId) && ((targetType || null) === (accountType || null))
+    if (alreadyActive) {
+      setShowAccountDropdown(false)
+      return
+    }
+
+    setSwitchingAccountId(targetAccountId)
+    setShowAccountDropdown(false)
+
+    if (targetType === 'challenge') {
+      navigate(`/trade/${targetAccountId}?type=challenge`)
+      return
+    }
+
+    navigate(`/trade/${targetAccountId}`)
+  }, [accountId, accountType, navigate])
+
+  const currentAccountMode = accountType === 'challenge'
+    ? 'Challenge'
+    : ((account?.isDemo || account?.accountTypeId?.isDemo) ? 'Demo' : 'Real')
+
+  const accountSearchTerm = accountDropdownSearch.trim().toLowerCase()
+  const accountMatchesSearch = useCallback((acc, fallbackId = '') => {
+    if (!accountSearchTerm) return true
+    const accountLabel = String(acc?.accountId || fallbackId || '').toLowerCase()
+    const statusLabel = String(acc?.status || '').toLowerCase()
+    const leverageLabel = String(acc?.leverage || '').toLowerCase()
+    return accountLabel.includes(accountSearchTerm) || statusLabel.includes(accountSearchTerm) || leverageLabel.includes(accountSearchTerm)
+  }, [accountSearchTerm])
+
+  const visibleRealAccounts = useMemo(() => (
+    tradingAccountsList.filter(a => !(a.isDemo || a.accountTypeId?.isDemo) && a.status !== 'ARCHIVED' && accountMatchesSearch(a))
+  ), [tradingAccountsList, accountMatchesSearch])
+
+  const visibleDemoAccounts = useMemo(() => (
+    tradingAccountsList.filter(a => (a.isDemo || a.accountTypeId?.isDemo) && a.status !== 'ARCHIVED' && accountMatchesSearch(a))
+  ), [tradingAccountsList, accountMatchesSearch])
+
+  const visibleChallengeAccounts = useMemo(() => (
+    challengeAccountsList.filter(a => accountMatchesSearch(a, a?.challengeAccountId || a?._id || ''))
+  ), [challengeAccountsList, accountMatchesSearch])
+
+  const getAccountOptionKey = useCallback((id, kind) => `${kind}:${id}`, [])
+
+  const accountDropdownOptions = useMemo(() => {
+    const options = []
+    visibleRealAccounts.forEach(acc => {
+      options.push({ key: getAccountOptionKey(acc._id, 'real'), id: acc._id, targetType: null })
+    })
+    visibleDemoAccounts.forEach(acc => {
+      options.push({ key: getAccountOptionKey(acc._id, 'demo'), id: acc._id, targetType: null })
+    })
+    visibleChallengeAccounts.forEach(acc => {
+      const challengeId = acc._id || acc.challengeAccountId
+      if (!challengeId) return
+      options.push({ key: getAccountOptionKey(challengeId, 'challenge'), id: challengeId, targetType: 'challenge' })
+    })
+    return options
+  }, [visibleRealAccounts, visibleDemoAccounts, visibleChallengeAccounts, getAccountOptionKey])
+
+  useEffect(() => {
+    if (!showAccountDropdown) return
+    if (accountDropdownOptions.length === 0) {
+      setActiveAccountOptionKey(null)
+      return
+    }
+    const optionStillVisible = accountDropdownOptions.some(option => option.key === activeAccountOptionKey)
+    if (!optionStillVisible) {
+      setActiveAccountOptionKey(accountDropdownOptions[0].key)
+    }
+  }, [showAccountDropdown, accountDropdownOptions, activeAccountOptionKey])
+
+  useEffect(() => {
+    if (!showAccountDropdown) return
+
+    const handleDropdownKeys = (event) => {
+      if (event.key === 'Escape') {
+        setShowAccountDropdown(false)
+        return
+      }
+
+      if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return
+      if (accountDropdownOptions.length === 0) return
+
+      event.preventDefault()
+
+      const currentIndex = Math.max(0, accountDropdownOptions.findIndex(option => option.key === activeAccountOptionKey))
+
+      if (event.key === 'ArrowDown') {
+        const nextIndex = (currentIndex + 1) % accountDropdownOptions.length
+        setActiveAccountOptionKey(accountDropdownOptions[nextIndex].key)
+        return
+      }
+
+      if (event.key === 'ArrowUp') {
+        const prevIndex = (currentIndex - 1 + accountDropdownOptions.length) % accountDropdownOptions.length
+        setActiveAccountOptionKey(accountDropdownOptions[prevIndex].key)
+        return
+      }
+
+      const selected = accountDropdownOptions[currentIndex]
+      if (selected) {
+        handleSwitchTradingAccount(selected.id, selected.targetType)
+      }
+    }
+
+    document.addEventListener('keydown', handleDropdownKeys)
+    return () => document.removeEventListener('keydown', handleDropdownKeys)
+  }, [showAccountDropdown, accountDropdownOptions, activeAccountOptionKey, handleSwitchTradingAccount])
 
   useEffect(() => {
     fetchAccount()
@@ -3262,18 +3635,19 @@ const TradingPage = () => {
   // Persist open tabs + active tab to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('openTabs', JSON.stringify(openTabs.map(t => ({ 
+      const { openTabsKey, activeTabKey } = getTradingStorageKeys()
+      localStorage.setItem(openTabsKey, JSON.stringify(openTabs.map(t => ({ 
         symbol: t.symbol, 
         name: t.name || t.symbol, 
         bid: 0, 
         ask: 0, 
         spread: 0 
       }))))
-      localStorage.setItem('activeTab', activeTab)
+      localStorage.setItem(activeTabKey, activeTab)
     } catch (err) {
       console.error('[TradingPage] Failed to save tabs to localStorage:', err)
     }
-  }, [openTabs, activeTab])
+  }, [openTabs, activeTab, accountId])
 
   // Auto-refresh History and Account Summary when a trade closes (detect length decrease)
   const prevOpenTradesLength = useRef(openTrades.length)
@@ -3366,21 +3740,86 @@ const TradingPage = () => {
   const lastValidPricesRef = useRef({});
   //Sanket v2.0 - Cache last computed PnL per trade to use as fallback when price is temporarily missing
   const lastTradePnlRef = useRef({});
+  //Sanket v2.0 - Keep last non-zero floating PnL to absorb transient server/tick races.
+  const lastNonZeroFloatingPnlRef = useRef(0);
+  const lastNonZeroFloatingPnlAtRef = useRef(0);
+
+  useEffect(() => {
+    const incomingFloating = Number(accountSummary?.floatingPnl ?? 0)
+    const now = Date.now()
+
+    if (Math.abs(incomingFloating) > 0.000001) {
+      lastNonZeroFloatingPnlRef.current = incomingFloating
+      lastNonZeroFloatingPnlAtRef.current = now
+      setDisplayFloatingPnl(incomingFloating)
+      return
+    }
+
+    if (openTrades.length === 0) {
+      setDisplayFloatingPnl(0)
+      return
+    }
+
+    const hasRecentTicks = (now - (priceStreamService.lastTickAt || 0)) < 15000
+    const hasRecentNonZero = Math.abs(lastNonZeroFloatingPnlRef.current) > 0.000001
+      && (now - lastNonZeroFloatingPnlAtRef.current) < 20000
+
+    if (hasRecentTicks && hasRecentNonZero) {
+      // Ignore transient 0 snapshots while feed is alive and we just had valid non-zero PnL.
+      setDisplayFloatingPnl(lastNonZeroFloatingPnlRef.current)
+      return
+    }
+
+    setDisplayFloatingPnl(0)
+  }, [accountSummary?.floatingPnl, openTrades.length, livePrices])
 
   useEffect(() => {
     const unsubscribe = priceStreamService.subscribe('tradingPage', (prices, updated, timestamp) => {
       if (!prices || Object.keys(prices).length === 0) return
+
+      const selectedSymbol = selectedInstrument?.symbol
+      const selectedTick = selectedSymbol ? prices[selectedSymbol] : null
+
+      // Keep active symbol in near lock-step with chart ticks.
+      if (selectedTick?.bid && selectedTick.bid > 0) {
+        const selectedBid = selectedTick.bid
+        const selectedAsk = selectedTick.ask || selectedTick.bid
+
+        setLivePrices(prev => ({
+          ...prev,
+          [selectedSymbol]: {
+            ...prev[selectedSymbol],
+            ...selectedTick,
+            bid: selectedBid,
+            ask: selectedAsk,
+            spread: Math.abs(selectedAsk - selectedBid)
+          }
+        }))
+
+        setSelectedInstrument(prev => {
+          if (!prev || prev.symbol !== selectedSymbol) return prev
+          return {
+            ...prev,
+            bid: selectedBid,
+            ask: selectedAsk,
+            spread: Math.abs(selectedAsk - selectedBid)
+          }
+        })
+
+        updateQuoteCache({ [selectedSymbol]: selectedTick })
+      }
       
       // Store in buffer
       priceBufferRef.current = { ...priceBufferRef.current, ...prices };
       
       const now = Date.now();
-      if (now - lastUpdateRef.current > 300) { // //sanket - Throttle to 300ms for silky smooth UI
+      if (now - lastUpdateRef.current > 120) {
         lastUpdateRef.current = now;
         
         const currentPrices = priceBufferRef.current;
         
         setLivePrices(prev => ({ ...prev, ...currentPrices }));
+        updateQuoteCache(currentPrices)
         
         // Update instruments only if they are actually in the category being viewed
         setInstruments(prev => prev.map(inst => {
@@ -3390,7 +3829,10 @@ const TradingPage = () => {
               ...inst, 
               bid: priceData.bid, 
               ask: priceData.ask || priceData.bid, 
-              spread: Math.abs((priceData.ask || priceData.bid) - priceData.bid)
+              spread: Math.abs((priceData.ask || priceData.bid) - priceData.bid),
+              quoteFreshness: priceData.quoteFreshness || 'LIVE',
+              marketState: priceData.marketState || 'OPEN',
+              quoteTime: priceData.time || null
             }
           }
           return inst
@@ -3428,7 +3870,40 @@ const TradingPage = () => {
         unsubscribe();
         untrade();
     }
-  }, [selectedInstrument?.symbol, accountId])
+  }, [selectedInstrument?.symbol, accountId, updateQuoteCache])
+
+  useEffect(() => {
+    const priceEvents = getPriceEvents()
+
+    const handleChartBarUpdate = (event) => {
+      const detail = event?.detail || {}
+      const eventSymbol = normalizeSymbol(detail.symbol || '')
+      const currentSymbol = normalizeSymbol(selectedInstrument?.symbol || '')
+      if (!eventSymbol || eventSymbol !== currentSymbol) return
+
+      const chartClose = Number(detail.close)
+      const expected = Number(expectedChartSidePrice)
+      if (!Number.isFinite(chartClose) || chartClose <= 0) return
+      if (!Number.isFinite(expected) || expected <= 0) return
+
+      const driftAbs = Math.abs(chartClose - expected)
+      const driftBps = (driftAbs / expected) * 10000
+      let status = 'OK'
+      if (driftBps > 2) status = 'DRIFT'
+      else if (driftBps > 0.5) status = 'WARN'
+
+      setChartSyncTelemetry({
+        status,
+        driftBps,
+        chartClose,
+        expected,
+        at: Date.now()
+      })
+    }
+
+    priceEvents.addEventListener('chartBarUpdate', handleChartBarUpdate)
+    return () => priceEvents.removeEventListener('chartBarUpdate', handleChartBarUpdate)
+  }, [selectedInstrument?.symbol, expectedChartSidePrice])
 
   useEffect(() => {
     if (!selectedInstrument?.symbol) return
@@ -3615,25 +4090,34 @@ const TradingPage = () => {
         
         // Normalize side for safety (e.g. 'buy' -> 'BUY')
         const side = String(trade.side || '').toUpperCase();
+        const contractSize = Number(trade.contractSize) > 0 ? Number(trade.contractSize) : getMarginContractSize(targetSym);
+
+        // MT5-style mark price with resilient fallback for partial ticks.
+        const liveBid = livePrice?.rawBid || livePrice?.bid || null;
+        const liveAsk = livePrice?.rawAsk || livePrice?.ask || liveBid;
+        const instBid = inst?.rawBid || inst?.bid || null;
+        const instAsk = inst?.rawAsk || inst?.ask || instBid;
+        const effectiveBid = liveBid || instBid;
+        const effectiveAsk = liveAsk || instAsk;
         
         // Only calculate if we have a valid price
-        const currentPrice = livePrice?.bid 
-          ? (side === 'BUY' ? (livePrice.rawBid || livePrice.bid) : (livePrice.rawAsk || livePrice.ask))
-          : (inst?.bid ? (side === 'BUY' ? (inst.rawBid || inst.bid) : (inst.rawAsk || inst.ask)) : null)
+        const currentPrice = side === 'BUY' ? effectiveBid : effectiveAsk;
         
         if (currentPrice && currentPrice > 0) {
           hasValidPrices = true
           const pnl = side === 'BUY'
-            ? (currentPrice - trade.openPrice) * trade.quantity * trade.contractSize
-            : (trade.openPrice - currentPrice) * trade.quantity * trade.contractSize
+            ? (currentPrice - trade.openPrice) * trade.quantity * contractSize
+            : (trade.openPrice - currentPrice) * trade.quantity * contractSize
           
-          const tradePnl = pnl - (trade.swap || 0)
+          const tradePnl = pnl - (trade.commission || 0) - (trade.swap || 0)
           totalFloatingPnl += tradePnl
           //Sanket v2.0 - Cache this trade's PnL so partial updates don't reset it to $0
-          lastTradePnlRef.current[trade._id] = tradePnl;
+          const tradeKey = getTradeCacheKey(trade)
+          if (tradeKey) lastTradePnlRef.current[tradeKey] = tradePnl;
         } else {
           //Sanket v2.0 - No valid price for this trade right now, use last cached PnL instead of $0
-          totalFloatingPnl += lastTradePnlRef.current[trade._id] || 0;
+          const tradeKey = getTradeCacheKey(trade)
+          totalFloatingPnl += tradeKey ? (lastTradePnlRef.current[tradeKey] || 0) : 0;
         }
         totalUsedMargin += trade.marginUsed || 0
       })
@@ -3676,6 +4160,7 @@ const TradingPage = () => {
       // Always update livePrices state for open trades display
       if (Object.keys(allPrices).length > 0) {
         setLivePrices(prev => ({ ...prev, ...allPrices }))
+        updateQuoteCache(allPrices)
         
         setInstruments(prev => prev.map(inst => {
           const priceData = allPrices[inst.symbol]
@@ -3688,7 +4173,10 @@ const TradingPage = () => {
               ...inst,
               bid: bid,
               ask: ask,
-              spread: spread
+              spread: spread,
+              quoteFreshness: priceData.quoteFreshness || 'LIVE',
+              marketState: priceData.marketState || 'OPEN',
+              quoteTime: priceData.time || null
             }
           }
           return inst
@@ -3934,7 +4422,35 @@ const TradingPage = () => {
       })
       const data = await res.json()
       if (data.success) {
-        setAccountSummary(data.summary)
+        setAccountSummary(prev => {
+          const incoming = data.summary || {}
+          const hasOpenTrades = openTrades.length > 0
+          const cachedFloating = openTrades.reduce((sum, trade) => {
+            const tradeKey = getTradeCacheKey(trade)
+            if (!tradeKey) return sum
+            return sum + (lastTradePnlRef.current[tradeKey] || 0)
+          }, 0)
+
+          const incomingFloating = Number(incoming.floatingPnl || 0)
+          const hasCachedFloating = Math.abs(cachedFloating) > 0.000001
+          const shouldKeepRealtimePnl = hasOpenTrades && hasCachedFloating && Math.abs(incomingFloating) < 0.000001
+
+          if (!shouldKeepRealtimePnl) return incoming
+
+          const balance = Number(incoming.balance ?? prev.balance ?? 0)
+          const credit = Number(incoming.credit ?? prev.credit ?? 0)
+          const usedMargin = Number(incoming.usedMargin ?? prev.usedMargin ?? 0)
+          const floatingPnl = Math.round(cachedFloating * 100) / 100
+          const equity = Math.round((balance + credit + floatingPnl) * 100) / 100
+          const freeMargin = Math.round((equity - usedMargin) * 100) / 100
+
+          return {
+            ...incoming,
+            floatingPnl,
+            equity,
+            freeMargin
+          }
+        })
       }
     } catch (error) {
       console.error('Error fetching account summary:', error)
@@ -3972,63 +4488,6 @@ const TradingPage = () => {
     }
   }
 
-  // Listen to MetaAPI price events from TradingView chart
-  useEffect(() => {
-    const priceEventTarget = getPriceEvents()
-    
-    const handleMetaApiPriceUpdate = (event) => {
-      const { symbol, bid, ask, time } = event.detail
-      
-      // Update MetaAPI prices state
-      setMetaApiPrices(prev => ({
-        ...prev,
-        [symbol]: { bid, ask, time }
-      }))
-      
-      // If this is the selected instrument, update it immediately
-      if (selectedInstrument?.symbol === symbol) {
-        setSelectedInstrument(prev => ({
-          ...prev,
-          bid: bid,
-          ask: ask,
-          spread: Math.abs(ask - bid)
-        }))
-      }
-      
-      // Also update the instruments list
-      setInstruments(prev => prev.map(inst => {
-        if (inst.symbol === symbol) {
-          return {
-            ...inst,
-            bid: bid,
-            ask: ask,
-            spread: Math.abs(ask - bid)
-          }
-        }
-        return inst
-      }))
-      
-      // Update open tabs if the symbol is in them
-      setOpenTabs(prev => prev.map(tab => {
-        if (tab.symbol === symbol) {
-          return {
-            ...tab,
-            bid: bid,
-            ask: ask,
-            spread: Math.abs(ask - bid)
-          }
-        }
-        return tab
-      }))
-    }
-    
-    priceEventTarget.addEventListener('priceUpdate', handleMetaApiPriceUpdate)
-    
-    return () => {
-      priceEventTarget.removeEventListener('priceUpdate', handleMetaApiPriceUpdate)
-    }
-  }, [selectedInstrument?.symbol])
-
   // Handle live price updates (Deprecated in favor of priceStreamService but kept for compat)
   const handleAllTickPriceUpdate = useCallback((priceData) => {
     if (priceData && priceData.symbol === selectedInstrument.symbol) {
@@ -4055,10 +4514,8 @@ const TradingPage = () => {
 
     const segment = getSymbolCategory(selectedInstrument.symbol)
     
-    // Use livePrices first (real-time), fallback to selectedInstrument
-    const livePrice = livePrices[selectedInstrument.symbol]
-    const bid = livePrice?.bid || selectedInstrument.bid
-    const ask = livePrice?.ask || selectedInstrument.ask
+    const bid = selectedLiveQuote.bid
+    const ask = selectedLiveQuote.ask
     
     if (!bid || !ask || bid <= 0 || ask <= 0 || isNaN(bid) || isNaN(ask)) {
       setTradeError('Market is closed or no price data available.')
@@ -4161,11 +4618,32 @@ const TradingPage = () => {
       const side = pendingOrderType.includes('BUY') ? 'BUY' : 'SELL'
       const orderType = pendingOrderType.replace(' ', '_')
 
-      // For pending orders, use entry price; fallback to live prices
+      // Pending orders require a valid explicit entry price.
       const pendingPrice = entryPrice ? parseFloat(entryPrice) : null
-      const livePrice = livePrices[selectedInstrument.symbol]
-      const currentBid = livePrice?.bid || selectedInstrument.bid
-      const currentAsk = livePrice?.ask || selectedInstrument.ask
+      const currentBid = selectedLiveQuote.bid
+      const currentAsk = selectedLiveQuote.ask
+
+      if (!Number.isFinite(pendingPrice) || pendingPrice <= 0) {
+        setTradeError('Please enter a valid entry price for pending order.')
+        return
+      }
+
+      if (!Number.isFinite(currentBid) || !Number.isFinite(currentAsk) || currentBid <= 0 || currentAsk <= 0) {
+        setTradeError('Live market price is unavailable. Try again in a moment.')
+        return
+      }
+
+      const validationFailed = (
+        (orderType === 'BUY_LIMIT' && pendingPrice >= currentAsk) ||
+        (orderType === 'SELL_LIMIT' && pendingPrice <= currentBid) ||
+        (orderType === 'BUY_STOP' && pendingPrice <= currentAsk) ||
+        (orderType === 'SELL_STOP' && pendingPrice >= currentBid)
+      )
+
+      if (validationFailed) {
+        setTradeError(`Invalid ${pendingOrderType} price against market (Bid ${currentBid.toFixed(5)} / Ask ${currentAsk.toFixed(5)}).`)
+        return
+      }
       
       const res = await fetch(`${API_URL}/trade/open`, {
         method: 'POST',
@@ -4198,9 +4676,9 @@ const TradingPage = () => {
     } catch (error) {
       console.error('Error placing pending order:', error)
       setTradeError('Failed to place order. Please try again.')
+    } finally {
+      setIsExecutingTrade(false)
     }
-
-    setIsExecutingTrade(false)
     
     setTimeout(() => {
       setTradeError('')
@@ -4440,6 +4918,7 @@ const TradingPage = () => {
         // Fetch regular trading account
         const res = await fetch(`${API_URL}/trading-accounts/user/${user._id}`)
         const data = await res.json()
+        setTradingAccountsList(data.accounts || [])
         const acc = data.accounts?.find(a => a._id === accountId)
         if (acc) {
           setAccount(acc)
@@ -4671,20 +5150,163 @@ const TradingPage = () => {
         
         {/* Top Header */}
         <header className={`h-10 sm:h-8 border-b flex items-center px-2 sm:px-3 shrink-0 ${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'}`}>
-          <span className={`font-medium text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedInstrument.symbol}</span>
-          {!isMobile && (
-            <>
-              <span className={`ml-3 text-xs ${accountType === 'challenge' ? 'text-yellow-500' : 'text-teal-400'}`}>
-                {accountType === 'challenge' ? 'Challenge' : (account?.accountTypeId?.name || 'Standard')} - {account?.accountId}
+          <div className="relative" ref={accountDropdownRef}>
+            <button
+              onClick={() => {
+                setShowAccountDropdown(prev => {
+                  const next = !prev
+                  if (next) setAccountDropdownSearch('')
+                  return next
+                })
+              }}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors ${
+                isDarkMode
+                  ? 'bg-[#111111] border-gray-700 text-white hover:bg-[#181818]'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <span className="text-xs sm:text-sm font-semibold">{account?.accountId || '--'}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full leading-none ${getModeBadgeClass(currentAccountMode)}`}>
+                {currentAccountMode}
               </span>
-              <span className="text-gray-400 ml-3 text-xs">Balance: <span className="text-black">${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
-            </>
+              <ChevronDown size={14} className={`transition-transform ${showAccountDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showAccountDropdown && (
+              <div className={`absolute top-full left-0 mt-2 w-[290px] max-h-[360px] overflow-y-auto rounded-xl shadow-xl z-40 ${
+                isDarkMode ? 'bg-[#111111] border border-gray-800' : 'bg-white border border-gray-200'
+              }`}>
+                <div className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Select Account
+                </div>
+
+                <div className="px-3 pb-2">
+                  <div className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${isDarkMode ? 'border-gray-700 bg-[#0f0f0f]' : 'border-gray-200 bg-gray-50'}`}>
+                    <Search size={14} className={isDarkMode ? 'text-gray-500' : 'text-gray-400'} />
+                    <input
+                      type="text"
+                      value={accountDropdownSearch}
+                      onChange={(e) => setAccountDropdownSearch(e.target.value)}
+                      placeholder="Search account"
+                      className={`w-full bg-transparent text-xs outline-none ${isDarkMode ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'}`}
+                    />
+                  </div>
+                </div>
+
+                {visibleRealAccounts.length > 0 && (
+                  <div className="pb-1">
+                    <div className={`px-3 py-1 text-[10px] font-semibold uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Real Accounts</div>
+                    {visibleRealAccounts
+                      .map(acc => {
+                        const isActive = String(acc._id) === String(accountId) && accountType !== 'challenge'
+                        const optionKey = getAccountOptionKey(acc._id, 'real')
+                        const isHighlighted = activeAccountOptionKey === optionKey
+                        return (
+                          <button
+                            key={`real-${acc._id}`}
+                            onClick={() => handleSwitchTradingAccount(acc._id, null)}
+                            disabled={switchingAccountId === acc._id}
+                            className={`w-full px-3 py-2 flex items-center justify-between transition-colors ${
+                              isHighlighted
+                                ? (isDarkMode ? 'bg-[#1f1f1f]' : 'bg-gray-100')
+                                : (isDarkMode ? 'hover:bg-[#1a1a1a]' : 'hover:bg-gray-50')
+                            } ${switchingAccountId === acc._id ? 'opacity-60' : ''}`}
+                          >
+                            <div className="text-left">
+                              <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
+                              <div className={`text-[11px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Bal ${Number(acc.balance || 0).toFixed(2)} • Lev {acc.leverage || '1:100'} • {acc.status || 'ACTIVE'}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getModeBadgeClass(getAccountMode(acc))}`}>{getAccountMode(acc)}</span>
+                              {isActive && <Check size={14} className="text-emerald-500" />}
+                            </div>
+                          </button>
+                        )
+                      })}
+                  </div>
+                )}
+
+                {visibleDemoAccounts.length > 0 && (
+                  <div className="pb-1">
+                    <div className={`px-3 py-1 text-[10px] font-semibold uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Demo Accounts</div>
+                    {visibleDemoAccounts
+                      .map(acc => {
+                        const isActive = String(acc._id) === String(accountId) && accountType !== 'challenge'
+                        const optionKey = getAccountOptionKey(acc._id, 'demo')
+                        const isHighlighted = activeAccountOptionKey === optionKey
+                        return (
+                          <button
+                            key={`demo-${acc._id}`}
+                            onClick={() => handleSwitchTradingAccount(acc._id, null)}
+                            disabled={switchingAccountId === acc._id}
+                            className={`w-full px-3 py-2 flex items-center justify-between transition-colors ${
+                              isHighlighted
+                                ? (isDarkMode ? 'bg-[#1f1f1f]' : 'bg-gray-100')
+                                : (isDarkMode ? 'hover:bg-[#1a1a1a]' : 'hover:bg-gray-50')
+                            } ${switchingAccountId === acc._id ? 'opacity-60' : ''}`}
+                          >
+                            <div className="text-left">
+                              <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
+                              <div className={`text-[11px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Bal ${Number(acc.balance || 0).toFixed(2)} • Lev {acc.leverage || '1:100'} • {acc.status || 'ACTIVE'}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getModeBadgeClass(getAccountMode(acc))}`}>{getAccountMode(acc)}</span>
+                              {isActive && <Check size={14} className="text-emerald-500" />}
+                            </div>
+                          </button>
+                        )
+                      })}
+                  </div>
+                )}
+
+                {visibleChallengeAccounts.length > 0 && (
+                  <div className="pb-2">
+                    <div className={`px-3 py-1 text-[10px] font-semibold uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Challenge Accounts</div>
+                    {visibleChallengeAccounts.map(acc => {
+                      const challengeId = acc._id || acc.challengeAccountId
+                      const isActive = String(challengeId) === String(accountId) && accountType === 'challenge'
+                      const optionKey = getAccountOptionKey(challengeId, 'challenge')
+                      const isHighlighted = activeAccountOptionKey === optionKey
+                      return (
+                        <button
+                          key={`challenge-${challengeId}`}
+                          onClick={() => handleSwitchTradingAccount(challengeId, 'challenge')}
+                          disabled={!challengeId || switchingAccountId === challengeId}
+                          className={`w-full px-3 py-2 flex items-center justify-between transition-colors ${
+                            isHighlighted
+                              ? (isDarkMode ? 'bg-[#1f1f1f]' : 'bg-gray-100')
+                              : (isDarkMode ? 'hover:bg-[#1a1a1a]' : 'hover:bg-gray-50')
+                          } ${(!challengeId || switchingAccountId === challengeId) ? 'opacity-60' : ''}`}
+                        >
+                          <div className="text-left">
+                            <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId || 'Challenge Account'}</div>
+                            <div className={`text-[11px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Bal ${Number(acc.currentBalance || acc.balance || 0).toFixed(2)} • {acc.status || 'ACTIVE'}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getModeBadgeClass('Challenge')}`}>Challenge</span>
+                            {isActive && <Check size={14} className="text-emerald-500" />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {accountDropdownOptions.length === 0 && (
+                  <div className={`px-3 py-3 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    No accounts found.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {!isMobile && (
+            <span className={`ml-3 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Balance: <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>${accountSummary.balance?.toFixed(2) || '0.00'}</span>
+            </span>
           )}
           <div className="flex-1" />
-          
-
-          <span className="text-red-500 font-mono text-xs sm:text-sm mr-1 sm:mr-2">{selectedInstrument.bid?.toFixed(2)}</span>
-          <span className="text-green-500 font-mono text-xs sm:text-sm mr-2 sm:mr-4">{selectedInstrument.ask?.toFixed(2)}</span>
           <button 
             onClick={() => setShowOrderPanel(!showOrderPanel)}
             className="bg-teal-500 hover:bg-teal-600 text-white text-xs px-2 sm:px-3 py-1 rounded"
@@ -4838,6 +5460,12 @@ const TradingPage = () => {
                     //Sanket v2.0 - Apply admin markup to displayed bid/ask so instruments panel matches execution prices
                     const markup = getAdminMarkupValue(inst.symbol, adminSpreads);
                     const sym = getBaseSymbol(inst.symbol);
+                    const cachedQuote = instrumentQuoteCache[inst.symbol] || null;
+                    const effectiveBid = inst.bid > 0 ? inst.bid : (cachedQuote?.bid || 0);
+                    const effectiveAsk = inst.ask > 0 ? inst.ask : (cachedQuote?.ask || cachedQuote?.bid || 0);
+                    const effectiveFreshness = inst.bid > 0
+                      ? (inst.quoteFreshness || 'LIVE')
+                      : (cachedQuote?.quoteFreshness || (cachedQuote?.bid ? 'STALE' : 'EMPTY'));
                     //Sanket v2.0 - retailBid/retailAsk/effectiveSpread now computed inside AnimatedInstrumentPrices
                     // at 60fps so the instruments list price digits animate instead of jump every 300ms.
                     const isPointBased = isMetalSymbol(sym) || isCryptoSymbol(sym) || ['USOIL','UKOIL','NGAS','COPPER','US30','US500','US100','UK100','GER40','FRA40','JP225','HK50','AUS200','ES35'].includes(sym);
@@ -4861,12 +5489,13 @@ const TradingPage = () => {
                       </div>
                       <div className="flex-1" />
                       <AnimatedInstrumentPrices
-                        rawBid={inst.bid}
-                        rawAsk={inst.ask}
+                        rawBid={effectiveBid}
+                        rawAsk={effectiveAsk}
                         markup={markup}
                         isJpyPairBool={isJpyPair(inst.symbol)}
                         isPointBased={isPointBased}
                         isDarkMode={isDarkMode}
+                        quoteFreshness={effectiveFreshness}
                       />
                     </button>
                     )
@@ -4972,17 +5601,18 @@ const TradingPage = () => {
             {/* //sanket - Enhanced chart with interactive trade lines */}
             <Advance_Trading_View_Chart 
               symbol={selectedInstrument?.symbol} 
-              trades={openTrades} 
+              trades={chartRenderableTrades} 
               onTradeModify={handleTradeModify}
               isDarkMode={isDarkMode}
               adminSpreads={adminSpreads}
-              selectedSide={selectedSide}
+              selectedSide={chartPriceSide}
               onSymbolChange={(newSym) => {
                 // 🔄 Sync chart's internal search with parent tabs
                 const cleanSym = newSym.replace(/\.i$/i, '').toUpperCase();
+                const currentActiveTab = activeTabRef.current;
                 
                 // If it's already the active tab, ignore (this fires on initial load)
-                if (cleanSym === activeTab) return;
+                if (cleanSym === currentActiveTab) return;
 
                 setOpenTabs(prevTabs => {
                   const existingTabIndex = prevTabs.findIndex(t => t.symbol === cleanSym);
@@ -5002,7 +5632,7 @@ const TradingPage = () => {
                       setActiveTab(cleanSym);
                       setSelectedInstrument(inst);
                     }, 0);
-                    return prevTabs.map(tab => tab.symbol === activeTab ? inst : tab);
+                    return prevTabs.map(tab => tab.symbol === currentActiveTab ? inst : tab);
                   }
                 });
               }}
@@ -5104,7 +5734,7 @@ const TradingPage = () => {
                     )}
                   </>
                 )}
-                <span className="text-[11px] sm:text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap">P/L: <AnimatedPNL value={accountSummary.floatingPnl} /></span>
+                <span className="text-[11px] sm:text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap">P/L: <AnimatedPNL value={displayFloatingPnl} /></span>
                 <button
                   onClick={() => setIsBottomPanelMinimized(!isBottomPanelMinimized)}
                   className={`ml-0.5 p-0.5 rounded-md transition-all duration-300 ${isDarkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-200'} ${isBottomPanelMinimized ? 'rotate-180' : ''}`}
@@ -5165,13 +5795,14 @@ const TradingPage = () => {
                         : (isCryptoSymbol(trade.symbol) || getBaseSymbol(trade.symbol) === 'XAUUSD') ? 2
                         : getBaseSymbol(trade.symbol) === 'XAGUSD' ? 4
                         : 5;
+                      const tradeCacheKey = getTradeCacheKey(trade);
                       return (
                         <AnimatedTradeRow
-                          key={trade._id}
+                          key={trade._id || trade.id || trade.tradeId}
                           trade={trade}
                           rawBid={rawBid}
                           rawAsk={rawAsk}
-                          fallbackPnl={lastTradePnlRef.current[trade._id] || 0}
+                          fallbackPnl={tradeCacheKey ? (lastTradePnlRef.current[tradeCacheKey] || 0) : 0}
                           priceDecimals={priceDecimals}
                           isDarkMode={isDarkMode}
                           onModify={openModifyModal}
@@ -5686,16 +6317,9 @@ const TradingPage = () => {
                   {/* One-Click Buy/Sell Buttons */}
                   <div className="flex gap-2 mb-3">
                     {(() => {
-                      //Sanket v2.0 - Compute raw target prices once and pass to AnimatedPrice.
-                      // AnimatedPrice is an isolated child — only IT re-renders at 60 fps via
-                      // useInterpolation; TradingPage itself is NOT affected by the RAF loop.
                       const sym = selectedInstrument.symbol;
-                      const sellRaw = metaApiPrices[sym]
-                        ? metaApiPrices[sym].bid
-                        : getDisplayPrice(sym, 'SELL', selectedInstrument.bid, selectedInstrument.ask);
-                      const buyRaw = metaApiPrices[sym]
-                        ? metaApiPrices[sym].ask
-                        : getDisplayPrice(sym, 'BUY', selectedInstrument.bid, selectedInstrument.ask);
+                      const sellRaw = selectedLiveQuote.bid;
+                      const buyRaw = selectedLiveQuote.ask;
                       const decimals = isJpyPair(sym) ? 3
                         : (isCryptoSymbol(sym) || getBaseSymbol(sym) === 'XAUUSD') ? 2
                         : 5;
@@ -5912,7 +6536,7 @@ const TradingPage = () => {
                     {isExecutingTrade ? 'Executing...' : `Open ${selectedSide} Order`}
                   </button>
                   <div className="text-center text-gray-500 text-xs mt-2">
-                    {volume} lots @ {getDisplayPrice(selectedInstrument.symbol, selectedSide, selectedInstrument.bid, selectedInstrument.ask)?.toFixed(2)}
+                    {volume} lots @ {(selectedSide === 'BUY' ? selectedLiveQuote.ask : selectedLiveQuote.bid)?.toFixed(2)}
                   </div>
                 </div>
               </>
@@ -5992,9 +6616,9 @@ const TradingPage = () => {
                           ))
                         })()}
                       </select>
-                      <div className={`rounded px-3 py-2 text-green-500 text-sm border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}`}>$0</div>
+                      <div className={`rounded px-3 py-2 text-green-500 text-sm border ${isDarkMode ? 'bg-[#1a1a1a] border-gray-700' : 'bg-gray-50 border-gray-300'}`}>${pendingMarginRequired.toFixed(2)}</div>
                     </div>
-                    <div className="text-gray-500 text-[10px] mt-1">Trading power: $0.00 × 100 = $0</div>
+                    <div className="text-gray-500 text-[10px] mt-1">Trading power: ${(accountSummary?.equity || 0).toFixed(2)} × {pendingLeverageNum} = ${pendingTradingPower.toFixed(2)}</div>
                   </div>
 
                   {/* Take Profit */}
@@ -6046,11 +6670,11 @@ const TradingPage = () => {
                     <div className={`text-xs font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Trading Charges</div>
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-gray-400">Spread</span>
-                      <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>10 pips</span>
+                      <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{pendingSpreadDisplay}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-gray-400">Commission</span>
-                      <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>$0.10 ($10/lot)</span>
+                      <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>${pendingCommission.toFixed(2)} ($10/lot)</span>
                     </div>
                   </div>
                 </div>
@@ -6092,7 +6716,7 @@ const TradingPage = () => {
           {!isMobile && (
             <>
               <span className="text-gray-500 ml-4 shrink-0">Credit: <span className="text-purple-400">$<AnimatedValue value={accountSummary.credit} /></span></span>
-              <span className="text-gray-500 ml-4 shrink-0">Eq: <span className={accountSummary.floatingPnl >= 0 ? 'text-green-500' : 'text-red-500'}>$<AnimatedValue value={accountSummary.equity} /></span></span>
+              <span className="text-gray-500 ml-4 shrink-0">Eq: <span className={displayFloatingPnl >= 0 ? 'text-green-500' : 'text-red-500'}>$<AnimatedValue value={accountSummary.equity} /></span></span>
               <span className="text-gray-500 ml-4 shrink-0">Margin: <span className="text-yellow-500">$<AnimatedValue value={accountSummary.usedMargin} /></span></span>
               <span className="text-gray-500 ml-4 shrink-0">Free: <span className={accountSummary.freeMargin >= 0 ? 'text-blue-400' : 'text-red-500'}>$<AnimatedValue value={accountSummary.freeMargin} /></span></span>
             </>

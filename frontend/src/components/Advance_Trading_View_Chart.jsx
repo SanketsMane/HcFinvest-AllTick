@@ -22,7 +22,7 @@ const Advance_Trading_View_Chart = ({
   isDarkMode = false, 
   onSymbolChange, 
   adminSpreads = {},
-  selectedSide = 'MID'
+  selectedSide = 'BUY'
 }) => {
   const normalizedSymbol = normalizeSymbol(symbol);
   
@@ -42,6 +42,8 @@ const Advance_Trading_View_Chart = ({
   tradesRef.current = trades;
   const symbolRef = useRef(symbol);
   symbolRef.current = symbol;
+  const onSymbolChangeRef = useRef(onSymbolChange);
+  onSymbolChangeRef.current = onSymbolChange;
   // Gate: prevents useEffect([trades, symbol, isChartReady]) from syncing before the initial
   // 600ms TV-settle delay completes. Without this gate, the effect fires immediately on
   // isChartReady transition (TV still mid-load after widget.load()) and createShape returns null.
@@ -219,7 +221,7 @@ const Advance_Trading_View_Chart = ({
 
         chartRef.current.onSymbolChanged().subscribe(null, () => {
           const sym = chartRef.current?.symbol?.();
-          if (sym && onSymbolChange) onSymbolChange(sym);
+          if (sym && onSymbolChangeRef.current) onSymbolChangeRef.current(sym);
           debouncedSave();
         });
 

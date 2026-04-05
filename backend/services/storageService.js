@@ -333,6 +333,41 @@ class StorageService extends EventEmitter {
     }));
   }
 
+  async getLatestCloseQuote(symbol, timeframe = '1m') {
+    try {
+      const resolvedSymbol = this.resolveStorageSymbol(symbol);
+
+      const redisBars = await this.getCandlesFromRedis(resolvedSymbol, timeframe, null, null, 1);
+      const redisLast = Array.isArray(redisBars) && redisBars.length > 0 ? redisBars[redisBars.length - 1] : null;
+      if (redisLast && Number(redisLast.close) > 0) {
+        return {
+          symbol: resolvedSymbol,
+          close: Number(redisLast.close),
+          time: redisLast.time,
+          source: 'storage_redis_rolling'
+        };
+      }
+
+      const Model = getModelForSymbol(resolvedSymbol);
+      if (!Model) return null;
+
+      const lastCandle = await Model.findOne({ symbol: resolvedSymbol, timeframe })
+        .sort({ time: -1 })
+        .lean();
+
+      if (!lastCandle || Number(lastCandle.close) <= 0) return null;
+
+      return {
+        symbol: resolvedSymbol,
+        close: Number(lastCandle.close),
+        time: lastCandle.time,
+        source: 'storage_mongo_latest'
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
   async queryCandles(Model, symbol, timeframe, from, to, limit) {
     const query = { symbol, timeframe };
     let sortOrder = { time: 1 };
