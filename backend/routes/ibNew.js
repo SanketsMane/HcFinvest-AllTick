@@ -15,6 +15,16 @@ const isValidObjectId = (id) => {
   return id && id !== 'undefined' && id !== 'null' && /^[a-fA-F0-9]{24}$/.test(id)
 }
 
+const normalizeCommissionType = (value) => value === 'PERCENTAGE' ? 'PERCENT' : (value || 'PER_LOT')
+
+const mapLevelCommissionsToLevels = (levelCommissions = {}, maxLevels = 3) => {
+  const levels = []
+  for (let level = 1; level <= maxLevels; level += 1) {
+    levels.push({ level, rate: Number(levelCommissions[`level${level}`] || 0) })
+  }
+  return levels
+}
+
 // ==================== USER ROUTES ====================
 
 // POST /api/ib/apply - Apply to become an IB
@@ -218,7 +228,8 @@ router.get('/admin/all', async (req, res) => {
 
     const ibs = await User.find(query)
       .populate('ibPlanId', 'name')
-      .select('firstName email referralCode ibStatus ibLevel ibPlanId createdAt')
+      .populate('ibLevelId', 'name order commissionRate color')
+      .select('firstName lastName email referralCode ibStatus ibLevel ibLevelId ibLevelOrder ibPlanId createdAt')
       .sort({ createdAt: -1 })
       .skip(parseInt(offset))
       .limit(parseInt(limit))
@@ -228,8 +239,13 @@ router.get('/admin/all', async (req, res) => {
     // Get wallet balances for each IB
     const ibsWithWallets = await Promise.all(ibs.map(async (ib) => {
       const wallet = await IBWallet.findOne({ ibUserId: ib._id })
+      const referralCount = await User.countDocuments({ parentIBId: ib._id })
+      const normalizedLevelOrder = ib.ibLevelOrder || ib.ibLevelId?.order || ib.ibLevel || 1
       return {
         ...ib.toObject(),
+        referralCount,
+        ibLevelOrder: normalizedLevelOrder,
+        ibLevel: ib.ibLevel || normalizedLevelOrder,
         walletBalance: wallet?.balance || 0,
         totalEarned: wallet?.totalEarned || 0
       }
@@ -273,7 +289,10 @@ router.put('/admin/approve/:userId', async (req, res) => {
         _id: user._id,
         firstName: user.firstName,
         ibStatus: user.ibStatus,
-        ibPlanId: user.ibPlanId
+        ibPlanId: user.ibPlanId,
+        ibLevelId: user.ibLevelId,
+        ibLevelOrder: user.ibLevelOrder,
+        ibLevel: user.ibLevel
       }
     })
   } catch (error) {
@@ -373,15 +392,32 @@ router.put('/admin/update/:userId', async (req, res) => {
     if (!isValidObjectId(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' })
     }
-    const { ibLevel } = req.body
+    const { ibLevel, levelId, planId } = req.body
 
     const user = await User.findById(userId)
     if (!user) throw new Error('User not found')
     if (!user.isIB) throw new Error('User is not an IB')
 
-    // Update IB level if provided
-    if (ibLevel !== undefined) {
-      user.ibLevel = parseInt(ibLevel) || 1
+    if (levelId) {
+      const level = await IBLevel.findById(levelId)
+      if (!level) {
+        return res.status(404).json({ success: false, message: 'IB level not found' })
+      }
+      user.ibLevelId = level._id
+      user.ibLevelOrder = level.order
+      user.ibLevel = level.order
+    } else if (ibLevel !== undefined) {
+      const numericLevel = parseInt(ibLevel, 10) || 1
+      const level = await IBLevel.findOne({ order: numericLevel, isActive: true })
+      user.ibLevel = numericLevel
+      if (level) {
+        user.ibLevelId = level._id
+        user.ibLevelOrder = level.order
+      }
+    }
+
+    if (planId !== undefined) {
+      user.ibPlanId = planId || null
     }
 
     await user.save()
@@ -392,7 +428,10 @@ router.put('/admin/update/:userId', async (req, res) => {
       user: {
         _id: user._id,
         firstName: user.firstName,
-        ibLevel: user.ibLevel
+        ibLevel: user.ibLevel,
+        ibLevelId: user.ibLevelId,
+        ibLevelOrder: user.ibLevelOrder,
+        ibPlanId: user.ibPlanId
       }
     })
   } catch (error) {
@@ -570,25 +609,26 @@ router.get('/admin/plans', async (req, res) => {
 // POST /api/ib/admin/plans - Create new plan
 router.post('/admin/plans', async (req, res) => {
   try {
-    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, minWithdrawalAmount, isDefault } = req.body
+    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, isDefault } = req.body
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'Plan name is required' })
     }
 
     // Convert levelCommissions object to levels array for IBPlanNew.js compatibility
-    const levels = []
-    const lc = levelCommissions || { level1: 5, level2: 3, level3: 2, level4: 1, level5: 0.5 }
-    for (let i = 1; i <= (maxLevels || 3); i++) {
-      levels.push({ level: i, rate: lc[`level${i}`] || 0 })
-    }
+    const levels = mapLevelCommissionsToLevels(
+      levelCommissions || { level1: 5, level2: 3, level3: 2, level4: 1, level5: 0.5 },
+      maxLevels || 3
+    )
 
     const plan = await IBPlan.create({
       name,
+      description,
       maxLevels: maxLevels || 3,
-      commissionType: commissionType || 'PER_LOT',
+      commissionType: normalizeCommissionType(commissionType),
       levels,
-      source: commissionSources || { spread: true, tradeCommission: true, swap: false }
+      source: commissionSources || { spread: true, tradeCommission: true, swap: false },
+      isDefault: Boolean(isDefault)
     })
 
     // If this is default, unset other defaults
@@ -614,7 +654,7 @@ router.post('/admin/plans', async (req, res) => {
 router.put('/admin/plans/:planId', async (req, res) => {
   try {
     const { planId } = req.params
-    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, minWithdrawalAmount, isActive, isDefault } = req.body
+    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, isActive, isDefault } = req.body
 
     const plan = await IBPlan.findById(planId)
     if (!plan) throw new Error('Plan not found')
@@ -622,10 +662,9 @@ router.put('/admin/plans/:planId', async (req, res) => {
     if (name) plan.name = name
     if (description !== undefined) plan.description = description
     if (maxLevels) plan.maxLevels = maxLevels
-    if (commissionType) plan.commissionType = commissionType
-    if (levelCommissions) plan.levelCommissions = levelCommissions
-    if (commissionSources) plan.commissionSources = commissionSources
-    if (minWithdrawalAmount !== undefined) plan.minWithdrawalAmount = minWithdrawalAmount
+    if (commissionType) plan.commissionType = normalizeCommissionType(commissionType)
+    if (levelCommissions) plan.levels = mapLevelCommissionsToLevels(levelCommissions, maxLevels || plan.maxLevels || 3)
+    if (commissionSources) plan.source = commissionSources
     if (isActive !== undefined) plan.isActive = isActive
     if (isDefault !== undefined) plan.isDefault = isDefault
 

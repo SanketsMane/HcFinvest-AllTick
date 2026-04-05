@@ -359,7 +359,8 @@ const AdminIBManagement = () => {
 
   const handleViewIB = (ib) => {
     setViewingIB(ib)
-    setIbCommission(ib.ibLevel || 1)
+    setIbCommission(ib.ibLevelId?._id || '')
+    setIbPlan(ib.ibPlanId?._id || '')
     setShowIBModal(true)
   }
 
@@ -372,7 +373,8 @@ const AdminIBManagement = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ibLevel: parseInt(ibCommission) || 1
+          levelId: ibCommission || null,
+          planId: ibPlan || null
         })
       })
       const data = await res.json()
@@ -585,7 +587,10 @@ const AdminIBManagement = () => {
                       <td className="py-6 px-8">
                         <div className="flex items-center gap-2">
                           <Award size={14} className="text-orange-500" />
-                          <p style={{ color: modeColors.text }} className="font-black text-xs uppercase tracking-wider">{ib.ibPlanId?.name || 'Standard Tier'}</p>
+                          <div>
+                            <p style={{ color: modeColors.text }} className="font-black text-xs uppercase tracking-wider">{ib.ibLevelId?.name || `Level ${ib.ibLevelOrder || ib.ibLevel || 1}`}</p>
+                            <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-bold opacity-60">{ib.ibPlanId?.name || 'No plan assigned'}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="py-6 px-8 text-center">
@@ -595,7 +600,7 @@ const AdminIBManagement = () => {
                         </div>
                       </td>
                       <td className="py-6 px-8 text-right">
-                        <p className="text-green-600 font-black text-lg tracking-tighter">${(ib.totalCommissonEarned || 0).toFixed(2)}</p>
+                        <p className="text-green-600 font-black text-lg tracking-tighter">${(ib.totalEarned || 0).toFixed(2)}</p>
                         <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-40">Lifetime Value</p>
                       </td>
                       <td className="py-6 px-8 text-center">
@@ -1171,6 +1176,7 @@ const AdminIBManagement = () => {
         <IBDetailsModal
           ib={viewingIB}
           plans={plans}
+          ibLevels={ibLevels}
           ibCommission={ibCommission}
           setIbCommission={setIbCommission}
           ibPlan={ibPlan}
@@ -1529,7 +1535,7 @@ const LevelModal = ({ level, onSave, onClose, existingOrders }) => {
 }
 
 // IB Details Modal Component
-const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setIbPlan, onSave, onClose, saving }) => {
+const IBDetailsModal = ({ ib, plans, ibLevels, ibCommission, setIbCommission, ibPlan, setIbPlan, onSave, onClose, saving }) => {
   const { modeColors } = useTheme()
   if (!ib) return null
 
@@ -1566,7 +1572,7 @@ const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setI
           <div className="grid grid-cols-3 gap-4">
             {[
               { label: 'Current State', value: ib.ibStatus || 'OFFLINE', color: ib.ibStatus === 'ACTIVE' ? 'text-green-500' : 'text-amber-500' },
-              { label: 'Growth Tier', value: ib.ibLevel || 0, color: 'text-blue-500' },
+              { label: 'Growth Tier', value: ib.ibLevelId?.name || `Level ${ib.ibLevelOrder || ib.ibLevel || 1}`, color: 'text-blue-500' },
               { label: 'Network', value: ib.referralCount || 0, color: 'text-purple-500' }
             ].map((stat, idx) => (
               <div key={idx} style={{ backgroundColor: modeColors.bgSecondary }} className="rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
@@ -1579,19 +1585,37 @@ const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setI
           {/* Privilege Escalation Control */}
           <div className="space-y-4">
             <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] block px-1">Echelon Tier Correction</label>
-            <div className="relative">
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={ibCommission}
-                onChange={(e) => setIbCommission(e.target.value)}
-                style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                className="w-full border-2 rounded-2xl px-6 py-5 font-black text-xl focus:outline-none focus:border-blue-500 shadow-inner"
-                placeholder="1"
-              />
-              <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 font-mono text-[9px] uppercase tracking-widest pointer-events-none">Tier_V_Mod</span>
-            </div>
+            <select
+              value={ibCommission}
+              onChange={(e) => setIbCommission(e.target.value)}
+              style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+              className="w-full border-2 rounded-2xl px-6 py-5 font-black text-base focus:outline-none focus:border-blue-500 shadow-inner"
+            >
+              <option value="">Select a level</option>
+              {ibLevels.map((level) => (
+                <option key={level._id} value={level._id}>
+                  {level.name} • Order {level.order} • ${level.commissionRate}/{level.commissionType === 'PER_LOT' ? 'lot' : '%'}
+                </option>
+              ))}
+            </select>
+            <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-medium opacity-50 px-1 italic text-center uppercase tracking-wider leading-relaxed">This writes the real IB level record used by progression and level-based fallback commission logic.</p>
+          </div>
+
+          <div className="space-y-4">
+            <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] block px-1">Plan Assignment</label>
+            <select
+              value={ibPlan}
+              onChange={(e) => setIbPlan(e.target.value)}
+              style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+              className="w-full border-2 rounded-2xl px-6 py-5 font-black text-base focus:outline-none focus:border-blue-500 shadow-inner"
+            >
+              <option value="">No plan override</option>
+              {plans.map((plan) => (
+                <option key={plan._id} value={plan._id}>
+                  {plan.name}
+                </option>
+              ))}
+            </select>
             <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-medium opacity-50 px-1 italic text-center uppercase tracking-wider leading-relaxed">Direct override of partner growth logic. Proceed with audit trail active.</p>
           </div>
 

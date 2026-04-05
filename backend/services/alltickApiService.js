@@ -680,10 +680,10 @@ class AllTickApiService {
         }
       }
     } catch (err) {
-      // Sliently fail tier sync to avoid crashing the main WS handler
-      // console.error(`[TierSync] Error for ${symbol}:`, err.message);
+      // Silently fail tier sync to avoid crashing the main WS handler
     }
   }
+
 }
 
 export default new AllTickApiService();
