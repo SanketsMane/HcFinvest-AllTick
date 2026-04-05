@@ -281,12 +281,26 @@ class IBEngine {
   // Calculate and distribute IB commission when a trade closes
   async processTradeCommission(trade) {
     console.log(`Processing IB commission for trade ${trade.tradeId || trade._id}, userId: ${trade.userId}`)
-    
+
+    // Fetch the trading account to check if it's a demo account
+    let tradingAccount = null
+    try {
+      const TradingAccount = (await import('../models/TradingAccount.js')).default
+      tradingAccount = await TradingAccount.findById(trade.tradingAccountId)
+    } catch (err) {
+      console.error('Error fetching trading account for IB commission:', err)
+    }
+
+    if (tradingAccount?.isDemo) {
+      console.log('Skipping IB commission: trade is from a demo account')
+      return { processed: false, reason: 'Demo account trade' }
+    }
+
     // Get the IB chain for the trader
     const ibChain = await this.getIBChain(trade.userId)
-    
+
     console.log(`IB Chain length: ${ibChain.length}`)
-    
+
     if (ibChain.length === 0) {
       console.log('No IB chain found for trader')
       return { processed: false, reason: 'No IB chain found for trader' }
@@ -298,12 +312,12 @@ class IBEngine {
     for (const { ibUser, level } of ibChain) {
       try {
         console.log(`Processing level ${level} for IB ${ibUser.firstName} (${ibUser._id})`)
-        
+
         const commissionConfig = await this.resolveCommissionConfig(ibUser, level)
         const rate = Number(commissionConfig.rate || 0)
 
         console.log(`Level ${level} rate: ${rate} (${commissionConfig.source})`)
-        
+
         if (rate <= 0) {
           console.log(`Rate is 0 for level ${level}`)
           continue
@@ -312,7 +326,7 @@ class IBEngine {
         // Calculate commission based on commission type
         let commissionAmount = 0
         let baseAmount = trade.quantity // lot size
-        
+
         if (commissionConfig.commissionType === 'PER_LOT') {
           // PER_LOT: rate is $ per lot
           commissionAmount = trade.quantity * rate
@@ -336,7 +350,7 @@ class IBEngine {
           ibUserId: ibUser._id,
           level
         })
-        
+
         if (existingCommission) {
           console.log(`IB Commission: Skipping - commission already exists for trade ${trade._id} and IB ${ibUser._id} at level ${level}`)
           continue
