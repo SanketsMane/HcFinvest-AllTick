@@ -310,6 +310,66 @@ router.get('/history', async (req, res) => {
 
     return [...byBucket.values()].sort((a, b) => a.time - b.time)
   }
+
+  const getHistoryJumpThresholdPct = (sym = '') => {
+    const upper = String(sym).toUpperCase()
+    if (upper.includes('BTC') || upper.includes('ETH') || upper.includes('BNB') || upper.includes('SOL') || upper.includes('XRP') || upper.includes('ADA') || upper.includes('DOGE') || upper.includes('LTC')) {
+      return 25
+    }
+    if (upper.includes('XAU') || upper.includes('XAG') || upper.includes('OIL') || upper.includes('NGAS') || upper.includes('COPPER') || upper.includes('US30') || upper.includes('US100') || upper.includes('US500') || upper.includes('UK100') || upper.includes('ES35')) {
+      return 8
+    }
+    return 3
+  }
+
+  const sanitizeHistoricalSeries = (candles, intervalMinutes, sym) => {
+    if (!Array.isArray(candles) || candles.length === 0) return []
+    const intervalMs = intervalMinutes * 60 * 1000
+    const maxJumpPct = getHistoryJumpThresholdPct(sym)
+    const sanitized = []
+
+    for (const raw of candles) {
+      const time = Number(raw?.time)
+      const open = Number(raw?.open)
+      const high = Number(raw?.high)
+      const low = Number(raw?.low)
+      const close = Number(raw?.close)
+      const volume = Number.isFinite(Number(raw?.volume)) ? Number(raw.volume) : 0
+
+      if (![time, open, high, low, close].every(Number.isFinite) || time <= 0) continue
+
+      const fixedHigh = Math.max(high, open, close, low)
+      const fixedLow = Math.min(low, open, close, high)
+      const normalized = { time, open, high: fixedHigh, low: fixedLow, close, volume }
+
+      const prev = sanitized[sanitized.length - 1]
+      if (!prev || !Number.isFinite(prev.close) || prev.close <= 0) {
+        sanitized.push(normalized)
+        continue
+      }
+
+      const elapsedMs = Math.max(0, time - prev.time)
+      const jumpPct = Math.abs((normalized.close - prev.close) / prev.close) * 100
+      const isLongGap = elapsedMs > Math.max(intervalMs * 6, 45 * 60 * 1000)
+
+      if (!isLongGap && jumpPct > maxJumpPct) {
+        sanitized.push({
+          time,
+          open: prev.close,
+          high: prev.close,
+          low: prev.close,
+          close: prev.close,
+          volume: 0,
+          isSanitized: true
+        })
+        continue
+      }
+
+      sanitized.push(normalized)
+    }
+
+    return sanitized
+  }
   
   // 🛡️ ELITE: Always use Server Time Authority for "current" requests
   const serverNow = Math.floor(Date.now() / 1000);
@@ -348,6 +408,7 @@ router.get('/history', async (req, res) => {
     }
 
     let finalCandles = normalizeToBucketSeries(result.candles, targetMinutes);
+    finalCandles = sanitizeHistoricalSeries(finalCandles, targetMinutes, cleanSymbol);
 
     // 🚀 ELITE PIPELINE: Clean -> Fill -> Validate
     

@@ -42,6 +42,32 @@ const toNumber = (value) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+const getSymbolJumpThresholdPct = (symbol = '') => {
+  const s = String(symbol).toUpperCase();
+
+  if (s.includes('BTC') || s.includes('ETH') || s.includes('BNB') || s.includes('SOL') || s.includes('XRP') || s.includes('ADA') || s.includes('DOGE') || s.includes('LTC')) {
+    return 25;
+  }
+
+  if (s.includes('XAU') || s.includes('XAG') || s.includes('OIL') || s.includes('NGAS') || s.includes('COPPER') || s.includes('US30') || s.includes('US100') || s.includes('US500') || s.includes('UK100') || s.includes('ES35')) {
+    return 8;
+  }
+
+  return 3;
+};
+
+const isSuspiciousPriceJump = ({ symbol, nextPrice, referencePrice, elapsedMs }) => {
+  if (!Number.isFinite(nextPrice) || !Number.isFinite(referencePrice)) return false;
+  if (referencePrice <= 0) return false;
+
+  // After longer gaps (session reopen/offline) allow wider moves to avoid blocking valid jumps.
+  if (Number.isFinite(elapsedMs) && elapsedMs > (45 * 60 * 1000)) return false;
+
+  const thresholdPct = getSymbolJumpThresholdPct(symbol);
+  const jumpPct = Math.abs((nextPrice - referencePrice) / referencePrice) * 100;
+  return jumpPct > thresholdPct;
+};
+
 const normalizeBars = (candles = []) => {
   const barsByTime = new Map();
 
@@ -472,6 +498,24 @@ const Datafeed = {
         volume: candle.volume
       };
 
+      // Guard against occasional corrupt upstream candles that create vertical crash/spike artifacts.
+      const previousClose = currentBar?.close;
+      const elapsedMs = Number.isFinite(lastBarTime) && Number.isFinite(bar.time)
+        ? Math.max(0, bar.time - lastBarTime)
+        : 0;
+      if (
+        Number.isFinite(previousClose) &&
+        isSuspiciousPriceJump({
+          symbol: symbolInfo.name,
+          nextPrice: Number(bar.close),
+          referencePrice: Number(previousClose),
+          elapsedMs
+        })
+      ) {
+        console.warn(`[DATAFEED] ⚠️ Rejected suspicious candle for ${symbolInfo.name}: ${bar.close} vs ${previousClose}`);
+        return;
+      }
+
       //Sanket v2.0 - Reject stale candle updates that would rewind our time state.
       // On higher timeframes (1D/1W/1M) the backend emits the last COMPLETED bar alongside the
       // current forming bar. If we accept the old bar, currentBar/lastBarTime reset backwards,
@@ -527,6 +571,23 @@ const Datafeed = {
       // Calculate candle bucket for this tick
       const tickTime = toMs(time) || now;
       const bucketTime = Math.floor(tickTime / resolutionMs) * resolutionMs;
+
+      const previousClose = currentBar?.close;
+      const elapsedMs = Number.isFinite(lastBarTime)
+        ? Math.max(0, tickTime - lastBarTime)
+        : 0;
+      if (
+        Number.isFinite(previousClose) &&
+        isSuspiciousPriceJump({
+          symbol: symbolInfo.name,
+          nextPrice: price,
+          referencePrice: Number(previousClose),
+          elapsedMs
+        })
+      ) {
+        console.warn(`[DATAFEED] ⚠️ Rejected suspicious tick for ${symbolInfo.name}: ${price} vs ${previousClose}`);
+        return;
+      }
 
       //Sanket v2.0 - Track whether this tick starts a new candle so we can snap displayClose.
       let snapDisplay = false;
