@@ -3,6 +3,7 @@ import { normalizeSymbol } from "../utils/symbolUtils";
 import priceStreamService from "./priceStream";
 import { getPriceEvents } from "./eventSystem";
 import { buildCandleFromTick, validateRealtimeBar } from "../utils/realtimeCandleBuilder";
+import { sanitizeBatch, validateRealtimeUpdate, getSpikeThreshold } from "../utils/chartSanitizer";
 
 /**
  * Custom Datafeed for TradingView Charting Library
@@ -52,34 +53,21 @@ const toNumber = (value) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
-const normalizeBars = (candles = []) => {
-  const barsByTime = new Map();
+const normalizeBars = (candles = [], symbol = '') => {
+  if (!candles || candles.length === 0) return [];
+  
+  // 1. Basic formatting (timestamps and numbers)
+  const rawBars = candles.map(c => ({
+    time: toMs(c?.time),
+    open: toNumber(c?.open),
+    high: toNumber(c?.high),
+    low: toNumber(c?.low),
+    close: toNumber(c?.close),
+    volume: Number.isFinite(Number(c?.volume)) ? Number(c.volume) : 0
+  })).filter(b => Number.isFinite(b.time) && b.time > 0);
 
-  candles.forEach((c) => {
-    const time = toMs(c?.time);
-    const open = toNumber(c?.open);
-    const high = toNumber(c?.high);
-    const low = toNumber(c?.low);
-    const close = toNumber(c?.close);
-    const volume = Number.isFinite(Number(c?.volume)) ? Number(c.volume) : 0;
-
-    if (!Number.isFinite(time) || time <= 0) return;
-    if (![open, high, low, close].every(Number.isFinite)) return;
-
-    const fixedHigh = Math.max(high, open, close, low);
-    const fixedLow = Math.min(low, open, close, high);
-
-    barsByTime.set(time, {
-      time,
-      open,
-      high: fixedHigh,
-      low: fixedLow,
-      close,
-      volume
-    });
-  });
-
-  return [...barsByTime.values()].sort((a, b) => a.time - b.time);
+  // 2. Production Sanitization (Anti-Spike, OHLC correction, Sorting)
+  return sanitizeBatch(rawBars, symbol);
 };
 
 const applyChartPriceModeToBar = (bar, symbol, adminSpreads, side = 'MID') => {
@@ -299,7 +287,7 @@ const Datafeed = {
       let bars = [];
       if (result.success && result.candles && result.candles.length > 0) {
         // Apply Retail Lens Markup to historical bars
-        const rawBars = normalizeBars(result.candles);
+        const rawBars = normalizeBars(result.candles, symbolInfo.name);
         bars = rawBars.map(bar => applyChartPriceModeToBar(bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide));
       }
 
@@ -400,7 +388,7 @@ const Datafeed = {
         const payload = await response.json();
         if (!isActive) return;
 
-        const bars = normalizeBars(payload?.candles || []);
+        const bars = normalizeBars(payload?.candles || [], symbolInfo.name);
         if (bars.length === 0) return;
 
         const latest = bars[bars.length - 1];
@@ -499,16 +487,17 @@ const Datafeed = {
       const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
       if (!isFinite(price) || price <= 0) return;
 
-      // 🏆 REAL-TIME SMOOTHING: Update current bar with live sub-second price.
-      // We rely on handleCandleUpdate from the backend for actual bar creation/transitions.
+      // 🏆 PRODUCTION SANITIZATION: Validate live update
       if (currentBar) {
-        const updatedBar = {
-          ...currentBar,
-          high: Math.max(currentBar.high, price),
-          low: Math.min(currentBar.low, price),
-          close: price
-        };
-        currentBar = updatedBar;
+        const result = validateRealtimeUpdate({
+          currentBar, 
+          nextPrice: price, 
+          symbol: symbolInfo.name
+        });
+        
+        if (!result.accepted) return; // Drop spikes
+        
+        currentBar = result.bar;
         pushBar(currentBar);
       }
     };

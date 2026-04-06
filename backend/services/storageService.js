@@ -545,7 +545,7 @@ class StorageService extends EventEmitter {
     const resolvedSymbol = this.resolveStorageSymbol(symbol);
     const bid = Number(priceData.bid);
     const ask = Number(priceData.ask);
-    const close = Number.isFinite(bid) && Number.isFinite(ask)
+    let close = Number.isFinite(bid) && Number.isFinite(ask)
       ? (bid + ask) / 2
       : Number.isFinite(bid)
         ? bid
@@ -554,6 +554,25 @@ class StorageService extends EventEmitter {
           : null;
 
     if (!Number.isFinite(close) || close <= 0) return;
+
+    // 🏆 PRODUCTION GUARD: Anti-Spike Filter
+    // Reject ticks that jump too far from the last known close (prevents 'fat finger' provider errors)
+    const upper = String(symbol).toUpperCase();
+    let threshold = 3.0; // Default forex
+    if (['XAU','XAG','OIL','NGAS','COPPER','US30','US100','US500','UK100','GER40'].some(s => upper.includes(s))) threshold = 5.0;
+    else if (['BTC','ETH','SOL','BNB','XRP','ADA'].some(s => upper.includes(s))) threshold = 20.0;
+
+    const barKey = `${resolvedSymbol}|1m`; // Use 1m as the baseline reference
+    const lastBar = this.liveBars.get(barKey);
+    if (lastBar && lastBar.close > 0) {
+      const changePct = (Math.abs(close - lastBar.close) / lastBar.close) * 100;
+      if (changePct > threshold) {
+        // Silently drop spike ticks to prevent chart corruption. 
+        // We log it only occasionally to avoid disk-burn.
+        if (Math.random() < 0.01) console.warn(`[StorageService] 🛡️ Spike Rejected: ${symbol} ${lastBar.close} -> ${close} (${changePct.toFixed(2)}%)`);
+        return;
+      }
+    }
 
     // ✅ FIX: Use bid/ask range for HIGH/LOW (like TradingView frontend does)
     // This ensures backend-built candles match frontend real-time candles
