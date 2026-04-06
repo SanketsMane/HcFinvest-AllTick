@@ -3,51 +3,14 @@
  * Utility to synthesize higher timeframe candles from 1-minute raw data.
  */
 
-const MARKET_SESSIONS = {
-  FOREX: { type: 'FOREX', is247: false, openDayUTC: 0, openHourUTC: 22, closeDayUTC: 5, closeHourUTC: 22 },
-  CRYPTO: { type: 'CRYPTO', is247: true }
-};
-
-const getSymbolConfig = (symbol) => {
-  if (!symbol) return MARKET_SESSIONS.CRYPTO;
-  const upper = String(symbol).toUpperCase();
-  if (upper.includes('BTC') || upper.includes('ETH') || upper.includes('BNB') || upper.includes('SOL') || upper.includes('XRP') || upper.includes('ADA') || upper.includes('DOGE') || upper.includes('LTC')) {
-    return MARKET_SESSIONS.CRYPTO;
-  }
-  return MARKET_SESSIONS.FOREX;
-};
-
-export const isMarketOpen = (timestamp, symbol) => {
-  const config = getSymbolConfig(symbol);
-  if (config.is247) return true;
-
-  const date = new Date(timestamp);
-  const day = date.getUTCDay();
-  const decimalHour = date.getUTCHours() + (date.getUTCMinutes() / 60);
-
-  if (config.type === 'FOREX') {
-    if (day === 6) return false;
-    if (day === config.closeDayUTC && decimalHour >= config.closeHourUTC) return false;
-    if (day === config.openDayUTC && decimalHour < config.openHourUTC) return false;
-    return true;
-  }
-  return true;
-};
-
-export const filterClosedMarketCandles = (candles, symbol) => {
-  if (!candles || !Array.isArray(candles)) return [];
-  return candles.filter(c => isMarketOpen(c.time, symbol));
-};
-
 /**
  * Aggregates 1-minute candles into a larger timeframe with gap filling.
  * This is the "Iterative Bucket" approach which guarantees continuity.
  * @param {Array} candles1m - Array of {time, open, high, low, close, volume}
  * @param {number} timeframeMinutes - The target timeframe in minutes
- * @param {string} symbol - Optional symbol for market hours filtering
  * @returns {Array} Continuous aggregated candles
  */
-export const aggregateToTimeframe = (candles1m, timeframeMinutes, symbol = null) => {
+export const aggregateToTimeframe = (candles1m, timeframeMinutes) => {
   if (!candles1m || candles1m.length === 0) return [];
   const intervalMs = timeframeMinutes * 60 * 1000;
   if (timeframeMinutes <= 1) return candles1m;
@@ -87,14 +50,8 @@ export const aggregateToTimeframe = (candles1m, timeframeMinutes, symbol = null)
     if (!found) {
       // 🔥 THE FIX: Gap found in 1m source for this timeframe bucket
       // We fill with the last known price to prevent chart disconnects.
-      // EXCEPTION: Do not fill if market is closed!
-      if (isMarketOpen(t, symbol)) {
-        open = high = low = close = lastClose;
-        volume = 0;
-      } else {
-        // Skip emitting this aggregated candle because the market is closed
-        continue;
-      }
+      open = high = low = close = lastClose;
+      volume = 0;
     }
 
     result.push({
@@ -117,10 +74,9 @@ export const aggregateToTimeframe = (candles1m, timeframeMinutes, symbol = null)
  * Ensures the chart line is continuous even when no trading occurred.
  * @param {Array} candles - Array of {time, open, high, low, close, volume}
  * @param {number} intervalMinutes - Time interval in minutes
- * @param {string} symbol - The symbol to check for market hours
  * @returns {Array} Continuous candles
  */
-export const fillGaps = (candles, intervalMinutes, symbol = null) => {
+export const fillGaps = (candles, intervalMinutes) => {
   if (!candles || candles.length < 2) return candles;
   
   const intervalMs = intervalMinutes * 60 * 1000;
@@ -148,17 +104,15 @@ export const fillGaps = (candles, intervalMinutes, symbol = null) => {
       const nextBucket = Math.floor(nextTime / intervalMs) * intervalMs;
       let fillTime = Math.floor(currentTime / intervalMs) * intervalMs + intervalMs;
       while (fillTime < nextBucket) {
-        if (isMarketOpen(fillTime, symbol)) {
-          filled.push({
-            time: fillTime,
-            open: current.close,
-            high: current.close,
-            low: current.close,
-            close: current.close,
-            volume: 0,
-            isFilled: true
-          });
-        }
+        filled.push({
+          time: fillTime,
+          open: current.close,
+          high: current.close,
+          low: current.close,
+          close: current.close,
+          volume: 0,
+          isFilled: true
+        });
         fillTime += intervalMs;
       }
     }
@@ -208,7 +162,7 @@ export const validateContinuity = (candles, intervalMinutes) => {
  * @param {number} timeframeMinutes - Timeframe in minutes
  * @returns {Array} Updated candle list
  */
-export const updateCandleListWithTick = (candles, tick, timeframeMinutes, symbol = null) => {
+export const updateCandleListWithTick = (candles, tick, timeframeMinutes) => {
   if (!candles) return [];
   if (!tick || !tick.price) return candles;
 
@@ -216,11 +170,6 @@ export const updateCandleListWithTick = (candles, tick, timeframeMinutes, symbol
   const tickTime = typeof tick.time === 'number' ? tick.time : new Date(tick.time).getTime();
   const tickPrice = parseFloat(tick.price);
   const bucketTime = Math.floor(tickTime / intervalMs) * intervalMs;
-
-  // Drop ticks that arrive on weekends/closed market hours
-  if (!isMarketOpen(tickTime, symbol)) {
-    return candles;
-  }
 
   const updated = [...candles];
   if (updated.length === 0) {

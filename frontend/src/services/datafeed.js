@@ -205,17 +205,22 @@ const Datafeed = {
       }
 
       //Sanket v2.0 - Differentiate sessions to prevent timeline gaps
-      const isCrypto = s.includes("BTC") || s.includes("ETH") || s.includes("BNB") || s.includes("SOL") || s.includes("LTC") || s.includes("XRP") || s.includes("ADA") || s.includes("DOGE");
-      
-      // Standard 24/7 session string with day indicators for maximum library compatibility.
-      // 1234567 represents Sunday to Saturday.
-      const session = "0000-2400:1234567"; 
+      const symbolDef = ALL_SYMBOLS.find(sym => sym.symbol === normalizedName);
+      const forcedType = symbolDef ? symbolDef.type : (s.includes("BTC") || s.includes("ETH") || s.includes("BNB") || s.includes("SOL") || s.includes("XRP") ? "crypto" : "forex");
+
+      // CLEAN ARCHITECTURE: Tell TradingView exactly when the market is open.
+      // Forex is exactly 5 continuous 24-hour sessions: Sun 22:00 -> Fri 22:00.
+      // In TradingView, 2200-2200 spanning 1(Sun)-5(Thu) means the 5th session ends Fri 22:00.
+      let session = "24x7";
+      if (forcedType === "forex" || forcedType === "commodity" || forcedType === "index") {
+        session = "2200-2200:12345";
+      }
 
       const symbolInfo = {
         name: normalizedName,
         ticker: normalizedName,
-        description: normalizedName,
-        type: isCrypto ? "crypto" : "forex",
+        description: symbolDef ? symbolDef.description : normalizedName,
+        type: forcedType,
         session: session,
         timezone: "Etc/UTC",
         exchange: "AllTick",
