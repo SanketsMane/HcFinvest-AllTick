@@ -326,7 +326,8 @@ const Advance_Trading_View_Chart = ({
   useEffect(() => {
     if (!managerRef.current || !isChartReady) return;
     managerRef.current.setAdminSpreads(adminSpreads);
-    Datafeed.setChartPriceSide(selectedSide);
+    //Sanket v2.0 - Chart always uses MID price; order-panel BUY/SELL toggle must not shift candle prices
+    Datafeed.setChartPriceSide('MID');
     if (!initialSyncDoneRef.current) return; // Wait for 600ms initial sync to complete first
     managerRef.current.syncTrades(trades, symbol);
   }, [adminSpreads, trades, symbol, isChartReady, selectedSide]);
