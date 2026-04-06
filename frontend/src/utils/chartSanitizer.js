@@ -125,11 +125,17 @@ export const validateRealtimeUpdate = ({ currentBar, nextPrice, symbol, threshol
     return { accepted: false, reason: 'spike_detected' };
   }
 
+  //Sanket v2.0 - Cap the H/L wick at spike threshold even after accepting the tick price.
+  // Without this, currentBar.high could drift unbounded if a previously corrupt tick set it high
+  // before spike detection was added. Re-clamp every accepted update to stay within bounds.
+  const maxAllowed = currentBar.close * (1 + limit / 100);
+  const minAllowed = currentBar.close * (1 - limit / 100);
+
   // 2. OHLC Progression: Returns the updated bar with correct High/Low tracking
   const updatedBar = {
     ...currentBar,
-    high: Math.max(currentBar.high, nextPrice),
-    low: Math.min(currentBar.low, nextPrice),
+    high: Math.min(Math.max(currentBar.high, nextPrice), maxAllowed),
+    low: Math.max(Math.min(currentBar.low, nextPrice), minAllowed),
     close: nextPrice
   };
 

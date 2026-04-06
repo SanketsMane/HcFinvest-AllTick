@@ -104,16 +104,34 @@ export const validateRealtimeBar = ({ symbol, bar, previousBar }) => {
 
   const previousClose = Number(previousBar?.close);
   const previousTime = Number(previousBar?.time) || 0;
-  if (
-    Number.isFinite(previousClose) &&
-    isAbnormalJump({
-      symbol,
-      nextPrice: nextBar.close,
-      referencePrice: previousClose,
-      elapsedMs: Math.max(0, nextBar.time - previousTime)
-    })
-  ) {
-    return { accepted: false, reason: 'abnormal_bar' };
+
+  if (Number.isFinite(previousClose) && previousClose > 0) {
+    // Reject bar if close itself is a spike (e.g. price feed glitch on close)
+    if (
+      isAbnormalJump({
+        symbol,
+        nextPrice: nextBar.close,
+        referencePrice: previousClose,
+        elapsedMs: Math.max(0, nextBar.time - previousTime)
+      })
+    ) {
+      return { accepted: false, reason: 'abnormal_bar' };
+    }
+
+    //Sanket v2.0 - Previously only close was checked vs previousClose.
+    // A candle with low=0 or extreme high would pass through and render as a massive spike wick.
+    // (Observed as EURUSD wick to near-zero at 14:15 and XAUUSD wick to 4700 at 14:00)
+    // Fix: clamp H/L wicks that exceed the spike threshold, rather than rejecting the whole bar.
+    const maxJumpPct = getRealtimeSpikeThresholdPercent(symbol);
+    const maxAllowed = previousClose * (1 + maxJumpPct / 100);
+    const minAllowed = previousClose * (1 - maxJumpPct / 100);
+
+    if (nextBar.high > maxAllowed) {
+      nextBar.high = Math.max(maxAllowed, nextBar.open, nextBar.close);
+    }
+    if (nextBar.low < minAllowed) {
+      nextBar.low = Math.min(minAllowed, nextBar.open, nextBar.close);
+    }
   }
 
   return { accepted: true, bar: nextBar };
