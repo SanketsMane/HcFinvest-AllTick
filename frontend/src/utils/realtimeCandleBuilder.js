@@ -134,6 +134,7 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
     return { accepted: false, reason: 'out_of_order_bucket', bucketTime };
   }
 
+  // 1. Initial Seeding
   if (!currentBar) {
     const seed = {
       time: bucketTime,
@@ -143,9 +144,10 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
       close: tickPrice,
       volume: 1
     };
-    return { accepted: true, bar: seed, isNewBar: true, bucketTime };
+    return { accepted: true, bars: [seed], isNewBar: true, bucketTime };
   }
 
+  // 2. Anomaly Detection
   const previousClose = Number(currentBar.close);
   if (
     Number.isFinite(previousClose) &&
@@ -159,28 +161,50 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
     return { accepted: false, reason: 'abnormal_tick_jump', bucketTime };
   }
 
-  if (bucketTime > currentBar.time) {
-    // 🔥 THE FIX: The open price of a new candle must ALWAYS be the first tick of that bucket!
-    // Forcing open = previousClose creates massive phantom wicks across time gaps if the market jumped.
-    const open = tickPrice;
+  // 3. Same Bucket Update
+  if (bucketTime === currentBar.time) {
     const nextBar = {
-      time: bucketTime,
-      open: open,
-      high: open,
-      low: open,
-      close: open,
-      volume: 1
+      ...currentBar,
+      high: Math.max(Number(currentBar.high), tickPrice),
+      low: Math.min(Number(currentBar.low), tickPrice),
+      close: tickPrice,
+      volume: (Number(currentBar.volume) || 0) + 1
     };
-    return { accepted: true, bar: nextBar, isNewBar: true, bucketTime };
+    return { accepted: true, bars: [nextBar], isNewBar: false, bucketTime };
   }
 
-  const nextBar = {
-    ...currentBar,
-    high: Math.max(Number(currentBar.high), tickPrice),
-    low: Math.min(Number(currentBar.low), tickPrice),
-    close: tickPrice,
-    volume: (Number(currentBar.volume) || 0) + 1
-  };
+  // 4. New Bucket (with potential Gap Filling)
+  const bars = [];
+  const gapMs = bucketTime - currentBar.time;
+  
+  // Fill gaps if missing for < 2 hours (Professional Interpolation)
+  if (gapMs > resolutionMs && gapMs < 2 * 60 * 60 * 1000) {
+    let fillTime = currentBar.time + resolutionMs;
+    while (fillTime < bucketTime) {
+      bars.push({
+        time: fillTime,
+        open: currentBar.close,
+        high: currentBar.close,
+        low: currentBar.close,
+        close: currentBar.close,
+        volume: 0,
+        isInterpolated: true
+      });
+      fillTime += resolutionMs;
+    }
+  }
 
-  return { accepted: true, bar: nextBar, isNewBar: false, bucketTime };
+  // Finalize the actual new tick bucket
+  const open = tickPrice; 
+  const nextBar = {
+    time: bucketTime,
+    open: open,
+    high: Math.max(open, tickPrice),
+    low: Math.min(open, tickPrice),
+    close: tickPrice,
+    volume: 1
+  };
+  bars.push(nextBar);
+
+  return { accepted: true, bars, isNewBar: true, bucketTime };
 };

@@ -528,10 +528,15 @@ const Datafeed = {
         resolutionMs,
         symbol: symbolInfo.name
       });
+      
       if (!candleUpdate.accepted) return;
 
-      // Pure instantaneous push
-      pushBar({ ...currentBar });
+      // 🚀 THE FIX: Update the local currentBar state and push all results (supports multi-bar interpolation)
+      candleUpdate.bars.forEach(bar => {
+        currentBar = { ...bar };
+        lastBarTime = bar.time;
+        pushBar(currentBar);
+      });
     };
 
     //Sanket v2.0 - Store both listeners so unsubscribeBars can clean up everything

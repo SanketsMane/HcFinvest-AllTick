@@ -182,21 +182,45 @@ export const updateCandleListWithTick = (candles, tick, timeframeMinutes) => {
       high: tickPrice,
       low: tickPrice,
       close: tickPrice,
-      volume: 0
+      volume: 1
     });
     return updated;
   }
 
-  const lastCandle = updated[updated.length - 1];
+  const lastIndex = updated.length - 1;
+  const lastCandle = updated[lastIndex];
 
   if (lastCandle.time === bucketTime) {
-    // ✍️ Update existing "Live" candle
-    lastCandle.close = tickPrice;
-    if (tickPrice > lastCandle.high) lastCandle.high = tickPrice;
-    if (tickPrice < lastCandle.low) lastCandle.low = tickPrice;
-    // Note: Volume increment depends on tick data, here we assume it's just a price update
+    // ✍️ Update existing "Live" candle (IMMUTABLE UPDATE)
+    updated[lastIndex] = {
+      ...lastCandle,
+      close: tickPrice,
+      high: Math.max(lastCandle.high, tickPrice),
+      low: Math.min(lastCandle.low, tickPrice),
+      volume: (Number(lastCandle.volume) || 0) + 1
+    };
   } else if (bucketTime > lastCandle.time) {
-    //Sanket v2.0 - Snap new candle open to previous candle's close for visual continuity (no gap-up micro-jumps)
+    // 🚀 NEW: Interpolation / Gap Filling logic
+    // Fill the gap with flat candles if the gap represents less than 2 hours of missing data.
+    // This maintains continuity for the chart library.
+    const gapMs = bucketTime - lastCandle.time;
+    if (gapMs > intervalMs && gapMs < 2 * 60 * 60 * 1000) {
+      let fillTime = lastCandle.time + intervalMs;
+      while (fillTime < bucketTime) {
+        updated.push({
+          time: fillTime,
+          open: lastCandle.close,
+          high: lastCandle.close,
+          low: lastCandle.close,
+          close: lastCandle.close,
+          volume: 0,
+          isInterpolated: true
+        });
+        fillTime += intervalMs;
+      }
+    }
+
+    // Push the new real tick bucket
     const openPrice = lastCandle.close;
     updated.push({
       time: bucketTime,
@@ -204,12 +228,12 @@ export const updateCandleListWithTick = (candles, tick, timeframeMinutes) => {
       high: Math.max(openPrice, tickPrice),
       low: Math.min(openPrice, tickPrice),
       close: tickPrice,
-      volume: 0
+      volume: 1
     });
     
-    // Maintain a reasonable buffer (e.g. 1500 candles) to avoid memory leaks
+    // Performance: Maintain a reasonable buffer to avoid unbounded growth
     if (updated.length > 2000) {
-      updated.shift();
+      return updated.slice(-2000);
     }
   }
 

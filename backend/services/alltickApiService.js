@@ -134,7 +134,7 @@ class AllTickApiService {
 
     // Allow wider price movement after long market pauses/session transitions.
     const elapsedMs = Math.max(0, ts - lastTs);
-    if (elapsedMs > (45 * 60 * 1000)) {
+    if (elapsedMs > (10 * 60 * 1000)) { // Reduced from 45m to 10m for better reactivity
       this.markAcceptedPrice(symbol, midPrice, ts);
       return true;
     }
@@ -317,9 +317,18 @@ class AllTickApiService {
         if (!this.shouldAcceptTickPrice(appSymbol, lastPrice, tickMs)) {
           return;
         }
+
+        // 🚀 THE FIX: Instead of hardcoded lastPrice * 1.0001, try to find the last known spread for this symbol.
+        // This ensures the Bid/Ask seen by the user aligns with the chart Mid price.
+        const cached = this.prices[appSymbol];
+        const lastSpread = cached && Number.isFinite(cached.spread) ? cached.spread : (lastPrice * 0.0001);
         
-        // Normalize price (rounds for display, keeps raw for math)
-        const normalized = priceNormalizer.normalizePrice(appSymbol, lastPrice, lastPrice * 1.0001, tickTime);
+        // Reconstruct Bid/Ask based on lastPrice (Last price is often closer to Bid than Mid)
+        // If we want a Mid that is lastPrice, we center it.
+        const bid = lastPrice - (lastSpread / 2);
+        const ask = lastPrice + (lastSpread / 2);
+        
+        const normalized = priceNormalizer.normalizePrice(appSymbol, bid, ask, tickTime);
         
         const priceData = {
           ...normalized,

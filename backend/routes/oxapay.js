@@ -853,4 +853,95 @@ router.post('/admin/sync-status/:id', adminMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/oxapay/admin/transactions - Get all transactions (admin only)
+router.get('/admin/transactions', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireAdminPermission(req.admin, 'canManageDeposits')) {
+      return res.status(403).json({ success: false, message: 'Insufficient permission to view transactions' })
+    }
+
+    const { page, limit, type, status, startDate, endDate } = req.query
+    const result = await oxapayService.getAllTransactions({
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 50,
+      type,
+      status,
+      startDate,
+      endDate
+    })
+
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('[Oxapay] Admin transactions error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// GET /api/oxapay/admin/payouts - Get all payouts (admin only)
+router.get('/admin/payouts', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireAdminPermission(req.admin, 'canManageWithdrawals')) {
+      return res.status(403).json({ success: false, message: 'Insufficient permission to view payouts' })
+    }
+
+    const { page, limit, status, startDate, endDate } = req.query
+    const result = await oxapayService.getAllTransactions({
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 50,
+      type: 'withdrawal',
+      status,
+      startDate,
+      endDate
+    })
+
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('[Oxapay] Admin payouts error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// POST /api/oxapay/admin/manual-credit/:id - Manually mark a transaction as successful (admin only)
+router.post('/admin/manual-credit/:id', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireAdminPermission(req.admin, 'canApproveDeposits')) {
+      return res.status(403).json({ success: false, message: 'Insufficient permission to perform manual credit' })
+    }
+
+    const { adminNotes } = req.body
+    const transaction = await CryptoTransaction.findById(req.params.id)
+    
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' })
+    }
+
+    if (transaction.status === 'success' && transaction.walletCredited) {
+      return res.status(400).json({ success: false, message: 'Transaction already credited' })
+    }
+
+    if (transaction.type !== 'deposit') {
+      return res.status(400).json({ success: false, message: 'Manual credit only available for deposit transactions' })
+    }
+
+    // Force update status and admin notes before calling success handler
+    transaction.status = 'success'
+    transaction.adminNotes = adminNotes || 'Manually credited by admin (forced success)'
+    await transaction.save()
+
+    // Use service to credit user wallet atomically
+    const result = await oxapayService.handlePaymentSuccess(transaction)
+    
+    console.log(`[Oxapay] Manual credit performed for transaction ${transaction._id} by admin`)
+
+    res.json({ 
+      success: true, 
+      message: 'Transaction credited successfully',
+      newBalance: result.newBalance
+    })
+  } catch (error) {
+    console.error('[Oxapay] Manual credit error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
 export default router
