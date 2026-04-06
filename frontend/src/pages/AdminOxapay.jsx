@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import { 
   Settings, Save, RefreshCw, Check, X, AlertTriangle, 
-  DollarSign, Shield, Bitcoin, Wallet,
+  DollarSign, Shield, Bitcoin, Wallet, User,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle, XCircle 
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
@@ -306,15 +306,10 @@ const AdminOxapay = () => {
     setMessage({ type: '', text: '' })
     
     try {
-      // Only save config settings, not API keys (API keys are managed in server .env)
-      const payload = {
-        ...config
-      }
-
       const res = await fetch(`${API_URL}/oxapay/admin/config`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(config)
       })
       
       const data = await res.json()
@@ -352,720 +347,584 @@ const AdminOxapay = () => {
     }
   }
 
+  const handleSyncStatus = async (transactionId) => {
+    try {
+      const res = await fetch(`${API_URL}/oxapay/admin/sync-status/${transactionId}`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMessage({ type: 'success', text: `Status synced: ${data.status}` })
+        fetchTransactions()
+        fetchStats()
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Sync failed' })
+      }
+    } catch (error) {
+      console.error('Sync error:', error)
+      setMessage({ type: 'error', text: 'Connection error during sync' })
+    }
+  }
+
   const getStatusBadge = (status) => {
     const styles = {
-      pending: 'bg-yellow-500/20 text-yellow-500',
-      processing: 'bg-blue-500/20 text-blue-500',
-      success: 'bg-green-500/20 text-green-500',
-      failed: 'bg-red-500/20 text-red-500',
-      expired: 'bg-gray-500/20 text-gray-500',
-      cancelled: 'bg-gray-500/20 text-gray-500'
+      pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      processing: 'bg-blue-50 text-blue-700 border-blue-200',
+      success: 'bg-green-50 text-green-700 border-green-200',
+      failed: 'bg-red-50 text-red-700 border-red-200',
+      expired: 'bg-slate-50 text-slate-500 border-slate-200',
+      cancelled: 'bg-slate-50 text-slate-500 border-slate-200'
     }
-    return styles[status] || 'bg-gray-500/20 text-gray-500'
+    return styles[status] || 'bg-slate-50 text-slate-500 border-slate-200'
   }
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'success': return <CheckCircle size={14} />
-      case 'failed': return <XCircle size={14} />
-      case 'pending': return <Clock size={14} />
-      case 'processing': return <RefreshCw size={14} className="animate-spin" />
-      default: return <Clock size={14} />
+      case 'success': return <CheckCircle size={12} />
+      case 'failed': return <XCircle size={12} />
+      case 'pending': return <Clock size={12} />
+      case 'processing': return <RefreshCw size={12} className="animate-spin" />
+      default: return <Clock size={12} />
     }
   }
 
   return (
-    <AdminLayout title="Oxapay Gateway" subtitle="Crypto payment gateway configuration and management">
-      <div className="p-4 sm:p-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-orange-500/20">
-              <Bitcoin size={24} className="text-orange-500" />
+    <AdminLayout title="Oxapay Settings" subtitle="Crypto Gateway Management">
+      <div className="p-6 max-w-7xl mx-auto space-y-8 min-h-screen">
+        
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center">
+              <Bitcoin className="text-orange-500" size={24} />
             </div>
             <div>
-              <h1 style={{ color: modeColors.text }} className="text-xl font-bold">Oxapay Payment Gateway</h1>
-              <p style={{ color: modeColors.textSecondary }} className="text-sm">Manage crypto deposits and automated payouts</p>
+              <h1 className="text-2xl font-bold text-slate-900 font-black tracking-tight">Oxapay Gateway</h1>
+              <p className="text-slate-500 text-sm">Configure crypto deposits and manual/automated payouts</p>
             </div>
           </div>
-          <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${config.isActive ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
-            {config.isActive ? 'Active' : 'Inactive'}
+          <div className="flex items-center gap-3">
+             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-bold text-[10px] uppercase tracking-wider ${config.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${config.isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`} />
+              {config.isActive ? 'Active' : 'Offline'}
+            </div>
           </div>
         </div>
 
-        {/* Message */}
+        {/* Global Feedback Message */}
         {message.text && (
-          <div style={{ backgroundColor: message.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)', borderColor: message.type === 'error' ? '#EF4444' : '#22C55E' }} className={`mb-6 p-4 rounded-xl border flex items-center justify-between ${message.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
-            <div className="flex items-center gap-3">
-              {message.type === 'error' ? <XCircle size={20} /> : <CheckCircle size={20} />}
-              <p className="font-semibold text-sm sm:text-base">{message.text}</p>
-            </div>
-            <button onClick={() => setMessage({ type: '', text: '' })} className="p-1 hover:bg-black/5 rounded-lg transition-colors">
-              <X size={18} />
+          <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 ${message.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+            {message.type === 'error' ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
+            <span className="font-bold text-sm">{message.text}</span>
+            <button onClick={() => setMessage({ type: '', text: '' })} className="ml-auto p-1 hover:bg-black/5 rounded-lg">
+              <X size={16} />
             </button>
           </div>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl p-5 border shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
-                <ArrowUpRight size={20} className="text-green-600" />
-              </div>
-              <span style={{ color: modeColors.textSecondary }} className="text-xs font-bold uppercase tracking-wider">Total Volume</span>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-slate-50 rounded-lg text-slate-500"><DollarSign size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Lifetime Vol.</span>
             </div>
-            <p style={{ color: modeColors.text }} className="text-2xl font-bold">${stats.totalDeposits?.totalAmount?.toFixed(2) || '0.00'}</p>
-            <p className="text-gray-400 text-xs mt-1">{stats.totalDeposits?.count || 0} Successful deposits</p>
+            <p className="text-2xl font-black text-slate-900">${stats.totalDeposits?.totalAmount?.toLocaleString() || '0.00'}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">{stats.totalDeposits?.count || 0} Successful deposits</p>
           </div>
-          
-          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl p-5 border shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
-                <DollarSign size={20} className="text-blue-600" />
-              </div>
-              <span style={{ color: modeColors.textSecondary }} className="text-xs font-bold uppercase tracking-wider">Today</span>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-orange-50 rounded-lg text-orange-600"><Clock size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Today</span>
             </div>
-            <p style={{ color: modeColors.text }} className="text-2xl font-bold">${stats.todayDeposits?.totalAmount?.toFixed(2) || '0.00'}</p>
-            <p className="text-gray-400 text-xs mt-1">{stats.todayDeposits?.count || 0} New deposits today</p>
+            <p className="text-2xl font-black text-slate-900">${stats.todayDeposits?.totalAmount?.toLocaleString() || '0.00'}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">{stats.todayDeposits?.count || 0} New deposits</p>
           </div>
-          
-          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl p-5 border shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-yellow-500/10 rounded-xl flex items-center justify-center">
-                <Clock size={20} className="text-yellow-600" />
-              </div>
-              <span style={{ color: modeColors.textSecondary }} className="text-xs font-bold uppercase tracking-wider">Awaiting</span>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><AlertTriangle size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Pending Sync</span>
             </div>
-            <p style={{ color: modeColors.text }} className="text-2xl font-bold">
-              {stats.byStatus?.find(s => s._id === 'pending')?.count || 0}
-            </p>
-            <p className="text-gray-400 text-xs mt-1">Pending verification</p>
+            <p className="text-2xl font-black text-slate-900">{stats.byStatus?.find(s => s._id === 'pending')?.count || 0}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">Awaiting verification</p>
           </div>
-          
-          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl p-5 border shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center">
-                <XCircle size={20} className="text-red-600" />
-              </div>
-              <span style={{ color: modeColors.textSecondary }} className="text-xs font-bold uppercase tracking-wider">Unpaid</span>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><CheckCircle size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Withdrawal Queue</span>
             </div>
-            <p style={{ color: modeColors.text }} className="text-2xl font-bold">
-              {stats.byStatus?.find(s => s._id === 'failed' || s._id === 'expired')?.count || 0}
-            </p>
-            <p className="text-gray-400 text-xs mt-1">Failed / Expired invoices</p>
+            <p className="text-2xl font-black text-slate-900">{pendingWithdrawals}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">Requests pending approval</p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-8">
+        {/* Navigation Tabs */}
+        <div className="bg-slate-100 p-1.5 rounded-2xl flex gap-1 w-fit shadow-inner">
           {[
             { id: 'config', label: 'Configuration', icon: Settings },
-            { id: 'withdrawals', label: 'Withdrawals', icon: Wallet, count: pendingWithdrawals },
-            { id: 'transactions', label: 'Deposits', icon: ArrowUpRight },
-            { id: 'payouts', label: 'Payouts', icon: DollarSign }
+            { id: 'transactions', label: 'History', icon: Bitcoin },
+            { id: 'withdrawals', label: 'Withdrawals', icon: ArrowUpRight },
+            { id: 'payouts', label: 'Direct Payouts', icon: Wallet }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              style={{ 
-                backgroundColor: activeTab === tab.id ? '#F97316' : modeColors.card,
-                color: activeTab === tab.id ? '#FFFFFF' : modeColors.textSecondary,
-                borderColor: activeTab === tab.id ? '#F97316' : modeColors.border
-              }}
-              className="px-5 py-2.5 rounded-xl font-bold transition-all text-sm sm:text-base flex items-center gap-2 border shadow-sm active:scale-[0.98] relative"
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-md shadow-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <tab.icon size={18} />
+              <tab.icon size={16} />
               {tab.label}
-              {tab.count > 0 && (
-                <span className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-sm font-bold animate-pulse">
-                  {tab.count}
-                </span>
+              {tab.id === 'withdrawals' && pendingWithdrawals > 0 && (
+                <span className="ml-1 w-5 h-5 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center animate-bounce">{pendingWithdrawals}</span>
               )}
             </button>
           ))}
         </div>
 
-        {/* Configuration Tab */}
+        {/* Tab Content */}
         {activeTab === 'config' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* General Settings */}
-            <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl p-8 border shadow-sm">
-              <h3 style={{ color: modeColors.text }} className="font-bold text-xl mb-6 flex items-center gap-3">
-                <Settings size={22} className="text-orange-500" />
-                Gateway Rules
-              </h3>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300 pb-20">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
-              <div className="space-y-6">
-                <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                  <div>
-                    <p style={{ color: modeColors.text }} className="font-bold">Master Toggle</p>
-                    <p style={{ color: modeColors.textSecondary }} className="text-xs">Turn the entire gateway on or off</p>
-                  </div>
-                  <button
-                    onClick={() => setConfig({ ...config, isActive: !config.isActive })}
-                    className={`w-14 h-7 rounded-full transition-all relative ${config.isActive ? 'bg-green-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${config.isActive ? 'left-8' : 'left-1'}`} />
-                  </button>
-                </div>
+              {/* General Settings */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-8">
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Shield size={20} className="text-slate-400" />
+                  Gateway Intelligence
+                </h3>
 
-                <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                  <div>
-                    <p style={{ color: modeColors.text }} className="font-bold">Deposit Access</p>
-                    <p style={{ color: modeColors.textSecondary }} className="text-xs">Enable/disable the deposit feature</p>
+                <div className="space-y-6">
+                  {/* Master Toggle */}
+                  <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">Master Switch</p>
+                      <p className="text-[10px] text-slate-500 leading-tight">Turn entire gateway on or off for all users</p>
+                    </div>
+                    <button
+                      onClick={() => setConfig({ ...config, isActive: !config.isActive })}
+                      className={`w-14 h-7 rounded-full transition-all relative ${config.isActive ? 'bg-green-500' : 'bg-slate-300'}`}
+                    >
+                      <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${config.isActive ? 'left-8' : 'left-1'}`} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setConfig({ ...config, depositEnabled: !config.depositEnabled })}
-                    className={`w-14 h-7 rounded-full transition-all relative ${config.depositEnabled ? 'bg-green-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${config.depositEnabled ? 'left-8' : 'left-1'}`} />
-                  </button>
-                </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Minimum Deposit ($)</label>
-                    <input
-                      type="number"
-                      value={config.minDeposit}
-                      onChange={(e) => setConfig({ ...config, minDeposit: parseFloat(e.target.value) || 0 })}
-                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                      className="w-full px-4 py-3 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    />
+                  {/* Deposit Access */}
+                  <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">Deposit Access</p>
+                      <p className="text-[10px] text-slate-500 leading-tight">Allow or disallow new payment invoices</p>
+                    </div>
+                    <button
+                      onClick={() => setConfig({ ...config, depositEnabled: !config.depositEnabled })}
+                      className={`w-14 h-7 rounded-full transition-all relative ${config.depositEnabled ? 'bg-blue-500' : 'bg-slate-300'}`}
+                    >
+                      <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${config.depositEnabled ? 'left-8' : 'left-1'}`} />
+                    </button>
                   </div>
-                  <div>
-                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Maximum Deposit ($)</label>
-                    <input
-                      type="number"
-                      value={config.maxDeposit}
-                      onChange={(e) => setConfig({ ...config, maxDeposit: parseFloat(e.target.value) || 0 })}
-                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                      className="w-full px-4 py-3 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Fee Percentage (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={config.depositFeePercent}
-                      onChange={(e) => setConfig({ ...config, depositFeePercent: parseFloat(e.target.value) || 0 })}
-                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                      className="w-full px-4 py-3 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Fixed Service Fee ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={config.depositFeeFixed}
-                      onChange={(e) => setConfig({ ...config, depositFeeFixed: parseFloat(e.target.value) || 0 })}
-                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                      className="w-full px-4 py-3 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Min Deposit ($)</label>
+                      <input
+                        type="number"
+                        value={config.minDeposit}
+                        onChange={(e) => setConfig({ ...config, minDeposit: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Max Deposit ($)</label>
+                      <input
+                        type="number"
+                        value={config.maxDeposit}
+                        onChange={(e) => setConfig({ ...config, maxDeposit: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* API Status Info */}
-            <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl p-8 border shadow-sm">
-              <h3 style={{ color: modeColors.text }} className="font-bold text-xl mb-6 flex items-center gap-3">
-                <Shield size={22} className="text-blue-500" />
-                Backend API Connection
-              </h3>
-              
-              <div className="space-y-6">
-                <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)', borderColor: 'rgba(34, 197, 94, 0.2)' }} className="p-5 border rounded-xl flex items-start gap-4">
-                  <div className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm border-2 border-white">
-                    <Check size={20} />
-                  </div>
-                  <div>
-                    <p className="text-green-700 font-bold mb-1">Environment Verified</p>
-                    <p className="text-green-600 text-sm leading-relaxed">
-                      Oxapay API keys are securely integrated within the server-side environment. Gateway logic is initialized and ready for production.
-                    </p>
+              {/* Fee & API Status */}
+              <div className="space-y-8">
+                <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+                  <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <DollarSign size={20} className="text-slate-400" />
+                    Fee Infrastructure
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Percentage (%)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={config.depositFeePercent}
+                        onChange={(e) => setConfig({ ...config, depositFeePercent: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Fixed Fee ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={config.depositFeeFixed}
+                        onChange={(e) => setConfig({ ...config, depositFeeFixed: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ backgroundColor: 'rgba(249, 115, 22, 0.05)', borderColor: 'rgba(249, 115, 22, 0.2)' }} className="p-5 border rounded-xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <AlertTriangle size={20} className="text-orange-500" />
-                    <p className="text-orange-700 font-bold">Inbound Webhook Verification</p>
-                  </div>
-                  <p className="text-orange-600 text-sm mb-4 leading-relaxed">
-                    Automated payment confirmations require the following Webhook URL to be set in your Oxapay Merchant Dashboard:
-                  </p>
-                  <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-4 rounded-xl border border-orange-200/30 flex items-center justify-between group">
-                    <code className="text-xs font-mono text-orange-700 break-all select-all">
+                <div className="bg-slate-900 rounded-3xl p-8 text-white space-y-6">
+                   <h3 className="text-lg font-black flex items-center gap-2 text-slate-100">
+                    <Shield size={20} className="text-slate-500" />
+                    Backend System
+                  </h3>
+                  <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-slate-400 text-[10px] font-bold uppercase">Webhooks</span>
+                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded-lg border border-blue-500/10 tracking-widest">STABLE</span>
+                    </div>
+                    <code className="text-[10px] text-white/50 block break-all font-mono leading-relaxed select-all">
                       https://api.hcfinvest.com/api/oxapay/webhook
                     </code>
-                    <RefreshCw size={14} className="text-orange-400 group-hover:rotate-180 transition-transform cursor-pointer" />
                   </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                    Credentials (Merchant Key, Payout Key) are safely managed via server-side environment variables and are not exposed in browser sessions.
+                  </p>
                 </div>
               </div>
             </div>
 
-          </div>
-        )}
-
-        {/* Withdrawal Requests Tab */}
-        {activeTab === 'withdrawals' && (
-          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl border overflow-hidden shadow-sm">
-            <div style={{ borderBottomColor: modeColors.border }} className="p-6 border-b flex items-center justify-between">
-              <div>
-                <h3 style={{ color: modeColors.text }} className="font-bold text-lg">Pending Withdrawals</h3>
-                <p style={{ color: modeColors.textSecondary }} className="text-sm">{pendingWithdrawals} verification tasks outstanding</p>
-              </div>
+            {/* Save Button Bar */}
+            <div className="flex justify-end pt-4">
               <button
-                onClick={fetchWithdrawalRequests}
-                style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textSecondary }}
-                className="p-2 rounded-xl hover:text-orange-500 transition-colors shadow-sm"
+                onClick={handleSaveConfig}
+                disabled={saving}
+                className="px-8 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-900/20 hover:scale-[1.02] active:scale-95 transition-all text-sm flex items-center gap-3 disabled:opacity-50"
               >
-                <RefreshCw size={20} />
+                {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
+                {saving ? 'Saving...' : 'Save Configuration'}
               </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead style={{ backgroundColor: modeColors.bgSecondary }}>
-                  <tr>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Date & Time</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Subscriber</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Payout Amount</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Network</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Destination Address</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Process</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {withdrawalLoading ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-20">
-                        <RefreshCw size={40} className="text-orange-500 animate-spin mx-auto opacity-20" />
-                        <p className="text-gray-400 mt-4 font-medium animate-pulse">Syncing requests...</p>
-                      </td>
-                    </tr>
-                  ) : withdrawalRequests.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-20">
-                        <CheckCircle size={48} className="text-green-500/20 mx-auto mb-4" />
-                        <p style={{ color: modeColors.textSecondary }} className="font-bold">Queue is clear! No pending requests.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    withdrawalRequests.map(req => (
-                      <tr key={req._id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.textSecondary }} className="text-xs font-mono">
-                            {new Date(req.createdAt).toLocaleString()}
-                          </p>
-                        </td>
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.text }} className="font-bold group-hover:text-orange-500 transition-colors">{req.userId?.firstName || 'Unknown'}</p>
-                          <p style={{ color: modeColors.textSecondary }} className="text-xs">{req.userId?.email || ''}</p>
-                        </td>
-                        <td className="py-5 px-6 text-white font-medium">
-                          <span className="px-3 py-1 bg-green-500 text-white font-bold rounded-lg shadow-sm">
-                            ${req.amount?.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="py-5 px-6">
-                          <span style={{ backgroundColor: modeColors.bgSecondary }} className="px-3 py-1 rounded-lg text-xs font-bold text-slate-600 border border-slate-200">
-                            {req.cryptoCurrency || 'USDT'}
-                          </span>
-                        </td>
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.textSecondary }} className="text-xs font-mono truncate max-w-[180px] bg-slate-100 p-2 rounded-lg" title={req.paymentAddress}>
-                            {req.paymentAddress}
-                          </p>
-                        </td>
-                        <td className="py-5 px-6">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleApproveWithdrawal(req._id)}
-                              className="px-4 py-2 bg-green-500 text-white font-bold rounded-xl text-xs hover:bg-green-600 shadow-lg shadow-green-500/20 active:scale-95 transition-all"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectWithdrawal(req._id)}
-                              className="px-4 py-2 bg-red-500 text-white font-bold rounded-xl text-xs hover:bg-red-600 shadow-lg shadow-red-500/20 active:scale-95 transition-all"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
 
         {/* Transactions Tab */}
         {activeTab === 'transactions' && (
-          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl border overflow-hidden shadow-sm">
-            {/* Filters */}
-            <div style={{ borderBottomColor: modeColors.border }} className="p-6 border-b flex flex-col sm:flex-row items-center gap-4">
-              <div className="relative">
-                <select
-                  value={txFilter}
-                  onChange={(e) => { setTxFilter(e.target.value); setTxPage(1) }}
-                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                  className="px-5 py-2.5 border rounded-xl font-bold appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/10 min-w-[200px]"
+          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="font-black text-slate-900">Transaction History</h3>
+              <div className="flex gap-2">
+                <select 
+                  value={txFilter} 
+                  onChange={(e) => setTxFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:outline-none"
                 >
-                  <option value="">All Transactions</option>
-                  <option value="pending">🟡 Pending Invoices</option>
-                  <option value="processing">🔵 Processing</option>
-                  <option value="success">🟢 Confirmed / Success</option>
-                  <option value="failed">🔴 Failed / Cancelled</option>
-                  <option value="expired">⚪ Expired</option>
+                  <option value="">All Statuses</option>
+                  <option value="success">Success</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
                 </select>
-              </div>
-              <button
-                onClick={fetchTransactions}
-                style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textSecondary }}
-                className="p-3 rounded-xl hover:text-orange-500 transition-colors shadow-sm"
-              >
-                <RefreshCw size={20} />
-              </button>
-              <div className="sm:ml-auto">
-                <p style={{ color: modeColors.textSecondary }} className="text-sm font-bold bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
-                  Total Ledger: <span className="text-orange-500">{txTotal}</span> entries
-                </p>
+                <button onClick={fetchTransactions} className="p-2 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition-colors">
+                  <RefreshCw size={16} />
+                </button>
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead style={{ backgroundColor: modeColors.bgSecondary }}>
-                  <tr>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Entry Date</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">User Account</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Fiat Amount</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Crypto Data</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Final Status</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Credited</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Actions</th>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID / User</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Crypto</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {txLoading ? (
-                    <tr>
-                      <td colSpan="7" className="text-center py-20 text-gray-500">
-                        <RefreshCw size={40} className="text-orange-500 animate-spin mx-auto opacity-20" />
-                        <p className="mt-4 font-bold">Fetching ledger...</p>
-                      </td>
-                    </tr>
+                    <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-bold">Loading...</td></tr>
                   ) : transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="text-center py-20">
-                        <Bitcoin size={48} className="text-slate-200 mx-auto mb-4" />
-                        <p style={{ color: modeColors.textSecondary }} className="font-bold">No matching transactions found</p>
+                    <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-bold">No records found</td></tr>
+                  ) : transactions.map(tx => (
+                    <tr key={tx._id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-mono font-bold text-slate-900 mb-1">{tx.gatewayOrderId || tx._id.slice(-8)}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{tx.userId?.firstName || 'User'}</p>
                       </td>
-                    </tr>
-                  ) : (
-                    transactions.map(tx => (
-                      <tr key={tx._id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.textSecondary }} className="text-xs font-mono">
-                            {new Date(tx.createdAt).toLocaleString()}
-                          </p>
-                        </td>
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.text }} className="font-bold group-hover:text-orange-500 transition-colors uppercase">{tx.userId?.firstName || 'Unknown'}</p>
-                          <p style={{ color: modeColors.textSecondary }} className="text-xs italic">{tx.userId?.email || 'N/A'}</p>
-                        </td>
-                        <td className="py-5 px-6 text-orange-600 font-bold">
-                          ${tx.amount?.toFixed(2)}
-                        </td>
-                        <td className="py-5 px-6">
-                          <div className="flex flex-col gap-1">
-                            <span style={{ backgroundColor: modeColors.bgSecondary }} className="px-2 py-0.5 rounded text-[10px] font-bold text-slate-500 border border-slate-200 w-fit">
-                              {tx.cryptoCurrency || '-'}
-                            </span>
-                            {tx.cryptoAmount > 0 && <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-mono">{tx.cryptoAmount}</span>}
-                          </div>
-                        </td>
-                        <td className="py-5 px-6">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${getStatusBadge(tx.status)}`}>
-                            {getStatusIcon(tx.status)}
-                            {tx.status}
-                          </span>
-                        </td>
-                        <td className="py-5 px-6">
-                          {tx.walletCredited ? (
-                            <span className="text-green-600 font-bold flex items-center gap-1.5 text-xs">
-                              <CheckCircle size={16} /> YES
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 font-medium flex items-center gap-1.5 text-xs">
-                              <Clock size={16} /> NO
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-5 px-6">
-                          {!tx.walletCredited && tx.status !== 'failed' && tx.status !== 'expired' && (
-                            <button
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${tx.type === 'deposit' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-black text-slate-900">${tx.amount?.toFixed(2)}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-bold text-slate-700 uppercase">{tx.cryptoCurrency} {tx.cryptoAmount}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black border uppercase ${getStatusBadge(tx.status)}`}>
+                          {getStatusIcon(tx.status)}
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleSyncStatus(tx._id)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all shadow-sm"
+                            title="Force Sync"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                          {tx.status === 'pending' && (
+                            <button 
                               onClick={() => handleManualCredit(tx._id)}
-                              className="px-4 py-2 bg-blue-500 text-white font-bold rounded-xl text-xs hover:bg-blue-600 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                              className="px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black rounded-lg hover:bg-black transition-all shadow-sm"
                             >
                               Direct Credit
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination */}
-            {txTotal > 20 && (
-              <div style={{ borderTopColor: modeColors.border, backgroundColor: modeColors.bgSecondary }} className="p-6 border-t flex items-center justify-between">
-                <button
-                  onClick={() => setTxPage(p => Math.max(1, p - 1))}
-                  disabled={txPage === 1}
-                  style={{ backgroundColor: modeColors.card, color: modeColors.text, borderColor: modeColors.border }}
-                  className="px-6 py-2 border rounded-xl font-bold disabled:opacity-30 active:scale-95 transition-all flex items-center gap-2"
-                >
-                  <ArrowUpRight className="rotate-[225deg]" size={18} />
-                  Previous
-                </button>
-                <div style={{ color: modeColors.textSecondary }} className="font-bold text-sm">
-                  Page {txPage} of {Math.ceil(txTotal / 20)}
-                </div>
-                <button
-                  onClick={() => setTxPage(p => p + 1)}
-                  disabled={txPage === Math.ceil(txTotal / 20)}
-                  style={{ backgroundColor: modeColors.card, color: modeColors.text, borderColor: modeColors.border }}
-                  className="px-6 py-2 border rounded-xl font-bold disabled:opacity-30 active:scale-95 transition-all flex items-center gap-2"
-                >
-                  Next
-                  <ArrowUpRight size={18} />
-                </button>
-              </div>
-            )}
           </div>
         )}
-        {/* Payouts Tab */}
-        {activeTab === 'payouts' && (
-          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl border overflow-hidden shadow-sm">
-            {/* Header */}
-            <div style={{ borderBottomColor: modeColors.border }} className="p-6 border-b flex items-center justify-between">
-              <div>
-                <h3 style={{ color: modeColors.text }} className="font-bold text-lg">Crypto Payouts</h3>
-                <p style={{ color: modeColors.textSecondary }} className="text-sm">Total paid: <span className="text-orange-500 font-bold">${stats.totalPayouts?.totalAmount?.toFixed(2) || '0.00'}</span></p>
-              </div>
-              <button
-                onClick={() => setShowPayoutModal(true)}
-                className="px-5 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 flex items-center gap-2 shadow-lg shadow-orange-500/20 active:scale-95 transition-all text-sm"
-              >
-                <ArrowDownRight size={18} /> New Payout
-              </button>
-            </div>
 
-            {/* Payouts Table */}
+        {/* Withdrawal Requests Tab */}
+        {activeTab === 'withdrawals' && (
+          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="p-6 border-b border-slate-100">
+              <h3 className="font-black text-slate-900 text-lg">Withdrawal Verification Queue</h3>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead style={{ backgroundColor: modeColors.bgSecondary }}>
-                  <tr>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Requested At</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">User Account</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Fiat Amount</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Crypto Data</th>
-                    <th style={{ color: modeColors.textSecondary }} className="py-4 px-6 text-xs font-bold uppercase tracking-wider">Status</th>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">User / Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destination Address</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Verification</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {payoutLoading ? (
-                    <tr>
-                      <td colSpan="5" className="text-center py-20">
-                        <RefreshCw size={40} className="text-orange-500 animate-spin mx-auto opacity-20" />
-                        <p className="text-gray-400 mt-4 font-medium animate-pulse">Syncing payouts...</p>
+                  {withdrawalLoading ? (
+                    <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 font-bold">Scanning queue...</td></tr>
+                  ) : withdrawalRequests.length === 0 ? (
+                    <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Queue Clear</td></tr>
+                  ) : withdrawalRequests.map(req => (
+                    <tr key={req._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-bold text-slate-900 mb-1">{req.userId?.firstName || 'Client'}</p>
+                        <p className="text-[10px] text-slate-400">{new Date(req.createdAt).toLocaleString()}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-black text-slate-900">${req.amount?.toFixed(2)}</p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">{req.cryptoCurrency} ({req.network})</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <code className="text-[10px] font-mono bg-white px-2 py-1 rounded border border-slate-100 text-slate-600 block w-fit max-w-[200px] truncate select-all">{req.walletAddress}</code>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleRejectWithdrawal(req._id)}
+                            className="px-4 py-2 bg-white text-red-600 text-[10px] font-black rounded-xl border border-slate-200 hover:bg-red-50 hover:border-red-200 transition-all"
+                          >
+                            Reject
+                          </button>
+                          <button 
+                            onClick={() => handleApproveWithdrawal(req._id)}
+                            className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-900/10"
+                          >
+                            Approve Payout
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ) : payouts.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="text-center py-20">
-                        <CheckCircle size={48} className="text-slate-200 mx-auto mb-4" />
-                        <p style={{ color: modeColors.textSecondary }} className="font-bold">No payout history found</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    payouts.map(payout => (
-                      <tr key={payout._id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.textSecondary }} className="text-xs font-mono">
-                            {new Date(payout.createdAt).toLocaleString()}
-                          </p>
-                        </td>
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.text }} className="font-bold group-hover:text-orange-500 transition-colors uppercase">{payout.userId?.firstName || 'Unknown'}</p>
-                          <p style={{ color: modeColors.textSecondary }} className="text-xs italic">{payout.userId?.email || ''}</p>
-                        </td>
-                        <td className="py-5 px-6">
-                          <p style={{ color: modeColors.text }} className="font-bold">${payout.amount?.toFixed(2)}</p>
-                        </td>
-                        <td className="py-5 px-6">
-                          <div className="flex flex-col gap-1">
-                            <span style={{ backgroundColor: modeColors.bgSecondary }} className="px-2 py-0.5 rounded text-[10px] font-bold text-slate-500 border border-slate-200 w-fit">
-                              {payout.cryptoCurrency || '-'}
-                            </span>
-                            {payout.cryptoAmount > 0 && <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-mono">{payout.cryptoAmount}</span>}
-                          </div>
-                        </td>
-                        <td className="py-5 px-6">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${getStatusBadge(payout.status)}`}>
-                            {getStatusIcon(payout.status)}
-                            {payout.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* Payout Modal */}
-        {showPayoutModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl w-full max-w-md border overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-              <div style={{ borderBottomColor: modeColors.border }} className="flex items-center justify-between p-6 border-b">
-                <h3 style={{ color: modeColors.text }} className="font-bold text-xl">Create Crypto Payout</h3>
-                <button onClick={() => setShowPayoutModal(false)} className="p-2 hover:bg-black/5 rounded-xl transition-colors">
-                  <X size={20} className="text-gray-400" />
+        {/* Direct Payouts (Admin Only) */}
+        {activeTab === 'payouts' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Direct Crypto Payout</h3>
+                  <p className="text-slate-500 text-xs font-medium">Instantly send funds from master wallet to any client address</p>
+                </div>
+                <button 
+                  onClick={() => setShowPayoutModal(true)}
+                  className="px-6 py-3 bg-slate-900 text-white font-black rounded-2xl flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all text-sm shadow-xl shadow-slate-900/10"
+                >
+                  <ArrowUpRight size={18} />
+                  Initiate New Payout
                 </button>
               </div>
-              
-              <div className="p-6 space-y-5">
-                <div>
-                  <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Search User</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={userSearch}
-                      onChange={(e) => { setUserSearch(e.target.value); searchUsers(e.target.value) }}
-                      placeholder="Email or Name..."
-                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                      className="w-full px-4 py-3 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    />
-                    {users.length > 0 && (
-                      <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="absolute top-full left-0 w-full mt-2 border rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto">
-                        {users.map(user => (
-                          <button
-                            key={user._id}
-                            onClick={() => {
-                              setPayoutForm({ ...payoutForm, userId: user._id, userEmail: user.email })
-                              setUserSearch(user.email)
-                              setUsers([])
-                            }}
-                            style={{ color: modeColors.text }}
-                            className="w-full px-4 py-3 text-left hover:bg-orange-50 transition-colors text-sm border-b last:border-0 border-slate-100"
-                          >
-                            <span className="font-bold">{user.firstName}</span>
-                            <span style={{ color: modeColors.textSecondary }} className="ml-2 font-mono text-xs">{user.email}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {payoutForm.userId && (
-                    <div className="mt-3 flex items-center gap-2 bg-green-500/10 p-2 rounded-lg border border-green-500/20">
-                      <CheckCircle size={14} className="text-green-600" />
-                      <p className="text-green-700 text-xs font-bold">Matched: {payoutForm.userEmail}</p>
-                    </div>
-                  )}
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Amount (USD)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={payoutForm.amount}
-                      onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
-                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                      className="w-full px-4 py-3 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Currency</label>
-                    <select
-                      value={payoutForm.cryptoCurrency}
-                      onChange={(e) => setPayoutForm({ ...payoutForm, cryptoCurrency: e.target.value })}
-                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                      className="w-full px-4 py-3 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    >
-                      <option value="USDT">USDT</option>
-                      <option value="BTC">BTC</option>
-                      <option value="ETH">ETH</option>
-                      <option value="LTC">LTC</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Wallet Address</label>
-                  <input
-                    type="text"
-                    value={payoutForm.walletAddress}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, walletAddress: e.target.value })}
-                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                    className="w-full px-4 py-3 border rounded-xl font-bold font-mono text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    placeholder="Recipient address..."
-                  />
-                </div>
-
-                <div>
-                  <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Internal Notes</label>
-                  <input
-                    type="text"
-                    value={payoutForm.adminNotes}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, adminNotes: e.target.value })}
-                    style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
-                    className="w-full px-4 py-3 border rounded-xl font-bold text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    placeholder="Reference notes..."
-                  />
-                </div>
-
-                <div className="flex gap-4 pt-2">
-                  <button
-                    onClick={() => setShowPayoutModal(false)}
-                    style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.text }}
-                    className="flex-1 py-3 font-bold rounded-xl active:scale-[0.98] transition-all border border-slate-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCreatePayout}
-                    disabled={payoutLoading || !payoutForm.userId || !payoutForm.amount || !payoutForm.walletAddress}
-                    className="flex-[2] py-3 bg-orange-500 text-white font-bold rounded-xl shadow-lg shadow-orange-500/20 hover:bg-orange-600 disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                  >
-                    {payoutLoading ? <RefreshCw size={20} className="animate-spin" /> : <Shield size={20} />}
-                    {payoutLoading ? 'Authorizing Payout...' : 'Send Payment'}
-                  </button>
-                </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50">
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction ID</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">User</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-400">
+                    {payoutLoading ? (
+                      <tr><td colSpan="4" className="px-6 py-12 text-center font-bold">Synchronizing...</td></tr>
+                    ) : payouts.length === 0 ? (
+                      <tr><td colSpan="4" className="px-6 py-12 text-center text-[10px] font-black uppercase tracking-widest">No payout history</td></tr>
+                    ) : payouts.map(po => (
+                      <tr key={po._id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-xs font-mono font-bold text-slate-900">{po.trackId || po._id.slice(-8)}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-slate-700">{po.userId?.firstName || 'Admin Transfer'}</td>
+                        <td className="px-6 py-4 text-sm font-black text-slate-900">${po.amount?.toFixed(2)}</td>
+                        <td className="px-6 py-4">
+                           <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black border uppercase ${getStatusBadge(po.status)}`}>
+                            {getStatusIcon(po.status)}
+                            {po.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         )}
+
       </div>
+
+      {/* Payout Modal */}
+      {showPayoutModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Direct Payout Auth</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Authorized Admins Only</p>
+              </div>
+              <button onClick={() => setShowPayoutModal(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-colors">
+                <X size={24} className="text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="relative">
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Search User (Email/Name)</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    value={userSearch}
+                    onChange={(e) => {
+                      setUserSearch(e.target.value)
+                      searchUsers(e.target.value)
+                    }}
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all placeholder:text-slate-300 shadow-inner"
+                    placeholder="Type to search..."
+                  />
+                </div>
+                
+                {users.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 overflow-hidden">
+                    {users.map(u => (
+                      <button
+                        key={u._id}
+                        onClick={() => {
+                          setPayoutForm({ ...payoutForm, userId: u._id, userEmail: u.email })
+                          setUsers([])
+                          setUserSearch(u.email)
+                        }}
+                        className="w-full px-5 py-4 text-left hover:bg-slate-50 flex flex-col gap-0.5 border-b border-slate-50 last:border-0"
+                      >
+                        <span className="font-bold text-slate-900 text-sm">{u.firstName} {u.lastName}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{u.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Amount ($)</label>
+                  <input
+                    type="number"
+                    value={payoutForm.amount}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Asset</label>
+                  <select
+                    value={payoutForm.cryptoCurrency}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, cryptoCurrency: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                  >
+                    <option value="USDT">USDT (TRC20)</option>
+                    <option value="BTC">BTC</option>
+                    <option value="ETH">ETH (ERC20)</option>
+                    <option value="LTC">LTC</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Destination Wallet Address</label>
+                <input
+                  type="text"
+                  value={payoutForm.walletAddress}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, walletAddress: e.target.value })}
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-xs font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                  placeholder="Enter recipient address..."
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setShowPayoutModal(false)}
+                  className="flex-1 py-4 font-black text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest text-[10px]"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleCreatePayout}
+                  disabled={payoutLoading}
+                  className="flex-[2] py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-900/20 hover:scale-[1.02] active:scale-95 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {payoutLoading ? <RefreshCw className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                  {payoutLoading ? 'Relaying...' : 'Confirm Payout'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   )
 }

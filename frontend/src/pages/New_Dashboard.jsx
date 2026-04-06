@@ -444,8 +444,8 @@ const defaultBanner = [
                 <CircleDollarSign className="text-green-600" />
               </div>
             </div>
-            <h3 className="text-gray-500 text-sm">Total Balance</h3>
-            <p className="text-xl font-bold">
+            <h3 className="text-slate-500 font-bold text-sm">Total Balance</h3>
+            <p className="text-2xl font-black text-slate-900">
               ${totalLiveBalance.toLocaleString()}
             </p>
           </div>
@@ -457,8 +457,8 @@ const defaultBanner = [
                 <BarChart2 className="text-blue-600" />
               </div>
             </div>
-            <h3 className="text-gray-500 text-sm">Current Equity</h3>
-            <p className="text-xl font-bold">
+            <h3 className="text-slate-500 font-bold text-sm">Current Equity</h3>
+            <p className="text-2xl font-black text-slate-900">
               ${totalLiveEquity.toLocaleString()}
             </p>
           </div>
@@ -470,8 +470,8 @@ const defaultBanner = [
                 <Wallet className="text-orange-600" />
               </div>
             </div>
-            <h3 className="text-gray-500 text-sm">Wallet Balance</h3>
-            <p className="text-xl font-bold">${walletBalance}</p>
+            <h3 className="text-slate-500 font-bold text-sm">Wallet Balance</h3>
+            <p className="text-2xl font-black text-slate-900">${walletBalance}</p>
           </div>
         </div>
 
@@ -494,8 +494,8 @@ const defaultBanner = [
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-green-100 text-green-600">
                     ↓
                   </div>
-                  <p className="text-sm font-medium">Deposit</p>
-                  <p className="text-xs text-gray-500">Add funds instantly</p>
+                  <p className="text-sm font-bold text-slate-800">Deposit</p>
+                  <p className="text-xs text-slate-500 font-medium">Add funds instantly</p>
                 </div>
 
                 {/* Withdraw */}
@@ -506,8 +506,8 @@ const defaultBanner = [
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-blue-100 text-blue-600">
                     ↑
                   </div>
-                  <p className="text-sm font-medium">Withdraw</p>
-                  <p className="text-xs text-gray-500">Cash out your profits</p>
+                  <p className="text-sm font-bold text-slate-800">Withdraw</p>
+                  <p className="text-xs text-slate-500 font-medium">Cash out your profits</p>
                 </div>
 
                 {/* Transfer */}
@@ -518,8 +518,8 @@ const defaultBanner = [
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-orange-100 text-orange-600">
                     ⇄
                   </div>
-                  <p className="text-sm font-medium">Transfer</p>
-                  <p className="text-xs text-gray-500">Between accounts</p>
+                  <p className="text-sm font-bold text-slate-800">Transfer</p>
+                  <p className="text-xs text-slate-500 font-medium">Between accounts</p>
                 </div>
 
                 <Internal_Transfer
@@ -535,8 +535,8 @@ const defaultBanner = [
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-purple-100 text-purple-600">
                     👤
                   </div>
-                  <p className="text-sm font-medium">Account</p>
-                  <p className="text-xs text-gray-500">Manage your accounts</p>
+                  <p className="text-sm font-bold text-slate-800">Account</p>
+                  <p className="text-xs text-slate-500 font-medium">Manage your accounts</p>
                 </div>
               </div>
             </div>
@@ -559,8 +559,8 @@ const defaultBanner = [
 
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-gray-500 text-sm">Total Live Accounts</p>
-                    <p className="text-3xl font-bold mt-1">
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Live Accounts</p>
+                    <p className="text-3xl font-black mt-1 text-slate-900">
                       {liveAccounts.length}
                     </p>
                   </div>
@@ -589,8 +589,8 @@ const defaultBanner = [
 
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-gray-500 text-sm">Total Demo Accounts</p>
-                    <p className="text-3xl font-bold mt-1">
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Demo Accounts</p>
+                    <p className="text-3xl font-black mt-1 text-slate-900">
                       {demoAccounts.length}
                     </p>
                   </div>
@@ -715,8 +715,8 @@ const defaultBanner = [
             </p>
 
             {/* Total P/L */}
-            <div className="bg-gray-100 rounded-lg p-3 mb-3 flex justify-between">
-              <span>Total P/L</span>
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-3 flex justify-between">
+              <span className="text-slate-900 font-bold">Total P/L</span>
               <span
                 className={`font-semibold ${
                   totalPnl >= 0 ? "text-green-600" : "text-red-500"
@@ -740,11 +740,11 @@ const defaultBanner = [
                     key={trade._id}
                     className="flex justify-between items-center border rounded-lg px-3 py-2 mb-2"
                   >
-                    <span className="font-medium">{trade.symbol}</span>
+                    <span className="font-bold text-slate-900">{trade.symbol}</span>
                     <span
                       className={pnl >= 0 ? "text-green-600" : "text-red-500"}
                     >
-                      {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
+                    {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
                     </span>
                   </div>
                 );

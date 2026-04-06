@@ -775,4 +775,82 @@ router.post('/admin/payout', adminMiddleware, async (req, res) => {
   }
 })
 
+// POST /api/oxapay/admin/manual-deposit - Direct credit (admin only)
+router.post('/admin/manual-deposit', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireAdminPermission(req.admin, 'canApproveDeposits')) {
+      return res.status(403).json({ success: false, message: 'Insufficient permission to perform manual deposits' })
+    }
+
+    const { userId, amount, adminNotes, cryptoCurrency = 'USDT' } = req.body
+
+    if (!userId || !amount) {
+      return res.status(400).json({ success: false, message: 'User ID and amount are required' })
+    }
+
+    // Create a successful deposit transaction immediately
+    const transaction = new CryptoTransaction({
+      userId,
+      gateway: 'oxapay',
+      type: 'deposit',
+      amount: parseFloat(amount),
+      currency: 'USD',
+      cryptoCurrency,
+      status: 'success',
+      walletCredited: false, // will be set by handlePaymentSuccess
+      adminNotes: adminNotes || 'Direct deposit by admin',
+      idempotencyKey: `manual-${userId}-${Date.now()}`
+    })
+
+    await transaction.save()
+
+    // Credit user wallet
+    const result = await oxapayService.handlePaymentSuccess(transaction)
+    
+    console.log(`[Oxapay] Manual deposit of $${amount} performed for user ${userId} by admin`)
+
+    res.json({ 
+      success: true, 
+      message: 'Direct deposit successful. User wallet credited.',
+      transactionId: transaction._id,
+      newBalance: result.newBalance
+    })
+  } catch (error) {
+    console.error('[Oxapay] Manual deposit error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// POST /api/oxapay/admin/sync-status/:id - Force sync from gateway (admin only)
+router.post('/admin/sync-status/:id', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireAdminPermission(req.admin, 'canManageDeposits')) {
+      return res.status(403).json({ success: false, message: 'Insufficient permission to sync status' })
+    }
+
+    const transaction = await CryptoTransaction.findById(req.params.id)
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' })
+    }
+
+    if (!transaction.gatewayOrderId) {
+      return res.status(400).json({ success: false, message: 'No track ID found for this transaction' })
+    }
+
+    // Call service to fetch latest status from Oxapay API
+    // We already have getTransactionStatus in the service - let's check it.
+    const result = await oxapayService.getTransactionStatus(transaction._id)
+    
+    res.json({ 
+      success: true, 
+      message: 'Status synced successfully',
+      status: result.status,
+      walletCredited: result.walletCredited
+    })
+  } catch (error) {
+    console.error('[Oxapay] Sync status error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
 export default router

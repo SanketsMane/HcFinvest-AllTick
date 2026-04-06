@@ -15,23 +15,38 @@ class OxapayService {
     this.baseUrl = process.env.OXAPAY_API_URL || 'https://api.oxapay.com'
     this.merchantApiKey = process.env.OXAPAY_MERCHANT_API_KEY || ''
     this.payoutApiKey = process.env.OXAPAY_PAYOUT_API_KEY || ''
+    this.configCache = null
+    this.configCacheTime = 0
+    this.CACHE_TTL = 30000 // 30 seconds
     
     console.log(`[Oxapay] Service initialized`)
   }
 
-  // Load config from database (allows admin to update without restart)
+  // Load config from database with simple 30s caching
   async loadConfig() {
     try {
+      const now = Date.now()
+      if (this.configCache && (now - this.configCacheTime < this.CACHE_TTL)) {
+        return this.configCache
+      }
+
       const gateway = await PaymentGateway.findOne({ name: 'oxapay' })
-      if (gateway && gateway.apiConfig) {
-        this.merchantApiKey = gateway.apiConfig.merchantApiKey || this.merchantApiKey
-        this.payoutApiKey = gateway.apiConfig.payoutApiKey || this.payoutApiKey
-        if (gateway.apiConfig.baseUrl) {
-          this.baseUrl = gateway.apiConfig.baseUrl
+      if (gateway) {
+        this.configCache = gateway
+        this.configCacheTime = now
+        
+        if (gateway.apiConfig) {
+          this.merchantApiKey = gateway.apiConfig.merchantApiKey || this.merchantApiKey
+          this.payoutApiKey = gateway.apiConfig.payoutApiKey || this.payoutApiKey
+          if (gateway.apiConfig.baseUrl) {
+            this.baseUrl = gateway.apiConfig.baseUrl
+          }
         }
       }
+      return this.configCache
     } catch (error) {
       console.error('[Oxapay] Error loading config:', error.message)
+      return null
     }
   }
 
@@ -58,11 +73,12 @@ class OxapayService {
     }
   }
 
-  // Generate idempotency key
+  // Generate robust idempotency key
   generateIdempotencyKey(userId, amount, timestamp) {
+    const salt = crypto.randomBytes(16).toString('hex')
     return crypto
       .createHash('sha256')
-      .update(`${userId}-${amount}-${timestamp}`)
+      .update(`${userId}-${amount}-${timestamp}-${salt}`)
       .digest('hex')
   }
 
