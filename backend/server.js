@@ -65,7 +65,11 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
 
   },
-  transports: ['websocket'], // //sanket - Force WebSockets for lower latency and better stability
+  //Sanket v2.0 - Removed forced WebSocket-only. With websocket-only + no polling fallback, every pm2
+  // restart permanently broke ALL connected clients until they did a full page refresh, because the
+  // socket.io client couldn't fall back to polling during the brief reconnection window.
+  // Now: websocket is still preferred (client tries ws first), polling acts as the reconnection bridge.
+  transports: ['websocket', 'polling'],
   pingTimeout: 30000,
   pingInterval: 10000
 })

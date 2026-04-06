@@ -436,8 +436,11 @@ router.get('/history', async (req, res) => {
     if (finalCandles.length < 200) {
       console.warn(`[History] ⚠️ Low density data for ${symbol} @ ${timeframe}: only ${finalCandles.length} candles — attempting AllTick API fallback`);
       try {
-        const apiFallback = await alltickApiService.getHistoricalCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit);
-        if (Array.isArray(apiFallback) && apiFallback.length > finalCandles.length) {
+        //Sanket v2.0 - getHistoricalCandles returns { success, candles, source } not a plain array.
+        // Previously checked Array.isArray(apiFallback) which was always false → fallback never fired.
+        const apiResult = await alltickApiService.getHistoricalCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit);
+        const apiFallback = Array.isArray(apiResult) ? apiResult : (apiResult?.candles || []);
+        if (apiFallback.length > finalCandles.length) {
           console.log(`[History] ✅ API fallback returned ${apiFallback.length} candles for ${cleanSymbol} @ ${timeframe}`);
           let richer = normalizeToBucketSeries(apiFallback, targetMinutes);
           richer = sanitizeHistoricalSeries(richer, targetMinutes, cleanSymbol);
