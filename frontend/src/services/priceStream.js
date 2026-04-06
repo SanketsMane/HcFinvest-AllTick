@@ -223,11 +223,22 @@ class PriceStreamService {
       const { symbol: rawSymbol, bid, ask, time, rawBid, rawAsk } = tickData
       const symbol = normalizeSym(rawSymbol)
 
+      // 🔍 DEBUG-TICK: Log every raw tick arriving from socket
+      if (symbol === 'XAUUSD' || symbol === 'EURUSD') {
+        console.log(`[TICK-RAW] ${symbol} bid=${bid} ask=${ask} time=${time} raw=${JSON.stringify(tickData)}`)
+      }
+
       //Sanket v2.0 - Drop ticks with invalid/zero bid to prevent PnL flicker to $0
-      if (!symbol || !bid || bid <= 0) return
+      if (!symbol || !bid || bid <= 0) {
+        console.warn(`[TICK-DROP-ZERO] ${symbol} bid=${bid} ask=${ask} — dropped (zero/null bid)`)
+        return
+      }
 
       const acceptedTick = this._acceptRealtimeTick(symbol, bid, ask, time)
-      if (!acceptedTick.accepted) return
+      if (!acceptedTick.accepted) {
+        console.warn(`[TICK-REJECTED] ${symbol} bid=${bid} — rejected by _acceptRealtimeTick`)
+        return
+      }
 
       //Sanket v2.0 - Drop duplicate ticks arriving back-to-back for same symbol.
       const tickKey = `${symbol}|${bid}|${ask}|${time || ''}`
@@ -248,6 +259,11 @@ class PriceStreamService {
       }
       
       this.prices[symbol] = priceObj
+
+      // 🔍 DEBUG-DISPATCH: Log what gets sent to TradingPage subscribers
+      if (symbol === 'XAUUSD' || symbol === 'EURUSD') {
+        console.log(`[TICK-DISPATCH] ${symbol} → subscribers bid=${acceptedTick.bid} ask=${acceptedTick.ask}`)
+      }
       
       this.subscribers.forEach((callback) => {
         try { callback(this.prices, { [symbol]: this.prices[symbol] }, this.lastTickAt) } catch {}

@@ -480,12 +480,21 @@ const Datafeed = {
       
       if (normalizeRealtimeSymbol(symbol) !== normalizedSym) return;
 
+      // 🔍 DEBUG-CHART: Log every tick reaching the chart candle builder
+      console.log(`[CHART-TICK] ${symbol} bid=${bid} ask=${ask} currentBar.close=${currentBar?.close} time=${time}`);
+
       const now = Date.now();
-      if ((now - lastUpdateTime) < throttleMs) return;
+      if ((now - lastUpdateTime) < throttleMs) {
+        console.log(`[CHART-THROTTLED] ${symbol} tick dropped (throttle ${throttleMs}ms, elapsed ${now-lastUpdateTime}ms)`);
+        return;
+      }
       lastUpdateTime = now;
 
       const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
-      if (!isFinite(price) || price <= 0) return;
+      if (!isFinite(price) || price <= 0) {
+        console.warn(`[CHART-INVALID-PRICE] ${symbol} price=${price} from bid=${bid} ask=${ask}`);
+        return;
+      }
 
       // 🏆 PRODUCTION SANITIZATION: Validate live update
       if (currentBar) {
@@ -495,8 +504,13 @@ const Datafeed = {
           symbol: symbolInfo.name
         });
         
-        if (!result.accepted) return; // Drop spikes
+        if (!result.accepted) {
+          console.warn(`[CHART-SPIKE-DROPPED] ${symbol} price=${price} rejected vs currentBar.close=${currentBar.close}`);
+          return;
+        }
         
+        // 🔍 DEBUG-CHART-PUSH: Log what actually gets pushed to TradingView
+        console.log(`[CHART-PUSH] ${symbol} close=${result.bar.close} high=${result.bar.high} low=${result.bar.low} barTime=${result.bar.time}`);
         currentBar = result.bar;
         pushBar(currentBar);
       }
