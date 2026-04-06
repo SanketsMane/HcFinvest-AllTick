@@ -90,7 +90,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="h-screen overflow-hidden bg-slate-50 flex">
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div 
@@ -181,7 +181,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto min-w-0 flex flex-col">
+      <main className="flex-1 h-full overflow-y-auto min-w-0 flex flex-col">
         {/* Header */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md flex items-center justify-between px-6 py-5 border-b border-slate-200 shadow-sm shadow-slate-100/50">
           <div className="flex items-center gap-4">
