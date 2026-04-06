@@ -10,8 +10,9 @@ export const canonicalSymbol = (raw) => {
   const value = String(raw || '').trim().toUpperCase();
   if (!value) return '';
   const compact = value.replace(/\.I$/i, '').replace(/[^A-Z0-9]/g, '');
-  //Sanket v2.0 - Removed 6-char truncation: it corrupted 7+ char symbols (DOGEUSD→DOGESU, MATICUSD→MATICU)
-  // breaking spread config lookups in getAdminMarkupValue silently returning 0 markup for those instruments
+  if (!compact) return '';
+  // Standardize 6-char pairs (e.g. EURUSD)
+  if (compact.length >= 6) return compact.slice(0, 6);
   return compact;
 };
 

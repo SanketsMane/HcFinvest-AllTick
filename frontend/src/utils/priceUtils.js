@@ -68,10 +68,18 @@ export const getRetailPrice = (price, symbol, side, adminSpreads) => {
  * For Gold with a 10-point spread, this shifts the whole candle by the markup amount.
  */
 export const wrapOHLC = (candle, symbol, adminSpreads) => {
-  //Sanket v2.0 - MID chart mode: raw interbank prices ARE the mid-price, no markup adjustment needed.
-  // Previously subtracted the full spread which caused a persistent ~10pt downward offset between
-  // the chart price and the trade panel BUY/SELL buttons. Raw = mid, so return unchanged.
-  return candle;
+  const markup = getAdminMarkupValue(symbol, adminSpreads);
+  if (markup === 0) return candle;
+
+  // Shift the whole bar to align with the "Retail" price perception.
+  // We subtract markup to show the "execution" level for Sells, which is what users usually track.
+  return {
+    ...candle,
+    open: candle.open - markup,
+    high: candle.high - markup,
+    low: candle.low - markup,
+    close: candle.close - markup
+  };
 };
 
 /**

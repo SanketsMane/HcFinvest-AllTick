@@ -70,7 +70,7 @@
 //     freeMargin: 0,
 //     floatingPnl: 0
 //   })
-//   //Sanket v2.0 - livePrices REMOVED; single source of truth is metaApiPrices (per-tick priceUpdate event)
+//   const [livePrices, setLivePrices] = useState({}) // Store live prices separately
 //   const [priceUpdateTick, setPriceUpdateTick] = useState(0) // Force re-render on price updates
 //   const [metaApiPrices, setMetaApiPrices] = useState({}) // Store MetaAPI chart prices
 //   const [adminSpreads, setAdminSpreads] = useState({}) // Store admin-set spreads
@@ -301,8 +301,7 @@
 //   // Update account summary when prices change (for real-time equity/margin)
 //   useEffect(() => {
 //     // Skip if no live prices yet (prevent flickering to zero)
-//     //Sanket v2.0 - Guard: skip until per-tick OR instruments prices are loaded
-  //   if (Object.keys(metaApiPrices).length === 0 && instruments.every(i => !i.bid)) return
+//     if (Object.keys(livePrices).length === 0) return
     
 //     // Calculate total floating PnL from current prices
 //     let totalFloatingPnl = 0
@@ -350,8 +349,7 @@
 //     if (openTrades.length > 0 && (newEquity <= 0 || newFreeMargin < -totalUsedMargin)) {
 //       checkStopOut()
 //     }
-//   //Sanket v2.0 - Single source of truth: metaApiPrices+instruments (per-tick), livePrices removed
-  //   }, [metaApiPrices, instruments, openTrades])
+//   }, [livePrices, instruments, openTrades])
 
   
 //   // Fetch live prices in background (non-blocking)
@@ -366,7 +364,7 @@
 //       // Always update livePrices state for open trades display
 //       if (Object.keys(allPrices).length > 0) {
 //         setLoadingInstruments(false) // Prices loaded
-//         //Sanket v2.0 - Removed setLivePrices; instruments/selectedInstrument updated below
+//         setLivePrices(prev => ({ ...prev, ...allPrices }))
         
 //         setInstruments(prev => prev.map(inst => {
 //           const priceData = allPrices[inst.symbol]
@@ -470,7 +468,7 @@
 //   // Format price with correct decimal places based on symbol
 //   const formatPrice = (price, symbol) => {
 //     if (!price || price <= 0) return '0.00000'
-//     const priceData = metaApiPrices[symbol] || instruments.find(i => i.symbol === symbol)
+//     const priceData = livePrices[symbol]
 //     const decimals = priceData?.decimals || 5
 //     return price.toFixed(decimals)
 //   }
@@ -894,8 +892,7 @@
 
 //       // For pending orders, use entry price; fallback to live prices
 //       const pendingPrice = entryPrice ? parseFloat(entryPrice) : null
-//       //Sanket v2.0 - Single source: metaApiPrices (per-tick)
-//       const livePrice = metaApiPrices[selectedInstrument.symbol]
+//       const livePrice = livePrices[selectedInstrument.symbol]
 //       const currentBid = livePrice?.bid || selectedInstrument.bid
 //       const currentAsk = livePrice?.ask || selectedInstrument.ask
       
@@ -1639,7 +1636,7 @@
 //                   {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
 //                 </span>
 //               </div>
-//               {metaApiPrices[selectedInstrument.symbol] && (
+//               {livePrices[selectedInstrument.symbol] && (
 //                 <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
 //                   Last: {new Date(livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()}
 //                 </div>
@@ -2281,7 +2278,7 @@
 //                       className="flex-1 rounded py-3 text-center transition-colors bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed relative"
 //                     >
 //                       {/* Live indicator dot */}
-//                       {metaApiPrices[selectedInstrument.symbol] && (
+//                       {livePrices[selectedInstrument.symbol] && (
 //                         <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Live price from AllTick"></div>
 //                       )}
 //                       <div className="text-white text-[10px] font-medium">SELL</div>
@@ -2308,7 +2305,7 @@
 //                       className="flex-1 rounded py-3 text-center transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed relative"
 //                     >
 //                       {/* Live indicator dot */}
-//                       {metaApiPrices[selectedInstrument.symbol] && (
+//                       {livePrices[selectedInstrument.symbol] && (
 //                         <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Live price from AllTick"></div>
 //                       )}
 //                       <div className="text-white text-[10px] font-medium">BUY</div>
@@ -3225,8 +3222,7 @@ const TradingPage = () => {
     floatingPnl: 0
   })
   const [displayFloatingPnl, setDisplayFloatingPnl] = useState(0)
-  //Sanket v2.0 - livePrices REMOVED; single source of truth is metaApiPrices (per-tick priceUpdate event)
-  const [metaApiPrices, setMetaApiPrices] = useState({}) // Per-tick price bus (priceUpdate event, replaces livePrices)
+  const [livePrices, setLivePrices] = useState({}) // Store live prices separately
   const [adminSpreads, setAdminSpreads] = useState({}) // Store admin-set spreads
   
   // Modal states for iOS-style popups
@@ -3333,25 +3329,23 @@ const TradingPage = () => {
 
   // Canonical quote for the selected symbol used by header, order panel, and execution.
   const selectedLiveQuote = useMemo(() => {
-    //Sanket v2.0 - Single source: metaApiPrices (per-tick event bus), fallback to selectedInstrument
-    const live = metaApiPrices[selectedInstrument?.symbol] || {}
+    const live = livePrices[selectedInstrument?.symbol] || {}
     const fallbackBid = Number(selectedInstrument?.bid)
     const fallbackAsk = Number(selectedInstrument?.ask)
     const liveBid = Number(live?.bid)
     const liveAsk = Number(live?.ask)
 
-    //Sanket v2.0 - Priority fix: selectedInstrument.bid (per-tick) first, metaApiPrices fallback
-    const bid = Number.isFinite(fallbackBid) && fallbackBid > 0
-      ? fallbackBid
-      : (Number.isFinite(liveBid) && liveBid > 0 ? liveBid : 0)
+    const bid = Number.isFinite(liveBid) && liveBid > 0
+      ? liveBid
+      : (Number.isFinite(fallbackBid) && fallbackBid > 0 ? fallbackBid : 0)
 
-    const askFromSources = Number.isFinite(fallbackAsk) && fallbackAsk > 0
-      ? fallbackAsk
-      : (Number.isFinite(liveAsk) && liveAsk > 0 ? liveAsk : bid)
+    const askFromSources = Number.isFinite(liveAsk) && liveAsk > 0
+      ? liveAsk
+      : (Number.isFinite(fallbackAsk) && fallbackAsk > 0 ? fallbackAsk : bid)
 
     const ask = askFromSources > 0 ? askFromSources : bid
     return { bid, ask }
-  }, [metaApiPrices, selectedInstrument?.symbol, selectedInstrument?.bid, selectedInstrument?.ask])
+  }, [livePrices, selectedInstrument?.symbol, selectedInstrument?.bid, selectedInstrument?.ask])
 
   const chartRenderableTrades = useMemo(() => {
     const pendingAsLines = (pendingOrders || []).map(order => ({
@@ -3777,7 +3771,7 @@ const TradingPage = () => {
     }
 
     setDisplayFloatingPnl(0)
-  }, [accountSummary?.floatingPnl, openTrades.length, metaApiPrices])
+  }, [accountSummary?.floatingPnl, openTrades.length, livePrices])
 
   useEffect(() => {
     const unsubscribe = priceStreamService.subscribe('tradingPage', (prices, updated, timestamp) => {
@@ -3791,7 +3785,16 @@ const TradingPage = () => {
         const selectedBid = selectedTick.bid
         const selectedAsk = selectedTick.ask || selectedTick.bid
 
-        //Sanket v2.0 - Removed setLivePrices block; selectedInstrument updated below is sufficient
+        setLivePrices(prev => ({
+          ...prev,
+          [selectedSymbol]: {
+            ...prev[selectedSymbol],
+            ...selectedTick,
+            bid: selectedBid,
+            ask: selectedAsk,
+            spread: Math.abs(selectedAsk - selectedBid)
+          }
+        }))
 
         setSelectedInstrument(prev => {
           if (!prev || prev.symbol !== selectedSymbol) return prev
@@ -3815,7 +3818,7 @@ const TradingPage = () => {
         
         const currentPrices = priceBufferRef.current;
         
-        //Sanket v2.0 - Removed setLivePrices from throttled path; metaApiPrices is now single source
+        setLivePrices(prev => ({ ...prev, ...currentPrices }));
         updateQuoteCache(currentPrices)
         
         // Update instruments only if they are actually in the category being viewed
@@ -3901,33 +3904,6 @@ const TradingPage = () => {
     priceEvents.addEventListener('chartBarUpdate', handleChartBarUpdate)
     return () => priceEvents.removeEventListener('chartBarUpdate', handleChartBarUpdate)
   }, [selectedInstrument?.symbol, expectedChartSidePrice])
-  //Sanket v2.0 - Single source of truth: listen to priceUpdate events, update metaApiPrices per-tick
-  useEffect(() => {
-    const priceEventTarget = getPriceEvents()
-
-    const handleMetaApiPriceUpdate = (event) => {
-      const { symbol, bid, ask, time } = event.detail
-      //Sanket v2.0 - SINGLE SOURCE: update metaApiPrices (the price bus) per-tick from priceUpdate event
-      setMetaApiPrices(prev => ({
-        ...prev,
-        [symbol]: { bid, ask, time }
-      }))
-      //Sanket v2.0 - SYNC_CHECK: uncomment to verify all consumers update from same tick
-      // console.log('SYNC_CHECK', { symbol, bid, ask, time: Date.now() })
-      if (selectedInstrument?.symbol === symbol) {
-        setSelectedInstrument(prev => ({ ...prev, bid, ask, spread: Math.abs(ask - bid) }))
-      }
-      setInstruments(prev => prev.map(inst =>
-        inst.symbol === symbol ? { ...inst, bid, ask, spread: Math.abs(ask - bid) } : inst
-      ))
-      setOpenTabs(prev => prev.map(tab =>
-        tab.symbol === symbol ? { ...tab, bid, ask, spread: Math.abs(ask - bid) } : tab
-      ))
-    }
-
-    priceEventTarget.addEventListener('priceUpdate', handleMetaApiPriceUpdate)
-    return () => priceEventTarget.removeEventListener('priceUpdate', handleMetaApiPriceUpdate)
-  }, [selectedInstrument?.symbol])
 
   useEffect(() => {
     if (!selectedInstrument?.symbol) return
@@ -4085,11 +4061,10 @@ const TradingPage = () => {
   // Update account summary when prices change (for real-time equity/margin)
   useEffect(() => {
     // Skip if no live prices yet (prevent flickering to zero)
-    //Sanket v2.0 - Guard: skip until per-tick OR instruments prices are loaded
-    if (Object.keys(metaApiPrices).length === 0 && instruments.every(i => !i.bid)) return
+    if (Object.keys(livePrices).length === 0) return
     
     //Sanket v2.0 - Update lastValidPricesRef with any new valid prices from this tick cycle
-    Object.entries(metaApiPrices).forEach(([sym, p]) => {
+    Object.entries(livePrices).forEach(([sym, p]) => {
       if (p && p.bid && p.bid > 0) {
         lastValidPricesRef.current[sym] = p;
       }
@@ -4103,10 +4078,11 @@ const TradingPage = () => {
     if (openTrades.length > 0) {
       openTrades.forEach(trade => {
         const targetSym = trade.symbol;
-        //Sanket v2.0 - Single source: metaApiPrices (per-tick), then instruments, then cache
-        const livePrice = metaApiPrices[targetSym] ||
-                        metaApiPrices[targetSym.toUpperCase()] ||
-                        instruments.find(i => i.symbol === targetSym || i.symbol === targetSym.toUpperCase()) ||
+        //Sanket v2.0 - Look up price: live first, then lastValidPricesRef cache, then instrument fallback
+        const livePrice = livePrices[targetSym] || 
+                        livePrices[targetSym.toUpperCase()] || 
+                        livePrices[targetSym.toLowerCase()] ||
+                        livePrices[targetSym.replace(/\.i$/i, '').toUpperCase()] ||
                         lastValidPricesRef.current[targetSym] ||
                         lastValidPricesRef.current[targetSym.toUpperCase()];
 
@@ -4116,14 +4092,13 @@ const TradingPage = () => {
         const side = String(trade.side || '').toUpperCase();
         const contractSize = Number(trade.contractSize) > 0 ? Number(trade.contractSize) : getMarginContractSize(targetSym);
 
-        //Sanket v2.0 - MT5-style mark price: prefer inst.bid/ask (per-tick via instruments state)
-        // over livePrices (300ms throttled) so floating PnL tracks chart price in real-time.
-        const instBid = inst?.rawBid || inst?.bid || null;
-        const instAsk = inst?.rawAsk || inst?.ask || instBid;
+        // MT5-style mark price with resilient fallback for partial ticks.
         const liveBid = livePrice?.rawBid || livePrice?.bid || null;
         const liveAsk = livePrice?.rawAsk || livePrice?.ask || liveBid;
-        const effectiveBid = instBid || liveBid;
-        const effectiveAsk = instAsk || liveAsk;
+        const instBid = inst?.rawBid || inst?.bid || null;
+        const instAsk = inst?.rawAsk || inst?.ask || instBid;
+        const effectiveBid = liveBid || instBid;
+        const effectiveAsk = liveAsk || instAsk;
         
         // Only calculate if we have a valid price
         const currentPrice = side === 'BUY' ? effectiveBid : effectiveAsk;
@@ -4167,8 +4142,7 @@ const TradingPage = () => {
     if (openTrades.length > 0 && (newEquity <= 0 || newFreeMargin < -totalUsedMargin)) {
       checkStopOut()
     }
-  //Sanket v2.0 - Single source of truth: metaApiPrices+instruments (per-tick), livePrices removed
-  }, [metaApiPrices, instruments, openTrades])
+  }, [livePrices, instruments, openTrades])
 
   
   // Fetch live prices in background (non-blocking)
@@ -4185,7 +4159,7 @@ const TradingPage = () => {
       
       // Always update livePrices state for open trades display
       if (Object.keys(allPrices).length > 0) {
-        //Sanket v2.0 - Removed setLivePrices; instruments/selectedInstrument updated below
+        setLivePrices(prev => ({ ...prev, ...allPrices }))
         updateQuoteCache(allPrices)
         
         setInstruments(prev => prev.map(inst => {
@@ -4308,7 +4282,7 @@ const TradingPage = () => {
   // Format price with correct decimal places based on symbol
   const formatPrice = (price, symbol) => {
     if (!price || price <= 0) return '0.00000'
-    const priceData = metaApiPrices[symbol] || instruments.find(i => i.symbol === symbol)
+    const priceData = livePrices[symbol]
     const decimals = priceData?.decimals || 5
     return price.toFixed(decimals)
   }
@@ -4517,7 +4491,10 @@ const TradingPage = () => {
   // Handle live price updates (Deprecated in favor of priceStreamService but kept for compat)
   const handleAllTickPriceUpdate = useCallback((priceData) => {
     if (priceData && priceData.symbol === selectedInstrument.symbol) {
-      //Sanket v2.0 - Removed setLivePrices; metaApiPrices is single source (per-tick)
+      setLivePrices(prev => ({
+        ...prev,
+        [priceData.symbol]: priceData
+      }));
     }
   }, [selectedInstrument.symbol]);
 
@@ -4724,8 +4701,8 @@ const TradingPage = () => {
       // Mark trade as being closed
       setClosingTradeIds(prev => new Set([...prev, tradeId]))
 
-      //Sanket v2.0 - Single source: metaApiPrices (per-tick), fallback to instruments
-      const livePrice = metaApiPrices[trade.symbol] || instruments.find(i => i.symbol === trade.symbol)
+      // Use livePrices first (real-time), fallback to instruments
+      const livePrice = livePrices[trade.symbol]
       const instrument = instruments.find(i => i.symbol === trade.symbol) || selectedInstrument
       const bid = livePrice?.bid || instrument.bid
       const ask = livePrice?.ask || instrument.ask
@@ -4889,8 +4866,8 @@ const TradingPage = () => {
 
   const confirmCloseAll = async () => {
     const tradesToClose = openTrades.filter(trade => {
-      //Sanket v2.0 - Single source: metaApiPrices (per-tick), fallback to instruments
-      const livePrice = metaApiPrices[trade.symbol] || instruments.find(i => i.symbol === trade.symbol)
+      // Use livePrices first, fallback to instruments
+      const livePrice = livePrices[trade.symbol]
       const inst = instruments.find(i => i.symbol === trade.symbol) || selectedInstrument
       const currentPrice = livePrice 
         ? (trade.side === 'BUY' ? livePrice.bid : livePrice.ask)
@@ -5668,7 +5645,7 @@ const TradingPage = () => {
                   {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
                 </span>
               </div>
-              {metaApiPrices[selectedInstrument.symbol] && (
+              {livePrices[selectedInstrument.symbol] && (
                 <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
                   {/* Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()} */}
                 </div>
@@ -5797,9 +5774,10 @@ const TradingPage = () => {
                       const targetSym = trade.symbol;
                       const baseSym = getBaseSymbol(targetSym);
                       //Sanket v2.0 - Use lastValidPricesRef cache as fallback to prevent PnL flicker to $0
-                      //Sanket v2.0 - Single source: metaApiPrices (per-tick), then instruments, then cache
-                      const livePrice = metaApiPrices[targetSym] || metaApiPrices[baseSym] ||
-                                      instruments.find(i => i.symbol === targetSym || i.symbol === baseSym) ||
+                      const livePrice = livePrices[targetSym] || 
+                                      livePrices[targetSym.toUpperCase()] || 
+                                      livePrices[targetSym.toLowerCase()] ||
+                                      livePrices[baseSym] ||
                                       lastValidPricesRef.current[targetSym] ||
                                       lastValidPricesRef.current[baseSym];
 
@@ -5809,10 +5787,10 @@ const TradingPage = () => {
                       
                       //Sanket v2.0 - Resolve raw bid/ask with all fallbacks; passed to AnimatedTradeRow
                       // which interpolates them internally at 60fps so current-price and P/L columns
-                      // never jump. Prefer inst.bid/ask (per-tick via instruments state) over livePrices (300ms).
+                      // never jump. TradingPage re-renders only at the normal 300ms price-stream rate.
                       const cachePrices = lastValidPricesRef.current[targetSym] || lastValidPricesRef.current[baseSym];
-                      const rawBid = (inst?.rawBid || inst?.bid) || (livePrice?.rawBid || livePrice?.bid) || (cachePrices?.rawBid || cachePrices?.bid) || 0;
-                      const rawAsk = (inst?.rawAsk || inst?.ask) || (livePrice?.rawAsk || livePrice?.ask) || (cachePrices?.rawAsk || cachePrices?.ask) || 0;
+                      const rawBid = (livePrice?.rawBid || livePrice?.bid) || (cachePrices?.rawBid || cachePrices?.bid) || (inst?.rawBid || inst?.bid) || 0;
+                      const rawAsk = (livePrice?.rawAsk || livePrice?.ask) || (cachePrices?.rawAsk || cachePrices?.ask) || (inst?.rawAsk || inst?.ask) || 0;
                       const priceDecimals = isJpyPair(trade.symbol) ? 3
                         : (isCryptoSymbol(trade.symbol) || getBaseSymbol(trade.symbol) === 'XAUUSD') ? 2
                         : getBaseSymbol(trade.symbol) === 'XAGUSD' ? 4
@@ -6340,10 +6318,8 @@ const TradingPage = () => {
                   <div className="flex gap-2 mb-3">
                     {(() => {
                       const sym = selectedInstrument.symbol;
-                      //Sanket v2.0 - Apply admin markup via getDisplayPrice so buy/sell buttons show the
-                      // same retail prices (bid-markup / ask+markup) as AnimatedInstrumentPrices panel.
-                      const sellRaw = getDisplayPrice(sym, 'SELL', selectedLiveQuote.bid, selectedLiveQuote.ask);
-                      const buyRaw = getDisplayPrice(sym, 'BUY', selectedLiveQuote.bid, selectedLiveQuote.ask);
+                      const sellRaw = selectedLiveQuote.bid;
+                      const buyRaw = selectedLiveQuote.ask;
                       const decimals = isJpyPair(sym) ? 3
                         : (isCryptoSymbol(sym) || getBaseSymbol(sym) === 'XAUUSD') ? 2
                         : 5;
@@ -6354,7 +6330,7 @@ const TradingPage = () => {
                       className="flex-1 rounded py-3 text-center transition-colors bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed relative"
                     >
                       {/* Live indicator dot */}
-                      {metaApiPrices[selectedInstrument.symbol] && (
+                      {livePrices[selectedInstrument.symbol] && (
                         <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Live price from AllTick"></div>
                       )}
                       <div className="text-white text-[10px] font-medium">SELL</div>
@@ -6368,7 +6344,7 @@ const TradingPage = () => {
                       className="flex-1 rounded py-3 text-center transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed relative"
                     >
                       {/* Live indicator dot */}
-                      {metaApiPrices[selectedInstrument.symbol] && (
+                      {livePrices[selectedInstrument.symbol] && (
                         <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Live price from AllTick"></div>
                       )}
                       <div className="text-white text-[10px] font-medium">BUY</div>
