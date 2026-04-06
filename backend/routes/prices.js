@@ -427,9 +427,30 @@ router.get('/history', async (req, res) => {
     // 3. Validate Continuity
     validateContinuity(finalCandles, targetMinutes);
 
-    // 4. Density Check
+    // 4. Density Check + synchronous API fallback
+    //Sanket v2.0 - After server restart Redis is cold and MongoDB may not have enough recent 1m candles.
+    // Previously we only logged a warning and served the sparse data → chart loaded with 29 candles
+    // instead of 300 → TV showed a near-empty chart until the background refill completed (next request).
+    // Fix: if storageService returned fewer than 200 candles, hit AllTick REST API directly NOW
+    // and replace the result before responding. Background-store the fuller set for next time.
     if (finalCandles.length < 200) {
-      console.warn(`[History] ⚠️ Low density data for ${symbol} @ ${timeframe}: only ${finalCandles.length} candles`);
+      console.warn(`[History] ⚠️ Low density data for ${symbol} @ ${timeframe}: only ${finalCandles.length} candles — attempting AllTick API fallback`);
+      try {
+        const apiFallback = await alltickApiService.getHistoricalCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit);
+        if (Array.isArray(apiFallback) && apiFallback.length > finalCandles.length) {
+          console.log(`[History] ✅ API fallback returned ${apiFallback.length} candles for ${cleanSymbol} @ ${timeframe}`);
+          let richer = normalizeToBucketSeries(apiFallback, targetMinutes);
+          richer = sanitizeHistoricalSeries(richer, targetMinutes, cleanSymbol);
+          richer.sort((a, b) => a.time - b.time);
+          if (richer.length > finalCandles.length) {
+            finalCandles = richer;
+            // Store in DB/Redis asynchronously so next request hits cache
+            storageService.storeCandles(cleanSymbol, timeframe, apiFallback).catch(() => {});
+          }
+        }
+      } catch (apiErr) {
+        console.warn(`[History] API density fallback failed for ${cleanSymbol}: ${apiErr.message}`);
+      }
     }
 
     // 🏆 Return & Cache

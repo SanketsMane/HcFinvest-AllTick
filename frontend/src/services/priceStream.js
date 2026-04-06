@@ -483,5 +483,12 @@ class PriceStreamService {
 // Singleton instance
 const priceStreamService = new PriceStreamService()
 
+//Sanket v2.0 - Re-export getPriceEvents so TradingPage and AdvancedChart can import it from
+// this module without a separate import from eventSystem. Previously these components imported
+// { getPriceEvents } from './priceStream' but priceStream never re-exported it → undefined →
+// hadleMetaApiPriceUpdate and handlePriceUpdate (chart) never registered → buy/sell buttons
+// only updated via the 300ms-throttled priceStreamService.subscribe fallback, appeared stuck.
+export { getPriceEvents }
+
 export default priceStreamService
 

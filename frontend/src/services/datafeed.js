@@ -486,19 +486,42 @@ const Datafeed = {
       const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
       if (!isFinite(price) || price <= 0) return;
 
-      // 🏆 PRODUCTION SANITIZATION: Validate live update
-      if (currentBar) {
-        const result = validateRealtimeUpdate({
-          currentBar, 
-          nextPrice: price, 
-          symbol: symbolInfo.name
-        });
-        
-        if (!result.accepted) return; // Drop spikes
-        
-        currentBar = result.bar;
+      //Sanket v2.0 - Calculate current bucket for this tick so we can advance bars properly.
+      // Previously handlePriceUpdate only called validateRealtimeUpdate which keeps the same
+      // currentBar.time — so the chart NEVER opened a new candle between candleUpdate events (~60s).
+      // Every tick just updated currentBar.close with a stale timestamp, causing TV to show a
+      // frozen candle that only "jumped" forward every minute when handleCandleUpdate fired.
+      const tickTime = toMs(time) || now;
+      const bucketTime = Math.floor(tickTime / resolutionMs) * resolutionMs;
+
+      // Seed currentBar when bootstrapLiveBar hasn't resolved yet
+      if (!currentBar) {
+        currentBar = { time: bucketTime, open: price, high: price, low: price, close: price, volume: 1 };
+        lastBarTime = bucketTime;
         pushBar(currentBar);
+        return;
       }
+
+      // New bucket: finalize old bar, open new one
+      if (bucketTime > currentBar.time) {
+        pushBar({ ...currentBar }); // close the completed candle
+        currentBar = { time: bucketTime, open: currentBar.close, high: price, low: price, close: price, volume: 1 };
+        lastBarTime = bucketTime;
+        pushBar(currentBar);
+        return;
+      }
+
+      // Same bucket: validate price move and update OHLC
+      const result = validateRealtimeUpdate({
+        currentBar, 
+        nextPrice: price, 
+        symbol: symbolInfo.name
+      });
+      
+      if (!result.accepted) return; // Drop spikes
+      
+      currentBar = result.bar;
+      pushBar(currentBar);
     };
 
     Datafeed._subscribers = Datafeed._subscribers || {};
