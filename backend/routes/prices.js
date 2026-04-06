@@ -398,16 +398,17 @@ router.get('/history', async (req, res) => {
   } catch (e) {}
 
   try {
-    // 🚀 STEP 1: Direct Native Fetch (Fast & Accurate)
-    // We fetch the requested resolution directly from AllTick instead of aggregating 1m candles manually.
-    const result = await alltickApiService.getHistoricalCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit, isPreferLive);
-    
-    if (!result.success || !result.candles || result.candles.length === 0) {
-      console.warn(`[History] ⚠️ No native data found for ${symbol} @ ${timeframe}. Faking empty response.`);
+    //Sanket v2.0 - Use storageService.getCandles() which handles Redis→MongoDB→API fallback chain.
+    // Previously called alltickApiService.getHistoricalCandles() directly, bypassing MongoDB entirely—
+    // meaning every chart load hit the AllTick REST API, dangerously consuming rate-limit quota.
+    const fetchedCandles = await storageService.getCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit);
+
+    if (!fetchedCandles || fetchedCandles.length === 0) {
+      console.warn(`[History] ⚠️ No data found for ${symbol} @ ${timeframe}.`);
       return res.json({ success: true, symbol, timeframe, candles: [], count: 0, provider: 'alltick' });
     }
 
-    let finalCandles = normalizeToBucketSeries(result.candles, targetMinutes);
+    let finalCandles = normalizeToBucketSeries(fetchedCandles, targetMinutes);
     finalCandles = sanitizeHistoricalSeries(finalCandles, targetMinutes, cleanSymbol);
 
     // 🚀 ELITE PIPELINE: Clean -> Fill -> Validate
@@ -431,10 +432,12 @@ router.get('/history', async (req, res) => {
       console.warn(`[History] ⚠️ Low density data for ${symbol} @ ${timeframe}: only ${finalCandles.length} candles`);
     }
 
-    // 🏆 STEP 3: Return & Cache
-    // We cache for 5 minutes (standard for historical requests)
+    // 🏆 Return & Cache
+    //Sanket v2.0 - Use short TTL (30s) for live/preferLive requests so real-time ticks don't fight stale cache.
+    // Standard historical requests keep the 5-minute TTL to reduce API pressure.
     if (finalCandles.length > 0) {
-      await redisClient.set(cacheKey, JSON.stringify(finalCandles), 'EX', 300);
+      const cacheTtl = isPreferLive ? 30 : 300;
+      await redisClient.set(cacheKey, JSON.stringify(finalCandles), 'EX', cacheTtl);
     }
 
     res.json({

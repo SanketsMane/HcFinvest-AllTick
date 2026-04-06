@@ -103,8 +103,11 @@ export const fillGaps = (candles, intervalMinutes, until) => {
 
     const gapMs = nextTime - currentTime;
     
-    // Fill if gap is between 1.5x interval and 12 hours
-    if (gapMs > intervalMs * 1.5 && gapMs < (12 * 60 * 60 * 1000)) {
+    //Sanket v2.0 - Skip weekend gaps (>72h) to prevent memory overflow, fill intra-session gaps with flat candles
+    // 72h threshold covers standard forex weekend gaps (~62-64h Friday close → Sunday open)
+    // Previously 48h caused all Monday opens to show visible chart breaks
+    if (gapMs > intervalMs * 1.5 && gapMs < (72 * 60 * 60 * 1000)) {
+      //Sanket v2.0 - Use bucket-aligned fill to prevent overshoot: stop BEFORE the next real candle's bucket
       const nextBucket = Math.floor(nextTime / intervalMs) * intervalMs;
       let fillTime = Math.floor(currentTime / intervalMs) * intervalMs + intervalMs;
       while (fillTime < nextBucket) {
@@ -234,7 +237,9 @@ export const updateCandleListWithTick = (candles, tick, timeframeMinutes) => {
     const gapMs = bucketTime - lastCandle.time;
     if (gapMs > intervalMs && gapMs < 2 * 60 * 60 * 1000) {
       let fillTime = lastCandle.time + intervalMs;
-      while (fillTime < bucketTime) {
+      //Sanket v2.0 - Fill intermediate missed buckets with flat candles (capped at 10) to prevent chart holes
+      let fillCount = 0;
+      while (fillTime < bucketTime && fillCount < 10) {
         updated.push({
           time: fillTime,
           open: lastCandle.close,
@@ -245,6 +250,7 @@ export const updateCandleListWithTick = (candles, tick, timeframeMinutes) => {
           isInterpolated: true
         });
         fillTime += intervalMs;
+        fillCount++;
       }
     }
 

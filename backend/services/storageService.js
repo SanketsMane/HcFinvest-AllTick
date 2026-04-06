@@ -93,7 +93,9 @@ class StorageService extends EventEmitter {
       return rawBars.map(b => {
         const p = JSON.parse(b);
         return {
-          time: new Date(p.t),
+          //Sanket v2.0 - Return Unix seconds (consistent with mapDbCandles) to prevent Date-object format mismatch
+          // Previously returned new Date(p.t) which datafeed.js normalizeBars could not handle, dropping candles
+          time: Math.floor(p.t / 1000),
           open: p.o,
           high: p.h,
           low: p.l,
@@ -857,7 +859,7 @@ class StorageService extends EventEmitter {
           return;
         }
 
-        await this.storeCandles(symbol, timeframe, candles);
+        await this.storeCandles(resolvedSymbol, timeframe, candles);
         
         // ✅ Feed the Redis rolling buffer with the new discovery
         if (candles.length < 500) {
@@ -1077,13 +1079,15 @@ class StorageService extends EventEmitter {
             `[StorageService] Fetching batch for ${symbol} ${timeframe} from ${new Date(windowStart * 1000).toISOString()} to ${new Date(currentEndTime * 1000).toISOString()}`
           );
 
-          const candles = await metaApiService.getHistoricalCandles(
+          //Sanket v2.0 - Use alltickApiService (metaApiService was never imported — caused ReferenceError crash on every backfill)
+          const result = await alltickApiService.getHistoricalCandles(
             symbol, 
             timeframe, 
             windowStart,
             currentEndTime,
             batchLimit
           );
+          const candles = result?.candles || [];
 
           if (!candles || candles.length === 0) {
             console.log('[StorageService] No more candles found for this period.');
@@ -1133,7 +1137,10 @@ class StorageService extends EventEmitter {
         filter: { 
           symbol, 
           timeframe, 
-          time: new Date(candle.time * 1000) 
+          //Sanket v2.0 - candle.time is already in milliseconds (parseInt(c.timestamp)*1000 from AllTick)
+          // Previously multiplied by 1000 again → timestamps stored ~1000x too far in future (year ~53869)
+          // causing EVERY DB query to return 0 results, forcing all requests through the AllTick REST API
+          time: new Date(candle.time) 
         },
         update: {
           $set: {

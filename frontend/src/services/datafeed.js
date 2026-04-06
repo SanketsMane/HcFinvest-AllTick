@@ -11,7 +11,6 @@ import { sanitizeBatch, validateRealtimeUpdate, getSpikeThreshold } from "../uti
  */
 
 /* Event system used by TradingPage.jsx to receive live price updates */
-// Moved to shared eventSystem.js to break circular dependency
 
 const configurationData = {
   supported_resolutions: ["1", "5", "15", "30", "60", "120", "240", "1D", "1W", "1M"]
@@ -529,8 +528,8 @@ const Datafeed = {
   unsubscribeBars: (subscriberUID) => {
     const sub = Datafeed._subscribers && Datafeed._subscribers[subscriberUID];
     if (sub) {
-      getPriceEvents().removeEventListener("priceUpdate", sub.handlePriceUpdate);
-      getPriceEvents().removeEventListener("candleUpdate", sub.handleCandleUpdate);
+      getPriceEvents().removeEventListener("priceUpdate", sub.priceUpdate);
+      getPriceEvents().removeEventListener("candleUpdate", sub.candleUpdate);
       if (sub.dataGapMonitor) clearInterval(sub.dataGapMonitor);
       if (sub.heartbeatTimer) clearInterval(sub.heartbeatTimer);
       if (sub.symbol) priceStreamService.unsubscribeBars(sub.symbol);
