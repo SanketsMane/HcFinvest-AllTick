@@ -415,12 +415,11 @@ router.get('/history', async (req, res) => {
     // 1. Sort (Clean)
     finalCandles.sort((a, b) => a.time - b.time);
 
-    //Sanket v2.0 - Fill gaps even with sparse data (was > 5, now > 1)
-    if (finalCandles.length > 1 && targetMinutes <= 1440) {
+    if (finalCandles.length > 0 && targetMinutes <= 1440) {
        const prevCount = finalCandles.length;
-       finalCandles = fillGaps(finalCandles, targetMinutes);
+       finalCandles = fillGaps(finalCandles, targetMinutes, endTime);
        if (finalCandles.length > prevCount) {
-         console.log(`[History] 🔗 Continuity Fix: Filled ${finalCandles.length - prevCount} gaps in ${timeframe} data`);
+         console.log(`[History] 🔗 Continuity Fix: Filled ${finalCandles.length - prevCount} gaps in ${timeframe} data (until=${endTime})`);
        }
     }
 

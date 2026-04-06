@@ -436,13 +436,44 @@ const Datafeed = {
     
     console.log(`[DATAFEED] ✅ subscribeBars: ${symbolInfo.name}, resolution=${resolution}m`);
     
+    // ✅ PROACTIVE HEARTBEAT INTERPOLATION: Keep chart moving during silent periods.
+    // If no ticks arrive for > 5s, we manually 'tick' the current bar to keep the 
+    // chart line solid and prevent dotted-line gaps.
+    const heartbeatTimer = setInterval(() => {
+      if (!isActive || !currentBar) return;
+      
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastUpdateTime;
+      
+      // If we haven't seen a tick in 2s, but the clock has moved, proactive 'tick' 
+      // the datafeed with the last price to prevent visual 'sticking'.
+      if (timeSinceLastUpdate > 2000) {
+        const interpolated = buildCandleFromTick({
+          currentBar,
+          tickPrice: currentBar.close,
+          tickTime: now,
+          resolutionMs,
+          symbol: symbolInfo.name
+        });
+
+        if (interpolated.accepted) {
+          interpolated.bars.forEach(bar => {
+            currentBar = { ...bar };
+            lastBarTime = bar.time;
+            pushBar(currentBar);
+          });
+          lastUpdateTime = now;
+        }
+      }
+    }, 5000);
+
     // ✅ Monitor for data gaps - production-grade health check
     const dataGapMonitor = setInterval(() => {
       const now = Date.now();
       if (lastTickTime > 0) {
         const timeSinceLastTick = now - lastTickTime;
-        if (timeSinceLastTick > 30000) {
-          console.warn(`[DATAFEED] ⚠️  DATA GAP: No ticks for ${(timeSinceLastTick / 1000).toFixed(1)}s (${tickCount} total ticks received)`);
+        if (timeSinceLastTick > 15000) {
+          console.warn(`[DATAFEED] ⚠️  DATA GAP: No ticks for ${symbolInfo.name} for ${(timeSinceLastTick / 1000).toFixed(1)}s`);
         }
       }
     }, 10000);
@@ -562,10 +593,11 @@ const Datafeed = {
     // Return cleanup function so TradingView can call it when unsubscribing
     return function cleanup() {
       isActive = false;
+      clearInterval(heartbeatTimer);
       clearInterval(dataGapMonitor);
       priceStreamService.unsubscribeBars(symbolInfo.name);
-      priceEventTarget.removeEventListener("candleUpdate", handleCandleUpdate);
-      priceEventTarget.removeEventListener("priceUpdate", handlePriceUpdate);
+      getPriceEvents().removeEventListener("candleUpdate", handleCandleUpdate);
+      getPriceEvents().removeEventListener("priceUpdate", handlePriceUpdate);
       delete Datafeed._subscribers[subscriberUID];
       console.log(`[DATAFEED] ❌ Unsubscribed: ${symbolInfo.name}, received ${tickCount} ticks`);
     };
@@ -577,6 +609,7 @@ const Datafeed = {
       getPriceEvents().removeEventListener("priceUpdate", sub.handlePriceUpdate);
       getPriceEvents().removeEventListener("candleUpdate", sub.handleCandleUpdate);
       if (sub.dataGapMonitor) clearInterval(sub.dataGapMonitor);
+      if (sub.heartbeatTimer) clearInterval(sub.heartbeatTimer);
       if (sub.symbol) priceStreamService.unsubscribeBars(sub.symbol);
       delete Datafeed._subscribers[subscriberUID];
     }

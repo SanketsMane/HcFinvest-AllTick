@@ -187,7 +187,7 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
         high: currentBar.close,
         low: currentBar.close,
         close: currentBar.close,
-        volume: 0,
+        volume: 0.0001,
         isInterpolated: true
       });
       fillTime += resolutionMs;

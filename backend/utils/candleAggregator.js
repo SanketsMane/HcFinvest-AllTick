@@ -79,10 +79,11 @@ export const aggregateToTimeframe = (candles1m, timeframeMinutes) => {
  * Ensures the chart line is continuous even when no trading occurred.
  * @param {Array} candles - Array of {time, open, high, low, close, volume}
  * @param {number} intervalMinutes - Time interval in minutes
+ * @param {number} until - Optional timestamp to fill up to (e.g., current time)
  * @returns {Array} Continuous candles
  */
-export const fillGaps = (candles, intervalMinutes) => {
-  if (!candles || candles.length < 2) return candles;
+export const fillGaps = (candles, intervalMinutes, until) => {
+  if (!candles || candles.length === 0) return candles;
   
   const intervalMs = intervalMinutes * 60 * 1000;
   const filled = [];
@@ -90,20 +91,20 @@ export const fillGaps = (candles, intervalMinutes) => {
   // Ensure data is sorted by time before processing
   const sorted = [...candles].sort((a, b) => a.time - b.time);
 
+  // 1. Fill gaps between candles
   for (let i = 0; i < sorted.length - 1; i++) {
     const current = sorted[i];
     const next = sorted[i + 1];
     
     filled.push(current);
 
-    let currentTime = current.time;
+    const currentTime = current.time;
     const nextTime = next.time;
 
-    // Skip filling if the gap is >= 12 hours (implies market closure / weekend)
     const gapMs = nextTime - currentTime;
     
+    // Fill if gap is between 1.5x interval and 12 hours
     if (gapMs > intervalMs * 1.5 && gapMs < (12 * 60 * 60 * 1000)) {
-      //Sanket v2.0 - Use bucket-aligned fill to prevent overshoot: stop BEFORE the next real candle's bucket
       const nextBucket = Math.floor(nextTime / intervalMs) * intervalMs;
       let fillTime = Math.floor(currentTime / intervalMs) * intervalMs + intervalMs;
       while (fillTime < nextBucket) {
@@ -113,7 +114,7 @@ export const fillGaps = (candles, intervalMinutes) => {
           high: current.close,
           low: current.close,
           close: current.close,
-          volume: 0,
+          volume: 0.0001, // Micro-volume for better rendering
           isFilled: true
         });
         fillTime += intervalMs;
@@ -121,8 +122,35 @@ export const fillGaps = (candles, intervalMinutes) => {
     }
   }
 
-  // Push the last candle
-  filled.push(sorted[sorted.length - 1]);
+  // 2. Push the last real candle
+  const lastReal = sorted[sorted.length - 1];
+  filled.push(lastReal);
+
+  // 3. Proactive Filling: fill from last real candle up to 'until'
+  if (until && Number.isFinite(until)) {
+    const untilMs = until < 10000000000 ? until * 1000 : until;
+    const lastBucket = Math.floor(lastReal.time / intervalMs) * intervalMs;
+    const untilBucket = Math.floor(untilMs / intervalMs) * intervalMs;
+
+    let fillTime = lastBucket + intervalMs;
+    // Limit proactive padding to 2 hours max to prevent over-filling during long closures
+    const maxPadding = 2 * 60 * 60 * 1000;
+    const actualUntil = Math.min(untilBucket, lastBucket + maxPadding);
+
+    while (fillTime <= actualUntil) {
+      filled.push({
+        time: fillTime,
+        open: lastReal.close,
+        high: lastReal.close,
+        low: lastReal.close,
+        close: lastReal.close,
+        volume: 0.0001,
+        isFilled: true,
+        isPadding: true
+      });
+      fillTime += intervalMs;
+    }
+  }
 
   return filled;
 };
