@@ -587,25 +587,25 @@ class AllTickApiService {
           })).sort((a, b) => a.time - b.time);
 
           //Sanket v2.0 - Aggregate 1h candles into 2h candles since AllTick has no native 2h
-          //Sanket v2.0 - 2h aggregation: use time-bucket alignment instead of array-index pairing.
-          // Index-based pairing (candles[0]+candles[1], candles[2]+candles[3]) misaligns all 2h bars
-          // when the first fetched 1h candle doesn't fall on a 2h market boundary.
           if (timeframe === '2h' && candles.length > 1) {
-            const twoHourMs = 2 * 60 * 60 * 1000;
-            const buckets = new Map();
-            for (const c of candles) {
-              const bucketMs = Math.floor(c.time / twoHourMs) * twoHourMs;
-              const existing = buckets.get(bucketMs);
-              if (!existing) {
-                buckets.set(bucketMs, { time: bucketMs, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume });
+            const aggregated = [];
+            for (let i = 0; i < candles.length; i += 2) {
+              const c1 = candles[i];
+              const c2 = candles[i + 1];
+              if (c2) {
+                aggregated.push({
+                  time: c1.time,
+                  open: c1.open,
+                  high: Math.max(c1.high, c2.high),
+                  low: Math.min(c1.low, c2.low),
+                  close: c2.close,
+                  volume: c1.volume + c2.volume
+                });
               } else {
-                existing.high = Math.max(existing.high, c.high);
-                existing.low = Math.min(existing.low, c.low);
-                existing.close = c.close;
-                existing.volume += c.volume;
+                aggregated.push(c1);
               }
             }
-            candles = Array.from(buckets.values()).sort((a, b) => a.time - b.time);
+            candles = aggregated;
           }
 
           this.historyCache.set(cacheKey, {
@@ -799,12 +799,14 @@ class AllTickApiService {
       // Use a lock-free approach: just update the "live" keys
       for (const { tf, mins } of timeframes) {
         // Build the same cache key pattern used in prices.js
-        //Sanket v2.0 - Use KEYS pattern to find all cache variants for this symbol/tf
-        // Previously used hardcoded ':1000:' limit suffix which never matched caches built with limit=500
-        // (datafeed.js requests limit=500+) causing all live tick updates to silently miss the chart cache
-        const keyPattern = `hist:${cleanSymbol}:${tf}:end:latest:*`;
-        const matchingKeys = await redisClient.keys(keyPattern).catch(() => []);
-        for (const key of matchingKeys) {
+        //Sanket v2.0 - Fixed cache key to match prices.js format (end: not start:, requestLimit not hardcoded 1000)
+        const cacheKey = `hist:${cleanSymbol}:${tf}:end:latest:1000:std`;
+        const liveCacheKey = `hist:${cleanSymbol}:${tf}:end:latest:1000:live`;
+
+        // We try both because the history route might have cached it with either
+        const keys = [cacheKey, liveCacheKey];
+        
+        for (const key of keys) {
           const cached = await redisClient.get(key);
           if (cached) {
             const candles = JSON.parse(cached);

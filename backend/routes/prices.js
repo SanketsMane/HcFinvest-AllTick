@@ -398,17 +398,16 @@ router.get('/history', async (req, res) => {
   } catch (e) {}
 
   try {
-    //Sanket v2.0 - Use storageService.getCandles() which handles Redis→MongoDB→API fallback chain.
-    // Previously called alltickApiService.getHistoricalCandles() directly, bypassing MongoDB entirely—
-    // meaning every chart load hit the AllTick REST API, dangerously consuming rate-limit quota.
-    const fetchedCandles = await storageService.getCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit);
-
-    if (!fetchedCandles || fetchedCandles.length === 0) {
-      console.warn(`[History] ⚠️ No data found for ${symbol} @ ${timeframe}.`);
+    // 🚀 STEP 1: Direct Native Fetch (Fast & Accurate)
+    // We fetch the requested resolution directly from AllTick instead of aggregating 1m candles manually.
+    const result = await alltickApiService.getHistoricalCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit, isPreferLive);
+    
+    if (!result.success || !result.candles || result.candles.length === 0) {
+      console.warn(`[History] ⚠️ No native data found for ${symbol} @ ${timeframe}. Faking empty response.`);
       return res.json({ success: true, symbol, timeframe, candles: [], count: 0, provider: 'alltick' });
     }
 
-    let finalCandles = normalizeToBucketSeries(fetchedCandles, targetMinutes);
+    let finalCandles = normalizeToBucketSeries(result.candles, targetMinutes);
     finalCandles = sanitizeHistoricalSeries(finalCandles, targetMinutes, cleanSymbol);
 
     // 🚀 ELITE PIPELINE: Clean -> Fill -> Validate
@@ -427,41 +426,15 @@ router.get('/history', async (req, res) => {
     // 3. Validate Continuity
     validateContinuity(finalCandles, targetMinutes);
 
-    // 4. Density Check + synchronous API fallback
-    //Sanket v2.0 - After server restart Redis is cold and MongoDB may not have enough recent 1m candles.
-    // Previously we only logged a warning and served the sparse data → chart loaded with 29 candles
-    // instead of 300 → TV showed a near-empty chart until the background refill completed (next request).
-    // Fix: if storageService returned fewer than 200 candles, hit AllTick REST API directly NOW
-    // and replace the result before responding. Background-store the fuller set for next time.
+    // 4. Density Check
     if (finalCandles.length < 200) {
-      console.warn(`[History] ⚠️ Low density data for ${symbol} @ ${timeframe}: only ${finalCandles.length} candles — attempting AllTick API fallback`);
-      try {
-        //Sanket v2.0 - getHistoricalCandles returns { success, candles, source } not a plain array.
-        // Previously checked Array.isArray(apiFallback) which was always false → fallback never fired.
-        const apiResult = await alltickApiService.getHistoricalCandles(cleanSymbol, timeframe, startTime, endTime, requestLimit);
-        const apiFallback = Array.isArray(apiResult) ? apiResult : (apiResult?.candles || []);
-        if (apiFallback.length > finalCandles.length) {
-          console.log(`[History] ✅ API fallback returned ${apiFallback.length} candles for ${cleanSymbol} @ ${timeframe}`);
-          let richer = normalizeToBucketSeries(apiFallback, targetMinutes);
-          richer = sanitizeHistoricalSeries(richer, targetMinutes, cleanSymbol);
-          richer.sort((a, b) => a.time - b.time);
-          if (richer.length > finalCandles.length) {
-            finalCandles = richer;
-            // Store in DB/Redis asynchronously so next request hits cache
-            storageService.storeCandles(cleanSymbol, timeframe, apiFallback).catch(() => {});
-          }
-        }
-      } catch (apiErr) {
-        console.warn(`[History] API density fallback failed for ${cleanSymbol}: ${apiErr.message}`);
-      }
+      console.warn(`[History] ⚠️ Low density data for ${symbol} @ ${timeframe}: only ${finalCandles.length} candles`);
     }
 
-    // 🏆 Return & Cache
-    //Sanket v2.0 - Use short TTL (30s) for live/preferLive requests so real-time ticks don't fight stale cache.
-    // Standard historical requests keep the 5-minute TTL to reduce API pressure.
+    // 🏆 STEP 3: Return & Cache
+    // We cache for 5 minutes (standard for historical requests)
     if (finalCandles.length > 0) {
-      const cacheTtl = isPreferLive ? 30 : 300;
-      await redisClient.set(cacheKey, JSON.stringify(finalCandles), 'EX', cacheTtl);
+      await redisClient.set(cacheKey, JSON.stringify(finalCandles), 'EX', 300);
     }
 
     res.json({
