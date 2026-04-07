@@ -310,6 +310,44 @@ const Datafeed = {
           console.log(`[DATAFEED] ⚠️ No valid bars for ${symbolInfo.name}. Returning noData.`);
           onHistoryCallback([], { noData: true });
       } else {
+          //Sanket v2.0 - CRITICAL: Inject current running candle into history array on first request
+          //Sanket v2.0 - TradingView sets lastBarsCache from the LAST bar in onHistoryCallback
+          //Sanket v2.0 - If the live candle is NOT in this array, TV creates a new empty bar on first tick
+          //Sanket v2.0 - This is the root cause of "chart stuck / empty candle on load"
+          if (useLiveCache) {
+            try {
+              const liveRes = await fetch(
+                `${API_URL}/prices/current-candle?symbol=${encodeURIComponent(symbolInfo.name)}&resolution=${encodeURIComponent(timeframe)}`
+              );
+              if (liveRes.ok) {
+                const liveJson = await liveRes.json();
+                if (liveJson?.success && liveJson.candle && Number.isFinite(liveJson.candle.time) && liveJson.candle.time > 0) {
+                  const rawLive = {
+                    time: liveJson.candle.time,
+                    open: Number(liveJson.candle.open),
+                    high: Number(liveJson.candle.high),
+                    low: Number(liveJson.candle.low),
+                    close: Number(liveJson.candle.close),
+                    volume: Number(liveJson.candle.volume) || 0
+                  };
+                  const liveBar = applyChartPriceModeToBar(rawLive, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
+                  const lastHistoryBar = bars[bars.length - 1];
+                  if (liveBar.time === lastHistoryBar.time) {
+                    //Sanket v2.0 - Same bucket: replace history bar with tick-accurate live OHLC
+                    bars[bars.length - 1] = liveBar;
+                    console.log(`[DATAFEED] ✅ Live candle merged (replaced) for ${symbolInfo.name} t=${liveBar.time}`);
+                  } else if (liveBar.time > lastHistoryBar.time) {
+                    //Sanket v2.0 - Newer bucket: append live candle as the current in-progress bar
+                    bars.push(liveBar);
+                    console.log(`[DATAFEED] ✅ Live candle appended for ${symbolInfo.name} t=${liveBar.time}`);
+                  }
+                }
+              }
+            } catch (_liveErr) {
+              // Non-fatal: history bars will still be returned normally
+            }
+          }
+
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           //Sanket v2.0 - Only update if this batch is more recent. Backward pagination batches
           // arrive AFTER the first (most-recent) batch and would overwrite _lastHistoryBars with
@@ -320,7 +358,7 @@ const Datafeed = {
           if (!Datafeed._lastHistoryBars[historyKey] || candidateBar.time > Datafeed._lastHistoryBars[historyKey].time) {
             Datafeed._lastHistoryBars[historyKey] = { ...candidateBar };
           }
-          console.log(`[DATAFEED] ✅ Returning ${bars.length} bars with valid timestamps`);
+          console.log(`[DATAFEED] ✅ Returning ${bars.length} bars, lastBar.time=${candidateBar.time}`);
           onHistoryCallback(bars, { noData: false });
       }
     } catch (err) {
