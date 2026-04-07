@@ -1,0 +1,51 @@
+73: //   //Sanket v2.0 - livePrices REMOVED; single source of truth is metaApiPrices (per-tick priceUpdate event)
+115: //     fetchLivePrices()
+121: //       fetchLivePrices()
+179: //       setLivePrices(prev => {
+217: //     fetchLivePrices()
+314: //         // Use livePrices first, fallback to instruments
+315: //         const livePrice = livePrices[trade.symbol]
+353: //   }, [livePrices, instruments, openTrades])
+357: //   const fetchLivePrices = async () => {
+365: //       // Always update livePrices state for open trades display
+368: //         //Sanket v2.0 - Removed setLivePrices; instruments/selectedInstrument updated below
+749: //       setLivePrices(prev => ({
+788: //     // Use livePrices first (real-time), fallback to selectedInstrument
+789: //     const livePrice = livePrices[selectedInstrument.symbol]
+957: //       // Use livePrices first (real-time), fallback to instruments
+958: //       const livePrice = livePrices[trade.symbol]
+1126: //       // Use livePrices first, fallback to instruments
+1127: //       const livePrice = livePrices[trade.symbol]
+1636: //                 {/* <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div> */}
+1638: //                   {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
+1643: //                   Last: {new Date(livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()}
+1734: //                       // Use livePrices first, fallback to instruments
+1735: //                       const livePrice = livePrices[trade.symbol]
+3227: //Sanket v2.0 - livePrices REMOVED; single source of truth is metaApiPrices (per-tick priceUpdate event)
+3334: const live = livePrices[selectedInstrument?.symbol] || {}
+3350: }, [livePrices, selectedInstrument?.symbol, selectedInstrument?.bid, selectedInstrument?.ask])
+3608: fetchLivePrices()
+3628: fetchLivePrices()
+3776: }, [accountSummary?.floatingPnl, openTrades.length, livePrices])
+3790: setLivePrices(prev => ({
+3823: //Sanket v2.0 - Removed setLivePrices from throttled path; metaApiPrices is now single source
+3860: fetchLivePrices()
+4085: const livePrice = livePrices[targetSym] ||
+4086: livePrices[targetSym.toUpperCase()] ||
+4087: livePrices[targetSym.toLowerCase()] ||
+4088: livePrices[targetSym.replace(/\.i$/i, '').toUpperCase()] ||
+4099: // over livePrices (300ms throttled) so floating PnL tracks chart price in real-time.
+4149: }, [livePrices, instruments, openTrades])
+4153: const fetchLivePrices = async () => {
+4164: // Always update livePrices state for open trades display
+4166: //Sanket v2.0 - Removed setLivePrices; instruments/selectedInstrument updated below
+4262: setTimeout(() => fetchLivePrices(), 5000)
+4498: //Sanket v2.0 - Removed setLivePrices; metaApiPrices is single source (per-tick)
+5644: {/* <div className={`w-2 h-2 rounded-full ${livePrices[selectedInstrument.symbol] ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div> */}
+5646: {/* {livePrices[selectedInstrument.symbol] ? 'AllTick Live' : 'Waiting...'} */}
+5651: {/* Last: {new Date(livePrices[selectedInstrument.symbol].time || livePrices[selectedInstrument.symbol].timestamp).toLocaleTimeString()} */}
+5778: const livePrice = livePrices[targetSym] ||
+5779: livePrices[targetSym.toUpperCase()] ||
+5780: livePrices[targetSym.toLowerCase()] ||
+5781: livePrices[baseSym] ||
+5791: // never jump. Prefer inst.bid/ask (per-tick via instruments state) over livePrices (300ms).

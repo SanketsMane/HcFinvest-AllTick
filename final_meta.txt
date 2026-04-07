@@ -1,0 +1,3 @@
+L75: //   const [metaApiPrices, setMetaApiPrices] = useState({}) // Store MetaAPI chart prices
+L697: //       setMetaApiPrices(prev => ({
+L3229: const [metaApiPrices, setMetaApiPrices] = useState({}) // Per-tick price bus (priceUpdate event, replaces livePrices)

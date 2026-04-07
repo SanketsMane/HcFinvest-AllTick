@@ -1,0 +1,96 @@
+L4063:   // Update account summary when prices change (for real-time equity/margin)
+L4064:   useEffect(() => {
+L4065:     // Skip if no live prices yet (prevent flickering to zero)
+L4066:     //Sanket v2.0 - Guard: skip until per-tick OR instruments prices are loaded
+L4067:     if (Object.keys(metaApiPrices).length === 0 && instruments.every(i => !i.bid)) return
+L4068:     
+L4069:     //Sanket v2.0 - Update lastValidPricesRef with any new valid prices from this tick cycle
+L4070:     Object.entries(metaApiPrices).forEach(([sym, p]) => {
+L4071:       if (p && p.bid && p.bid > 0) {
+L4072:         lastValidPricesRef.current[sym] = p;
+L4073:       }
+L4074:     });
+L4075:     
+L4076:     // Calculate total floating PnL from current prices
+L4077:     let totalFloatingPnl = 0
+L4078:     let totalUsedMargin = 0
+L4079:     let hasValidPrices = false
+L4080:     
+L4081:     if (openTrades.length > 0) {
+L4082:       openTrades.forEach(trade => {
+L4083:         const targetSym = trade.symbol;
+L4084:         //Sanket v2.0 - Look up price: live first, then lastValidPricesRef cache, then instrument fallback
+L4085:         const livePrice = livePrices[targetSym] || 
+L4086:                         livePrices[targetSym.toUpperCase()] || 
+L4087:                         livePrices[targetSym.toLowerCase()] ||
+L4088:                         livePrices[targetSym.replace(/\.i$/i, '').toUpperCase()] ||
+L4089:                         lastValidPricesRef.current[targetSym] ||
+L4090:                         lastValidPricesRef.current[targetSym.toUpperCase()];
+L4091: 
+L4092:         const inst = instruments.find(i => i.symbol === trade.symbol)
+L4093:         
+L4094:         // Normalize side for safety (e.g. 'buy' -> 'BUY')
+L4095:         const side = String(trade.side || '').toUpperCase();
+L4096:         const contractSize = Number(trade.contractSize) > 0 ? Number(trade.contractSize) : getMarginContractSize(targetSym);
+L4097: 
+L4098:         //Sanket v2.0 - MT5-style mark price: prefer inst.bid/ask (per-tick via instruments state)
+L4099:         // over livePrices (300ms throttled) so floating PnL tracks chart price in real-time.
+L4100:         const instBid = inst?.rawBid || inst?.bid || null;
+L4101:         const instAsk = inst?.rawAsk || inst?.ask || instBid;
+L4102:         const liveBid = livePrice?.rawBid || livePrice?.bid || null;
+L4103:         const liveAsk = livePrice?.rawAsk || livePrice?.ask || liveBid;
+L4104:         const effectiveBid = instBid || liveBid;
+L4105:         const effectiveAsk = instAsk || liveAsk;
+L4106:         
+L4107:         // Only calculate if we have a valid price
+L4108:         const currentPrice = side === 'BUY' ? effectiveBid : effectiveAsk;
+L4109:         
+L4110:         if (currentPrice && currentPrice > 0) {
+L4111:           hasValidPrices = true
+L4112:           const pnl = side === 'BUY'
+L4113:             ? (currentPrice - trade.openPrice) * trade.quantity * contractSize
+L4114:             : (trade.openPrice - currentPrice) * trade.quantity * contractSize
+L4115:           
+L4116:           const tradePnl = pnl - (trade.commission || 0) - (trade.swap || 0)
+L4117:           totalFloatingPnl += tradePnl
+L4118:           //Sanket v2.0 - Cache this trade's PnL so partial updates don't reset it to $0
+L4119:           const tradeKey = getTradeCacheKey(trade)
+L4120:           if (tradeKey) lastTradePnlRef.current[tradeKey] = tradePnl;
+L4121:         } else {
+L4122:           //Sanket v2.0 - No valid price for this trade right now, use last cached PnL instead of $0
+L4123:           const tradeKey = getTradeCacheKey(trade)
+L4124:           totalFloatingPnl += tradeKey ? (lastTradePnlRef.current[tradeKey] || 0) : 0;
+L4125:         }
+L4126:         totalUsedMargin += trade.marginUsed || 0
+L4127:       })
+L4128:     }
+L4129:     
+L4130:     // Only update if we have valid prices (prevent flickering to zero)
+L4131:     if (!hasValidPrices && openTrades.length > 0) return
+L4132:     
+L4133:     // Always update account summary with real-time values
+L4134:     const newEquity = Math.round((accountSummary.balance + (accountSummary.credit || 0) + totalFloatingPnl) * 100) / 100
+L4135:     const newFreeMargin = Math.round((accountSummary.balance + (accountSummary.credit || 0) + totalFloatingPnl - totalUsedMargin) * 100) / 100
+L4136:     
+L4137:     setAccountSummary(prev => ({
+L4138:       ...prev,
+L4139:       floatingPnl: Math.round(totalFloatingPnl * 100) / 100,
+L4140:       usedMargin: Math.round(totalUsedMargin * 100) / 100,
+L4141:       equity: newEquity,
+L4142:       freeMargin: newFreeMargin
+L4143:     }))
+L4144:     
+L4145:     // CRITICAL: Check for stop out condition - equity <= 0 or free margin < 0
+L4146:     if (openTrades.length > 0 && (newEquity <= 0 || newFreeMargin < -totalUsedMargin)) {
+L4147:       checkStopOut()
+L4148:     }
+L4149:   }, [livePrices, instruments, openTrades])
+L4150: 
+L4151:   
+L4152:   // Fetch live prices in background (non-blocking)
+L4153:   const fetchLivePrices = async () => {
+L4154:     try {
+L4155:       // Get all symbols and fetch in single batch call to backend
+L4156:       const allSymbols = instruments.map(i => i.symbol)
+L4157:       
+L4158:       // Single batch call to backend (handles both AllTick and other providers)

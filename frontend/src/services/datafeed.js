@@ -508,7 +508,8 @@ const Datafeed = {
       });
 
       if (!result.accepted) {
-        console.warn(`[CHART-SPIKE-DROPPED] ${symbol} price=${price} rejected vs currentBar?.close=${currentBar?.close}`);
+        //Sanket v2.0 - Show actual rejection reason (was mislabeled as CHART-SPIKE-DROPPED for all rejections including out_of_order_bucket)
+        console.warn(`[CHART-SKIP] ${symbol} reason=${result.reason} price=${price} currentBar.close=${currentBar?.close}`);
         return;
       }
 
@@ -547,8 +548,10 @@ const Datafeed = {
   unsubscribeBars: (subscriberUID) => {
     const sub = Datafeed._subscribers && Datafeed._subscribers[subscriberUID];
     if (sub) {
-      getPriceEvents().removeEventListener("priceUpdate", sub.handlePriceUpdate);
-      getPriceEvents().removeEventListener("candleUpdate", sub.handleCandleUpdate);
+      //Sanket v2.0 - Fixed: was using sub.handlePriceUpdate (undefined) instead of sub.priceUpdate
+      //Sanket v2.0 - Bug: listeners were never removed, causing duplicate CHART-TICK and time/countdown desync
+      getPriceEvents().removeEventListener("priceUpdate", sub.priceUpdate);
+      getPriceEvents().removeEventListener("candleUpdate", sub.candleUpdate);
       if (sub.dataGapMonitor) clearInterval(sub.dataGapMonitor);
       if (sub.heartbeatTimer) clearInterval(sub.heartbeatTimer);
       if (sub.symbol) priceStreamService.unsubscribeBars(sub.symbol);

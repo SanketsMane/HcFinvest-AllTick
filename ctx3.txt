@@ -1,0 +1,33 @@
+L3797:             spread: Math.abs(selectedAsk - selectedBid)
+L3798:           }
+L3799:         }))
+L3800: 
+L3801:         setSelectedInstrument(prev => {
+L3802:           if (!prev || prev.symbol !== selectedSymbol) return prev
+L3803:           return {
+L3804:             ...prev,
+L3805:             bid: selectedBid,
+L3806:             ask: selectedAsk,
+L3807:             spread: Math.abs(selectedAsk - selectedBid)
+---
+L4055:         setTradeError(data.message || 'Kill switch activation failed');
+L4056:       }
+L4057:     } catch (err) {
+L4058:       console.error(err);
+L4059:       setTradeError('Server error while activating Kill Switch');
+L4060:     }
+L4061:   };
+L4062: 
+L4063:   // Update account summary when prices change (for real-time equity/margin)
+L4064:   useEffect(() => {
+L4065:     // Skip if no live prices yet (prevent flickering to zero)
+L4066:     //Sanket v2.0 - Guard: skip until per-tick OR instruments prices are loaded
+L4067:     if (Object.keys(metaApiPrices).length === 0 && instruments.every(i => !i.bid)) return
+L4068:     
+L4069:     //Sanket v2.0 - Update lastValidPricesRef with any new valid prices from this tick cycle
+L4070:     Object.entries(metaApiPrices).forEach(([sym, p]) => {
+L4071:       if (p && p.bid && p.bid > 0) {
+L4072:         lastValidPricesRef.current[sym] = p;
+L4073:       }
+L4074:     });
+L4075:     

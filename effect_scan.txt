@@ -1,0 +1,42 @@
+L112: //   useEffect(() => {
+L131: //   useEffect(() => {
+L150: //   useEffect(() => {
+L157: //   useEffect(() => {
+L167: //     window.addEventListener('resize', handleResize)
+L172: //   useEffect(() => {
+L223: //   useEffect(() => {
+L266: //   useEffect(() => {
+L302: //   useEffect(() => {
+L690: //   useEffect(() => {
+L691: //     const priceEvents = getPriceEvents()
+L739: //     priceEvents.addEventListener('priceUpdate', handlePriceUpdate)
+L742: //       priceEvents.removeEventListener('priceUpdate', handlePriceUpdate)
+L2925: import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+L3139: useEffect(() => {
+L3328: useEffect(() => {
+L3478: useEffect(() => {
+L3482: useEffect(() => {
+L3486: useEffect(() => {
+L3493: document.addEventListener('mousedown', handleOutsideClick)
+L3559: useEffect(() => {
+L3571: useEffect(() => {
+L3605: document.addEventListener('keydown', handleDropdownKeys)
+L3609: useEffect(() => {
+L3642: useEffect(() => {
+L3660: useEffect(() => {
+L3701: useEffect(() => {
+L3720: useEffect(() => {
+L3727: useEffect(() => {
+L3737: window.addEventListener('resize', handleResize)
+L3753: useEffect(() => {
+L3782: useEffect(() => {
+L3872: useEffect(() => {
+L3873: const priceEvents = getPriceEvents()
+L3901: priceEvents.addEventListener('chartBarUpdate', handleChartBarUpdate)
+L3902: return () => priceEvents.removeEventListener('chartBarUpdate', handleChartBarUpdate)
+L3905: useEffect(() => {
+L3911: useEffect(() => {
+L3928: useEffect(() => {
+L3969: useEffect(() => {
+L3987: useEffect(() => {
+L4059: useEffect(() => {

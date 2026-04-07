@@ -1,0 +1,3 @@
+  const [livePrices, setLivePrices] = useState({}) // Store live prices separately
+//   const [priceUpdateTick, setPriceUpdateTick] = useState(0) // Force re-render on price updates
+//   const [meta
