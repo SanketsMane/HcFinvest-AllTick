@@ -253,7 +253,7 @@ router.get('/current-candle', async (req, res) => {
     let currentCandle = null;
     let authority = 'live_bar';
     let source = 'storage_live_bar';
-    if (liveBar && liveBar.timeMs >= currentBucketStart) {
+    if (liveBar && liveBar.timeMs >= currentBucketStart && liveBar.timeMs < (currentBucketStart + timeframeMs)) {
       currentCandle = {
         time: liveBar.timeMs,
         open: liveBar.open,
@@ -278,7 +278,7 @@ router.get('/current-candle', async (req, res) => {
       })
       .filter(b => Number.isFinite(b.time) && b.time > 0 && Number.isFinite(b.close) && b.close > 0);
     const recentClosed = recentBars.filter(b => b.time < currentBucketStart);
-    const redisCurrentBar = [...recentBars].reverse().find(b => b.time >= currentBucketStart);
+    const redisCurrentBar = [...recentBars].reverse().find(b => b.time >= currentBucketStart && b.time < (currentBucketStart + timeframeMs));
 
     if (!currentCandle && redisCurrentBar) {
       currentCandle = {

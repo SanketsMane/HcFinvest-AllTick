@@ -750,6 +750,11 @@ const Datafeed = {
           if (!isActive) return;
 
           if (json?.success && json.candle && Number.isFinite(json.candle.time) && json.candle.time > 0) {
+            const _nowAlignedMs = Date.now() + (Datafeed._serverTimeOffsetMs || 0);
+            const _currentBucket = Math.floor(_nowAlignedMs / resolutionMs) * resolutionMs;
+            if (json.candle.time >= (_currentBucket + resolutionMs)) {
+              console.warn(`[BOOTSTRAP-FUTURE-SKIP] ${symbolInfo.name} candleTime=${json.candle.time} currentBucket=${_currentBucket}`);
+            } else {
             //Sanket v2.0 - Server returned the currently running candle — use it directly
             //Sanket v2.0 - This bar already has correct open/high/low/close from all ticks so far this minute
             const liveCandle = {
@@ -773,6 +778,7 @@ const Datafeed = {
             }
             pushBar(currentBar);
             return; // Done — live bar fully seeded
+            }
           }
         }
 

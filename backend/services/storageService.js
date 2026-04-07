@@ -732,14 +732,20 @@ class StorageService extends EventEmitter {
   }
 
   parseTickTimestamp(timeValue) {
+    const now = Date.now();
     if (typeof timeValue === 'number') {
-      return timeValue < 10000000000 ? timeValue * 1000 : timeValue;
+      const parsed = timeValue < 10000000000 ? timeValue * 1000 : timeValue;
+      //Sanket v2.0 - Clamp provider timestamps that arrive in the future.
+      // Future-dated ticks open the next bucket early and make frontend charts seed from a bar
+      // that should not exist yet, which later causes out_of_order_bucket and missing live price.
+      return parsed > (now + 2000) ? now : parsed;
     }
     if (typeof timeValue === 'string') {
       const parsed = new Date(timeValue).getTime();
-      return Number.isNaN(parsed) ? Date.now() : parsed;
+      if (Number.isNaN(parsed)) return now;
+      return parsed > (now + 2000) ? now : parsed;
     }
-    return Date.now();
+    return now;
   }
 
   async ingestTick(symbol, priceData) {
