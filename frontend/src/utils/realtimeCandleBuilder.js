@@ -33,14 +33,14 @@ export const getRealtimeRecoveryConfig = (symbol = '') => {
   const upper = String(symbol).toUpperCase();
 
   if (upper.includes('BTC') || upper.includes('ETH') || upper.includes('BNB') || upper.includes('SOL') || upper.includes('XRP') || upper.includes('ADA') || upper.includes('DOGE') || upper.includes('LTC')) {
-    return { minRejects: 2, clusterPct: 1.5, windowMs: 12000 };
+    return { minRejects: 2, clusterPct: 1.5, windowMs: 12000, baselineResetMs: 8000 };
   }
 
   if (upper.includes('XAU') || upper.includes('XAG') || upper.includes('OIL') || upper.includes('NGAS') || upper.includes('COPPER') || upper.includes('US30') || upper.includes('US100') || upper.includes('US500') || upper.includes('UK100') || upper.includes('ES35')) {
-    return { minRejects: 3, clusterPct: 0.75, windowMs: 15000 };
+    return { minRejects: 3, clusterPct: 0.75, windowMs: 15000, baselineResetMs: 6000 };
   }
 
-  return { minRejects: 3, clusterPct: 0.35, windowMs: 10000 };
+  return { minRejects: 3, clusterPct: 0.35, windowMs: 10000, baselineResetMs: 20000 };
 };
 
 export const isStableRecoveryCluster = ({ symbol, minPrice, maxPrice, referencePrice }) => {
@@ -76,9 +76,24 @@ export const validateRealtimeTick = ({ symbol, bid, ask, time, state }) => {
   const mid = (numericBid + numericAsk) / 2;
   const previousMid = state?.lastMid;
   const previousTime = state?.lastTime || 0;
+  const recoveryConfig = getRealtimeRecoveryConfig(symbol);
 
   if (Number.isFinite(previousTime) && tickTime + ALLOWED_TIME_SKEW_MS < previousTime) {
     return { accepted: false, reason: 'out_of_order_tick', tickTime, mid };
+  }
+
+  //Sanket v2.0 - Let stale references expire quickly for volatile symbols.
+  // If the last accepted baseline is several seconds old, treating a real repricing as an abnormal
+  // jump freezes the watchlist/chart. In that case we accept the new mid and let it become the new baseline.
+  if (Number.isFinite(previousTime) && (Date.now() - previousTime) > recoveryConfig.baselineResetMs) {
+    return {
+      accepted: true,
+      tickTime,
+      mid,
+      bid: numericBid,
+      ask: numericAsk,
+      recoveredFromStaleBaseline: true
+    };
   }
 
   if (
@@ -127,6 +142,10 @@ export const validateRealtimeBar = ({ symbol, bar, previousBar }) => {
 
   const previousClose = Number(previousBar?.close);
   const previousTime = Number(previousBar?.time) || 0;
+  const recoveryConfig = getRealtimeRecoveryConfig(symbol);
+  if (Number.isFinite(previousTime) && (Date.now() - previousTime) > recoveryConfig.baselineResetMs) {
+    return { accepted: true, bar: nextBar };
+  }
   if (
     Number.isFinite(previousClose) &&
     isAbnormalJump({
@@ -172,6 +191,16 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
 
   // 2. Anomaly Detection
   const previousClose = Number(currentBar.close);
+  const recoveryConfig = getRealtimeRecoveryConfig(symbol);
+  if (Number.isFinite(currentBar.time) && (Date.now() - currentBar.time) > recoveryConfig.baselineResetMs) {
+    currentBar = {
+      ...currentBar,
+      open: previousClose,
+      high: previousClose,
+      low: previousClose,
+      close: previousClose
+    };
+  }
   if (
     Number.isFinite(previousClose) &&
     isAbnormalJump({

@@ -5,7 +5,7 @@ import { normalizeSymbol } from '../utils/symbolUtils.js';
 
 const router = express.Router();
 const MAX_LAYOUT_BYTES = parseInt(process.env.CHART_LAYOUT_MAX_BYTES || `${512 * 1024}`, 10);
-const CURRENT_LAYOUT_VERSION = parseInt(process.env.CHART_LAYOUT_VERSION || '2', 10);
+const CURRENT_LAYOUT_VERSION = parseInt(process.env.CHART_LAYOUT_VERSION || '3', 10);
 
 const resolveChartUserId = (req) => req.user?._id;
 
@@ -159,6 +159,19 @@ const loadLayout = async (req, res) => {
 
     if (!layout) {
       return res.status(404).json({ success: false, message: 'No saved layout found', symbol: targetSymbol, userScoped: true });
+    }
+
+    //Sanket v2.0 - Stop loading legacy layouts that were saved before recursive sanitization existed.
+    // They are the source of TradingView schema warnings on widget.load(). The chart will rebuild a fresh
+    // clean layout and autosave it with the new version after the user interacts again.
+    if ((layout.layoutVersion || 1) < CURRENT_LAYOUT_VERSION) {
+      return res.status(404).json({
+        success: false,
+        message: 'Saved layout is outdated and has been ignored',
+        symbol: targetSymbol,
+        userScoped: true,
+        staleLayout: true
+      });
     }
 
     const sanitizedLayoutJson = sanitizeLayoutPayload(layout.layoutJson);

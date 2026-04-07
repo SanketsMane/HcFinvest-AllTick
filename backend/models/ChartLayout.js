@@ -37,7 +37,7 @@ const ChartLayoutSchema = new mongoose.Schema({
   },
   layoutVersion: {
     type: Number,
-    default: 2
+    default: 3
   },
   timestamp: {
     type: Date,
