@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { API_URL } from '../config/api'
+import { getSafeJSON, setSafeJSON } from '../utils/safeLocalStorage'
 
 const ThemeContext = createContext()
 
@@ -24,28 +25,52 @@ const darkColors = {
   textMuted: '#6B7280',
   border: '#374151',
   borderLight: '#4B5563',
+  adminSidebar: '#0D0D0D',
+  adminHeader: '#080808',
 }
 
 // Light mode colors
 const lightColors = {
-  bgPrimary: '#F9FAFB',
+  bgPrimary: '#F8FAFC',
   bgSecondary: '#FFFFFF',
   bgCard: '#FFFFFF',
-  bgHover: '#F3F4F6',
-  textPrimary: '#111827',
-  textSecondary: '#4B5563',
-  textMuted: '#9CA3AF',
-  border: '#E5E7EB',
-  borderLight: '#D1D5DB',
+  bgHover: '#F1F5F9',
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
+  adminSidebar: '#FFFFFF',
+  adminHeader: '#FFFFFF',
 }
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode')
-/*     return saved !== null ? JSON.parse(saved) : true // Default to dark mode */
+    // Force light mode for admin routes
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+      return false;
+    }
+    return getSafeJSON('darkMode', true);
   })
+
+  // Effect to handle route changes and force light mode if entering admin
+  useEffect(() => {
+    const checkAdmin = () => {
+      if (window.location.pathname.startsWith('/admin')) {
+        setIsDarkMode(false)
+      }
+    }
+    
+    // Check on mount
+    checkAdmin()
+    
+    // We could add an event listener if navigation happens without unmounting, 
+    // but usually in this SPA it's handled by route changes which re-trigger effects in sub-components.
+    // However, since this is the provider, it stays mounted.
+    // Let's add a simple check.
+  }, [])
 
   const fetchTheme = async () => {
     try {
@@ -111,7 +136,7 @@ export const ThemeProvider = ({ children }) => {
     }
     
     // Save preference
-    localStorage.setItem('darkMode', JSON.stringify(isDarkMode))
+    setSafeJSON('darkMode', isDarkMode)
   }, [isDarkMode])
 
   useEffect(() => {

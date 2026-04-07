@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import AdminLayout from '../components/AdminLayout'
-import { Mail, Send, Users, FileText, Search, RefreshCw, Eye, Trash2, Plus } from 'lucide-react'
+import { Mail, Send, Users, FileText, Search, RefreshCw, Eye, Trash2, Plus, X, Check } from 'lucide-react'
 import { API_URL } from '../config/api'
+import { useTheme } from '../context/ThemeContext'
 
 const AdminEmailManagement = () => {
+  const { modeColors } = useTheme()
   const [activeTab, setActiveTab] = useState('send')
   const [templates, setTemplates] = useState([])
   const [users, setUsers] = useState([])
@@ -20,7 +22,8 @@ const AdminEmailManagement = () => {
   const [previewHtml, setPreviewHtml] = useState('')
   const [showPreview, setShowPreview] = useState(false)
 
-  const adminToken = localStorage.getItem('adminToken')
+  const rawToken = localStorage.getItem('adminToken')
+  const adminToken = (rawToken === 'undefined' || rawToken === 'null') ? null : rawToken
 
   useEffect(() => {
     fetchTemplates()
@@ -143,57 +146,72 @@ const AdminEmailManagement = () => {
   )
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Email Management" subtitle="Send emails to users using templates">
       <div className="p-4 sm:p-6">
-        {/* Header */}
+        {/* Header - Handled by AdminLayout title/subtitle but keep if custom elements needed */}
+        {/* We can remove the redundant header if AdminLayout handles it, but let's keep the icon sync */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-500/20 rounded-xl flex items-center justify-center shrink-0">
-              <Mail size={20} className="text-orange-500 sm:w-6 sm:h-6" />
+            <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-orange-500/20">
+              <Mail size={24} className="text-orange-500" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-semibold text-white">Email Management</h1>
-              <p className="text-xs sm:text-sm text-gray-500">Send emails to users using templates</p>
+              <h1 style={{ color: modeColors.text }} className="text-xl font-bold">Manager</h1>
+              <p style={{ color: modeColors.textSecondary }} className="text-sm">Broadcast and direct user communication</p>
             </div>
           </div>
         </div>
 
         {/* Message */}
         {message.text && (
-          <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
-            {message.text}
+          <div style={{ backgroundColor: message.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderColor: message.type === 'success' ? '#22C55E' : '#EF4444' }} className={`mb-6 p-4 rounded-xl border flex items-center justify-between ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="flex items-center gap-3">
+              {message.type === 'success' ? <Check size={20} /> : <X size={20} />}
+              <p className="font-semibold text-sm sm:text-base">{message.text}</p>
+            </div>
+            <button onClick={() => setMessage({ type: '', text: '' })} className="p-1 hover:bg-black/5 rounded-lg transition-colors">
+              <X size={18} />
+            </button>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-8">
           <button
             onClick={() => setActiveTab('send')}
-            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base flex items-center gap-2 ${
-              activeTab === 'send' ? 'bg-orange-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
-            }`}
+            style={{ 
+              backgroundColor: activeTab === 'send' ? '#F97316' : modeColors.card,
+              color: activeTab === 'send' ? '#FFFFFF' : modeColors.textSecondary,
+              borderColor: activeTab === 'send' ? '#F97316' : modeColors.border
+            }}
+            className="px-5 py-2.5 rounded-xl font-bold transition-all text-sm sm:text-base flex items-center gap-2 border shadow-sm active:scale-[0.98]"
           >
-            <Send size={16} />
-            <span className="hidden xs:inline">Send Email</span>
-            <span className="xs:hidden">Send</span>
+            <Send size={18} />
+            Email
           </button>
           <button
             onClick={() => setActiveTab('templates')}
-            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base flex items-center gap-2 ${
-              activeTab === 'templates' ? 'bg-orange-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
-            }`}
+            style={{ 
+              backgroundColor: activeTab === 'templates' ? '#F97316' : modeColors.card,
+              color: activeTab === 'templates' ? '#FFFFFF' : modeColors.textSecondary,
+              borderColor: activeTab === 'templates' ? '#F97316' : modeColors.border
+            }}
+            className="px-5 py-2.5 rounded-xl font-bold transition-all text-sm sm:text-base flex items-center gap-2 border shadow-sm active:scale-[0.98]"
           >
-            <FileText size={16} />
+            <FileText size={18} />
             Templates
           </button>
           <button
             onClick={() => setActiveTab('logs')}
-            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base flex items-center gap-2 ${
-              activeTab === 'logs' ? 'bg-orange-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
-            }`}
+            style={{ 
+              backgroundColor: activeTab === 'logs' ? '#F97316' : modeColors.card,
+              color: activeTab === 'logs' ? '#FFFFFF' : modeColors.textSecondary,
+              borderColor: activeTab === 'logs' ? '#F97316' : modeColors.border
+            }}
+            className="px-5 py-2.5 rounded-xl font-bold transition-all text-sm sm:text-base flex items-center gap-2 border shadow-sm active:scale-[0.98]"
           >
-            <FileText size={16} />
-            Logs
+            <RefreshCw size={18} />
+            History Logs
           </button>
         </div>
 
@@ -201,72 +219,86 @@ const AdminEmailManagement = () => {
         {activeTab === 'send' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Select User */}
-            <div className="bg-dark-800 rounded-xl p-4 sm:p-5 border border-gray-800">
-              <h3 className="text-white font-medium mb-4 flex items-center gap-2 text-sm sm:text-base">
-                <Users size={18} className="text-orange-500" />
-                Select User
+            <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl p-5 border shadow-sm flex flex-col h-full">
+              <h3 style={{ color: modeColors.text }} className="font-bold mb-4 flex items-center gap-2 text-base">
+                <Users size={20} className="text-orange-500" />
+                Select Recipient
               </h3>
               
               <div className="relative mb-4">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search users..."
+                  placeholder="Search users by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-colors"
+                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                  className="w-full border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-orange-500 transition-all font-medium"
                 />
               </div>
 
-              <div className="max-h-48 sm:max-h-64 overflow-y-auto space-y-2">
+              <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                 {filteredUsers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    No users found
+                  <div className="text-center py-12">
+                    <Users size={48} className="text-gray-200 mx-auto mb-3" />
+                    <p style={{ color: modeColors.textSecondary }} className="text-sm">No users found</p>
                   </div>
                 ) : (
                   filteredUsers.map(user => (
                     <button
                       key={user._id}
                       onClick={() => setSelectedUser(user)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        selectedUser?._id === user._id 
-                          ? 'bg-orange-500/20 border border-orange-500' 
-                          : 'bg-dark-700 hover:bg-dark-600 border border-transparent'
-                      }`}
+                      style={{ 
+                        backgroundColor: selectedUser?._id === user._id ? 'rgba(249, 115, 22, 0.05)' : modeColors.bgSecondary, 
+                        borderColor: selectedUser?._id === user._id ? '#F97316' : modeColors.border 
+                      }}
+                      className="w-full text-left p-4 rounded-xl border transition-all hover:shadow-sm group"
                     >
-                      <p className="text-white font-medium text-sm sm:text-base">{user.firstName} {user.lastName}</p>
-                      <p className="text-gray-400 text-xs sm:text-sm truncate">{user.email}</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p style={{ color: modeColors.text }} className="font-bold text-sm sm:text-base group-hover:text-orange-500 transition-colors">{user.firstName} {user.lastName}</p>
+                          <p style={{ color: modeColors.textSecondary }} className="text-xs sm:text-sm truncate max-w-[200px]">{user.email}</p>
+                        </div>
+                        {selectedUser?._id === user._id && <Check size={18} className="text-orange-500" />}
+                      </div>
                     </button>
                   ))
                 )}
               </div>
 
               {selectedUser && (
-                <div className="mt-4 p-3 bg-orange-500/10 rounded-lg border border-orange-500/30">
-                  <p className="text-orange-400 text-xs sm:text-sm">Selected: <span className="font-medium">{selectedUser.firstName}</span> ({selectedUser.email})</p>
+                <div className="mt-4 p-4 bg-orange-500/10 rounded-xl border border-orange-500/20 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold">
+                    {selectedUser.firstName?.[0]}
+                  </div>
+                  <div>
+                    <p className="text-orange-600 font-bold text-sm">Target Recipient</p>
+                    <p style={{ color: modeColors.text }} className="text-xs font-medium">{selectedUser.email}</p>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Email Content */}
-            <div className="bg-dark-800 rounded-xl p-4 sm:p-5 border border-gray-800">
-              <h3 className="text-white font-medium mb-4 flex items-center gap-2 text-sm sm:text-base">
-                <Mail size={18} className="text-orange-500" />
-                Email Content
+            <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl p-5 border shadow-sm">
+              <h3 style={{ color: modeColors.text }} className="font-bold mb-4 flex items-center gap-2 text-base">
+                <Mail size={20} className="text-orange-500" />
+                Compose Message
               </h3>
 
               {/* Template Selection */}
-              <div className="mb-4">
-                <label className="block text-gray-400 text-xs sm:text-sm mb-2">Select Template</label>
+              <div className="mb-6">
+                <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Message Template</label>
                 <select
                   value={selectedTemplate}
                   onChange={(e) => setSelectedTemplate(e.target.value)}
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 sm:px-4 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-500 transition-all font-medium appearance-none cursor-pointer"
                 >
-                  <option value="">-- Use Custom Email --</option>
+                  <option value="">-- Use Custom / Blank Message --</option>
                   {templates.map(template => (
                     <option key={template._id} value={template.slug}>
-                      {template.name}
+                      {template.name} ({template.category})
                     </option>
                   ))}
                 </select>
@@ -274,43 +306,45 @@ const AdminEmailManagement = () => {
 
               {/* Custom Email Fields */}
               {!selectedTemplate && (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-gray-400 text-xs sm:text-sm mb-2">Subject</label>
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Subject Line</label>
                     <input
                       type="text"
                       value={customEmail.subject}
                       onChange={(e) => setCustomEmail({ ...customEmail, subject: e.target.value })}
-                      placeholder="Email subject"
-                      className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 sm:px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-colors"
+                      placeholder="e.g., Important Account Update"
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
                     />
                   </div>
 
-                  <div className="mb-4">
-                    <label className="block text-gray-400 text-xs sm:text-sm mb-2">HTML Content</label>
+                  <div>
+                    <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Rich HTML Content</label>
                     <textarea
                       value={customEmail.htmlContent}
                       onChange={(e) => setCustomEmail({ ...customEmail, htmlContent: e.target.value })}
-                      placeholder="<h1>Hello!</h1><p>Your message here...</p>"
+                      placeholder="<h1>Hello!</h1><p>Your custom message body...</p>"
                       rows={5}
-                      className="w-full bg-dark-700 border border-gray-700 rounded-lg px-3 sm:px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500 font-mono transition-colors resize-none"
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all resize-none"
                     />
                   </div>
-                </>
+                </div>
               )}
 
               {/* Send Button */}
               <button
                 onClick={handleSendEmail}
                 disabled={loading || !selectedUser}
-                className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+                className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-3 text-base shadow-lg shadow-orange-500/20 active:scale-[0.98]"
               >
                 {loading ? (
-                  <RefreshCw size={18} className="animate-spin" />
+                  <RefreshCw size={20} className="animate-spin" />
                 ) : (
-                  <Send size={18} />
+                  <Send size={20} />
                 )}
-                Send Email
+                Broadcast and Send Message
               </button>
             </div>
           </div>
@@ -318,39 +352,45 @@ const AdminEmailManagement = () => {
 
         {/* Templates Tab */}
         {activeTab === 'templates' && (
-          <div className="bg-dark-800 rounded-xl border border-gray-800">
-            <div className="p-3 sm:p-4 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-white font-medium text-sm sm:text-base">Email Templates</h3>
+          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl border overflow-hidden shadow-sm">
+            <div style={{ borderBottomColor: modeColors.border }} className="p-5 border-b flex items-center justify-between">
+              <h3 style={{ color: modeColors.text }} className="font-bold text-lg">Email Templates</h3>
               <button
                 onClick={fetchTemplates}
-                className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                style={{ color: modeColors.textSecondary }}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
-                <RefreshCw size={16} className="text-gray-400" />
+                <RefreshCw size={20} />
               </button>
             </div>
             {templates.length === 0 ? (
-              <div className="p-8 text-center">
-                <FileText size={40} className="text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No templates available</p>
+              <div className="p-16 text-center">
+                <FileText size={48} className="text-gray-300 mx-auto mb-4" />
+                <p style={{ color: modeColors.textSecondary }} className="font-medium">No templates available</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-800">
+              <div style={{ backgroundColor: modeColors.bgSecondary }} className="divide-y divide-slate-100">
                 {templates.map(template => (
-                  <div key={template._id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div key={template._id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white transition-colors group">
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium text-sm sm:text-base truncate">{template.name}</p>
-                      <p className="text-gray-500 text-xs sm:text-sm truncate">{template.slug} • {template.category}</p>
+                      <p style={{ color: modeColors.text }} className="font-bold text-base sm:text-lg group-hover:text-orange-500 transition-colors">{template.name}</p>
+                      <p style={{ color: modeColors.textSecondary }} className="text-sm flex items-center gap-2">
+                        <span className="font-mono">{template.slug}</span>
+                        <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                        <span>{template.category}</span>
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${template.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${template.isActive ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20'}`}>
                         {template.isActive ? 'Active' : 'Inactive'}
                       </span>
                       <button
                         onClick={() => handlePreviewTemplate(template._id)}
-                        className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                        style={{ color: modeColors.textSecondary }}
+                        className="p-2.5 hover:bg-slate-100 rounded-xl transition-all hover:text-blue-500"
                         title="Preview"
                       >
-                        <Eye size={16} className="text-gray-400" />
+                        <Eye size={20} />
                       </button>
                     </div>
                   </div>
@@ -362,42 +402,44 @@ const AdminEmailManagement = () => {
 
         {/* Email Logs Tab */}
         {activeTab === 'logs' && (
-          <div className="bg-dark-800 rounded-xl border border-gray-800">
-            <div className="p-3 sm:p-4 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-white font-medium text-sm sm:text-base">Email Logs</h3>
+          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl border overflow-hidden shadow-sm">
+            <div style={{ borderBottomColor: modeColors.border }} className="p-5 border-b flex items-center justify-between">
+              <h3 style={{ color: modeColors.text }} className="font-bold text-lg">Communication History</h3>
               <button
                 onClick={fetchEmailLogs}
-                className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                style={{ color: modeColors.textSecondary }}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
-                <RefreshCw size={16} className="text-gray-400" />
+                <RefreshCw size={20} />
               </button>
             </div>
             
             {emailLogs.length === 0 ? (
-              <div className="p-8 text-center">
-                <Mail size={40} className="text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No email logs yet</p>
+              <div className="p-16 text-center">
+                <Mail size={48} className="text-gray-300 mx-auto mb-4" />
+                <p style={{ color: modeColors.textSecondary }} className="font-medium">No communication logs recorded yet</p>
               </div>
             ) : (
               <>
                 {/* Mobile Card View */}
-                <div className="block sm:hidden divide-y divide-gray-800">
+                <div className="block sm:hidden divide-y divide-slate-100">
                   {emailLogs.map(log => (
-                    <div key={log._id} className="p-4 space-y-2">
+                    <div key={log._id} style={{ backgroundColor: modeColors.bgSecondary }} className="p-5 space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-white text-sm font-medium truncate flex-1">{log.recipient?.email}</p>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ml-2 ${
-                          log.status === 'sent' ? 'bg-green-500/20 text-green-400' :
-                          log.status === 'failed' ? 'bg-red-500/20 text-red-400' :
-                          'bg-yellow-500/20 text-yellow-400'
+                        <p style={{ color: modeColors.text }} className="text-sm font-bold truncate flex-1">{log.recipient?.email}</p>
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ml-2 ${
+                          log.status === 'sent' ? 'bg-green-500/10 text-green-600 border border-green-500/20' :
+                          log.status === 'failed' ? 'bg-red-500/10 text-red-600 border border-red-500/20' :
+                          'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20'
                         }`}>
                           {log.status}
                         </span>
                       </div>
-                      <p className="text-gray-400 text-xs truncate">{log.subject}</p>
-                      <p className="text-gray-500 text-xs">
+                      <p style={{ color: modeColors.textSecondary }} className="text-sm font-medium line-clamp-1">{log.subject}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <RefreshCw size={12} />
                         {new Date(log.createdAt).toLocaleString()}
-                      </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -405,34 +447,34 @@ const AdminEmailManagement = () => {
                 {/* Desktop Table View */}
                 <div className="hidden sm:block overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-dark-700">
-                      <tr>
-                        <th className="text-left text-gray-400 text-xs sm:text-sm font-medium px-4 py-3">Recipient</th>
-                        <th className="text-left text-gray-400 text-xs sm:text-sm font-medium px-4 py-3">Subject</th>
-                        <th className="text-left text-gray-400 text-xs sm:text-sm font-medium px-4 py-3">Status</th>
-                        <th className="text-left text-gray-400 text-xs sm:text-sm font-medium px-4 py-3">Sent At</th>
+                    <thead style={{ backgroundColor: modeColors.bgSecondary }}>
+                      <tr style={{ borderBottomColor: modeColors.border }} className="border-b">
+                        <th style={{ color: modeColors.textSecondary }} className="text-left text-xs font-bold uppercase tracking-wider px-6 py-4">Recipient</th>
+                        <th style={{ color: modeColors.textSecondary }} className="text-left text-xs font-bold uppercase tracking-wider px-6 py-4">Full Subject</th>
+                        <th style={{ color: modeColors.textSecondary }} className="text-left text-xs font-bold uppercase tracking-wider px-6 py-4">Status</th>
+                        <th style={{ color: modeColors.textSecondary }} className="text-left text-xs font-bold uppercase tracking-wider px-6 py-4">Timestamp</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-800">
+                    <tbody style={{ backgroundColor: modeColors.card }} className="divide-y divide-slate-100">
                       {emailLogs.map(log => (
-                        <tr key={log._id} className="hover:bg-dark-700/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <p className="text-white text-sm truncate max-w-[200px]">{log.recipient?.email}</p>
+                        <tr key={log._id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="px-6 py-5">
+                            <p style={{ color: modeColors.text }} className="text-sm font-bold group-hover:text-orange-500 transition-colors">{log.recipient?.email}</p>
                           </td>
-                          <td className="px-4 py-3">
-                            <p className="text-gray-300 text-sm truncate max-w-[250px]">{log.subject}</p>
+                          <td className="px-6 py-5">
+                            <p style={{ color: modeColors.textSecondary }} className="text-sm font-medium truncate max-w-[300px]">{log.subject}</p>
                           </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              log.status === 'sent' ? 'bg-green-500/20 text-green-400' :
-                              log.status === 'failed' ? 'bg-red-500/20 text-red-400' :
-                              'bg-yellow-500/20 text-yellow-400'
+                          <td className="px-6 py-5">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              log.status === 'sent' ? 'bg-green-500/10 text-green-600 border border-green-500/20' :
+                              log.status === 'failed' ? 'bg-red-500/10 text-red-600 border border-red-500/20' :
+                              'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20'
                             }`}>
                               {log.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
-                            <p className="text-gray-400 text-sm whitespace-nowrap">
+                          <td className="px-6 py-5 text-right sm:text-left">
+                            <p className="text-gray-400 text-xs font-mono">
                               {new Date(log.createdAt).toLocaleString()}
                             </p>
                           </td>
@@ -448,27 +490,37 @@ const AdminEmailManagement = () => {
 
         {/* Preview Modal */}
         {showPreview && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-dark-800 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-hidden border border-gray-700 flex flex-col">
-              <div className="p-4 border-b border-gray-700 flex items-center justify-between shrink-0">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border shadow-2xl flex flex-col">
+              <div style={{ borderBottomColor: modeColors.border }} className="p-6 border-b flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                    <Eye size={16} className="text-orange-500" />
+                  <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center">
+                    <Eye size={20} className="text-orange-500" />
                   </div>
-                  <h3 className="text-white font-medium text-sm sm:text-base">Email Preview</h3>
+                  <h3 style={{ color: modeColors.text }} className="font-bold text-lg">E-mail Content Preview</h3>
                 </div>
                 <button
                   onClick={() => setShowPreview(false)}
-                  className="text-gray-400 hover:text-white p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                  style={{ color: modeColors.textSecondary }}
+                  className="p-2 hover:bg-slate-100 rounded-xl transition-all hover:text-red-500"
                 >
-                  ✕
+                  <X size={24} />
                 </button>
               </div>
-              <div className="p-4 overflow-y-auto flex-1">
+              <div style={{ backgroundColor: modeColors.bgSecondary }} className="p-6 overflow-y-auto flex-1">
                 <div 
-                  className="bg-white rounded-lg p-4 sm:p-6"
+                  className="bg-white rounded-xl p-8 shadow-inner border border-slate-100"
+                  style={{ color: '#1e293b' }}
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
+              </div>
+              <div style={{ borderTopColor: modeColors.border }} className="p-4 border-t flex justify-end">
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="px-6 py-2 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-all shadow-md active:scale-95"
+                >
+                  Close Preview
+                </button>
               </div>
             </div>
           </div>

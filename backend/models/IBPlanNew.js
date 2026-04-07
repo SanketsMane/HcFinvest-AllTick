@@ -6,6 +6,10 @@ const ibPlanSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  description: {
+    type: String,
+    default: ''
+  },
   maxLevels: {
     type: Number,
     required: true,
@@ -47,6 +51,10 @@ const ibPlanSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isDefault: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -59,6 +67,7 @@ ibPlanSchema.statics.getDefaultPlan = async function() {
   if (!plan) {
     plan = await this.create({
       name: 'Default',
+      description: 'Default IB plan',
       maxLevels: 3,
       commissionType: 'PER_LOT',
       levels: [
@@ -66,6 +75,7 @@ ibPlanSchema.statics.getDefaultPlan = async function() {
         { level: 2, rate: 3 },
         { level: 3, rate: 1 }
       ],
+      isDefault: true,
       source: {
         spread: true,
         tradeCommission: true,

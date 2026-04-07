@@ -51,11 +51,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-//Sanket v2.0 - guard against missing RESEND_API_KEY to avoid cryptic errors at runtime
-if (!process.env.RESEND_API_KEY) {
-  console.warn("⚠️ RESEND_API_KEY is not set. Competition emails will fail.");
-}
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendCompetitionEmail = async ({ to, subject, html }) => {
@@ -66,7 +61,7 @@ const sendCompetitionEmail = async ({ to, subject, html }) => {
 
   try {
     const fromEmail =
-      process.env.RESEND_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || "support@heddgecapitals.com"; //Sanket v2.0 - use RESEND_FROM_EMAIL first to match verified domain
+      process.env.SMTP_FROM_EMAIL || "support@heddgecapitals.com";
 
     const fromName = process.env.SMTP_FROM_NAME || "HC Finvest";
 

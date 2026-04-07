@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
@@ -166,7 +167,8 @@ redisSubscriber.on('message', (channel, message) => {
       
       const isBeingWatched = activeChartSymbols.has(String(symbol).toUpperCase());
       
-      // ≡ƒ¢í∩╕Å ELITE: Emit to 'prices' room for BOTH active charts AND table updates (always emit if priceSubscribers exist)
+      // 🏆 AUTHORITATIVE BROADCAST
+      // Emit to 'prices' room for BOTH active charts AND table updates (always emit if priceSubscribers exist)
       if (priceSubscribers.size > 0) {
         const payload = {
           symbol,
@@ -175,13 +177,24 @@ redisSubscriber.on('message', (channel, message) => {
           rawBid: priceData.rawBid,
           rawAsk: priceData.rawAsk,
           time: priceData.time || now,
+          isHeartbeat: priceData.isHeartbeat || false,
           provider: priceData.provider || 'alltick'
         }
 
         io.to('prices').emit('tickUpdate', payload);
       }
 
-      if (ENABLE_LIVE_PERSIST && !priceData.mappedFrom) {
+      // 🏆 PULSE: Forward authoritative candle heartbeats to the chart rooms
+      // This ensures the chart 'moves' horizontally every 10s even in silence.
+      if (priceData.isHeartbeat && priceData.candle) {
+        io.to(`candles:${symbol}`).emit('candleUpdate', {
+          symbol: symbol,
+          timeframe: priceData.timeframe || '1m',
+          candle: priceData.candle
+        });
+      }
+
+      if (ENABLE_LIVE_PERSIST && !priceData.mappedFrom && !priceData.isHeartbeat) {
         storageService.ingestTick(symbol, priceData).catch(err => {
           console.error(`[StorageService] Live tick persist error for ${symbol}:`, err.message)
         });
@@ -246,7 +259,8 @@ slTpCheckInterval = setInterval(async () => {
       });
     }
   } catch (err) {
-    // console.error('[TradeEngine] Auto SL/TP Check Error:', err.message);
+    //Sanket v2.0 - Re-enabled error logging for SL/TP debugging
+    console.error('[TradeEngine] Auto SL/TP Check Error:', err.message);
   }
 }, 1000);
 
@@ -423,7 +437,12 @@ const corsOptions = {
 app.use(cors(corsOptions))
 // Explicitly handle OPTIONS pre-flight for all routes
 app.options('*', cors(corsOptions))
-app.use(express.json({ limit: '50mb' }))
+app.use(express.json({
+  limit: '50mb',
+  verify: (req, _res, buf) => {
+    req.rawBody = buf?.toString('utf8') || ''
+  }
+}))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // 🛡️ Security: Restrict /api/admin & /api/admin-mgmt to admin subdomain only
@@ -445,6 +464,8 @@ const restrictAdminOrigin = (req, res, next) => {
 }
 app.use('/api/admin', restrictAdminOrigin)
 app.use('/api/admin-mgmt', restrictAdminOrigin)
+app.use('/api/oxapay/admin', restrictAdminOrigin)
+app.use('/api/ib/admin', restrictAdminOrigin)
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)

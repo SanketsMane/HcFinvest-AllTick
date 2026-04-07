@@ -16,8 +16,10 @@ import {
   X,
   Clock
 } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 const AdminCopyTrade = () => {
+  const { modeColors } = useTheme()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState('masters')
   const [masters, setMasters] = useState([])
@@ -171,223 +173,331 @@ const AdminCopyTrade = () => {
 
   return (
     <AdminLayout title="Copy Trade Management" subtitle="Manage master traders and copy trading">
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <Star size={18} className="text-yellow-500" />
-            <p className="text-gray-500 text-sm">Master Traders</p>
+      {/* Stats Portfolio */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[
+          { title: 'Master Registry', value: dashboard?.masters?.active, subtitle: `${dashboard?.masters?.pending || 0} pending review`, icon: Star, color: 'yellow' },
+          { title: 'Social Velocity', value: dashboard?.followers?.active, subtitle: 'Active copy nodes', icon: Users, color: 'blue' },
+          { title: 'Trade Resonance', value: dashboard?.copyTrades?.total, subtitle: `${dashboard?.copyTrades?.open || 0} active signals`, icon: TrendingUp, color: 'green' },
+          { title: 'Protocol Pool', value: `$${dashboard?.adminPool?.toFixed(2) || '0.00'}`, subtitle: 'Admin settlement reserve', icon: DollarSign, color: 'purple' }
+        ].map((stat, idx) => (
+          <div key={idx} style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-[2rem] p-6 border shadow-sm group hover:shadow-xl transition-all relative overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 bg-${stat.color}-500/10 rounded-2xl flex items-center justify-center border border-${stat.color}-500/20 group-hover:scale-110 transition-transform`}>
+                <stat.icon size={24} className={`text-${stat.color}-600`} />
+              </div>
+              <div style={{ backgroundColor: modeColors.bgSecondary }} className="px-2 py-1 rounded-lg">
+                <span style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-60">Live Metrics</span>
+              </div>
+            </div>
+            <p style={{ color: modeColors.textSecondary }} className="text-xs font-black uppercase tracking-widest italic opacity-70 mb-1">{stat.title}</p>
+            <p style={{ color: modeColors.text }} className="text-3xl font-black tracking-tight">{stat.value}</p>
+            <p style={{ color: modeColors.textMuted }} className="text-[10px] font-bold mt-2 flex items-center gap-1 opacity-60 lowercase">
+              <Clock size={10} /> {stat.subtitle}
+            </p>
           </div>
-          <p className="text-white text-2xl font-bold">{dashboard?.masters?.active || 0}</p>
-          <p className="text-yellow-500 text-xs">{dashboard?.masters?.pending || 0} pending</p>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <Users size={18} className="text-blue-500" />
-            <p className="text-gray-500 text-sm">Total Followers</p>
-          </div>
-          <p className="text-white text-2xl font-bold">{dashboard?.followers?.active || 0}</p>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={18} className="text-green-500" />
-            <p className="text-gray-500 text-sm">Copied Trades</p>
-          </div>
-          <p className="text-white text-2xl font-bold">{dashboard?.copyTrades?.total || 0}</p>
-          <p className="text-blue-500 text-xs">{dashboard?.copyTrades?.open || 0} open</p>
-        </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center gap-2 mb-2">
-            <DollarSign size={18} className="text-purple-500" />
-            <p className="text-gray-500 text-sm">Admin Pool</p>
-          </div>
-          <p className="text-white text-2xl font-bold">${dashboard?.adminPool?.toFixed(2) || '0.00'}</p>
-        </div>
+        ))}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-4 mb-6">
+      {/* Navigation Ecosystem */}
+      <div className="flex gap-4 mb-8 overflow-x-auto pb-4 custom-scrollbar">
         {[
-          { key: 'applications', label: `Applications (${applications.length})` },
-          { key: 'masters', label: 'All Masters' },
-          { key: 'followers', label: 'Followers' }
+          { key: 'applications', label: `Review Queue (${applications.length})`, icon: Clock },
+          { key: 'masters', label: 'Master Registry', icon: Star },
+          { key: 'followers', label: 'Social Graph', icon: Users }
         ].map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === tab.key ? 'bg-purple-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+            style={{ 
+              backgroundColor: activeTab === tab.key ? '#A855F7' : modeColors.card,
+              color: activeTab === tab.key ? '#FFFFFF' : modeColors.text,
+              borderColor: activeTab === tab.key ? '#A855F7' : modeColors.border,
+            }}
+            className={`px-6 py-4 rounded-2xl whitespace-nowrap flex items-center gap-3 border shadow-sm transition-all active:scale-[0.98] font-black text-[10px] uppercase tracking-widest ${
+              activeTab === tab.key ? 'shadow-lg shadow-purple-500/20' : 'hover:border-purple-200'
             }`}
           >
+            <tab.icon size={16} />
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Applications Tab */}
-      {activeTab === 'applications' && (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="p-4 border-b border-gray-800">
-            <h2 className="text-white font-semibold text-lg">Pending Applications</h2>
-          </div>
-          {applications.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No pending applications</div>
-          ) : (
-            <div className="divide-y divide-gray-800">
-              {applications.map(app => (
-                <div key={app._id} className="p-4 hover:bg-dark-700/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
-                        <span className="text-yellow-500 font-bold">{app.displayName?.charAt(0)}</span>
+      {/* Data Visualization Ecosystem */}
+      <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-[2.5rem] border overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+        
+        {/* Applications View */}
+        {activeTab === 'applications' && (
+          <div>
+            <div style={{ backgroundColor: modeColors.bgSecondary }} className="py-5 px-8 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+              <h2 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Pending Master Protocols</h2>
+            </div>
+            {applications.length === 0 ? (
+              <div className="text-center py-24 grayscale opacity-30">
+                <Clock size={48} className="mx-auto mb-4" />
+                <p className="font-black text-[10px] uppercase tracking-widest">No Protocol Requests Found</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-50">
+                {applications.map(app => (
+                  <div key={app._id} className="p-8 hover:bg-slate-50/50 transition-all group flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-6">
+                      <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-yellow-500/20 group-hover:rotate-6 transition-transform">
+                        <span className="text-white font-black text-2xl">{app.displayName?.charAt(0)}</span>
                       </div>
                       <div>
-                        <h3 className="text-white font-semibold">{app.displayName}</h3>
-                        <p className="text-gray-500 text-sm">{app.userId?.firstName} ({app.userId?.email})</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 style={{ color: modeColors.text }} className="font-black text-lg tracking-tight">{app.displayName}</h3>
+                          <span className="bg-yellow-500/10 text-yellow-600 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-yellow-500/20">Pending Review</span>
+                        </div>
+                        <p style={{ color: modeColors.textSecondary }} className="text-xs font-bold opacity-60">{app.userId?.firstName} • {app.userId?.email}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-white font-semibold">{app.requestedCommissionPercentage}%</p>
-                      <p className="text-gray-500 text-xs">Requested Commission</p>
+                    
+                    <div className="flex items-center gap-8">
+                      <div className="text-right">
+                        <p style={{ color: modeColors.text }} className="font-black text-2xl tracking-tight">{app.requestedCommissionPercentage}%</p>
+                        <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-widest opacity-40">Requested Fee</p>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => handleReject(app._id)} 
+                          style={{ backgroundColor: modeColors.bgSecondary }}
+                          className="px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-red-500 border-2 border-red-500/10 hover:border-red-500 transition-all active:scale-95"
+                        >
+                          Decline
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedMaster(app); setShowApproveModal(true) }} 
+                          className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-purple-500/25 hover:opacity-90 transition-all active:scale-95"
+                        >
+                          Authorize
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4 justify-end">
-                    <button onClick={() => handleReject(app._id)} className="px-4 py-2 bg-red-500/20 text-red-500 rounded-lg">Reject</button>
-                    <button onClick={() => { setSelectedMaster(app); setShowApproveModal(true) }} className="px-4 py-2 bg-green-500 text-white rounded-lg">Approve</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Master Registry View */}
+        {activeTab === 'masters' && (
+          <div>
+            <div style={{ backgroundColor: modeColors.bgSecondary }} className="py-5 px-8 border-b border-slate-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                <h2 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Verified Signal Nodes</h2>
+              </div>
+              <div className="relative group">
+                <Search size={16} style={{ color: modeColors.textSecondary }} className="absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-purple-500 transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder="FILTER REGISTRY..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                  className="appearance-none border-2 rounded-2xl pl-12 pr-6 py-2.5 font-black text-[10px] tracking-widest uppercase focus:outline-none focus:border-purple-500 transition-all shadow-inner w-64" 
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-50">
+                    <th style={{ color: modeColors.textSecondary }} className="text-left py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Signal Identity</th>
+                    <th style={{ color: modeColors.textSecondary }} className="text-left py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Agent Core</th>
+                    <th style={{ color: modeColors.textSecondary }} className="text-right py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Follower Mass</th>
+                    <th style={{ color: modeColors.textSecondary }} className="text-right py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Protocol Fee</th>
+                    <th style={{ color: modeColors.textSecondary }} className="text-center py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Status</th>
+                    <th style={{ color: modeColors.textSecondary }} className="text-right py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {loading ? (
+                    <tr><td colSpan="6" className="text-center py-24 font-black text-[10px] uppercase tracking-widest opacity-30">Syncing Intelligence...</td></tr>
+                  ) : filteredMasters.length === 0 ? (
+                    <tr><td colSpan="6" className="text-center py-24 font-black text-[10px] uppercase tracking-widest opacity-30">No Intelligence Match</td></tr>
+                  ) : filteredMasters.map(master => (
+                    <tr key={master._id} className="group hover:bg-slate-50/50 transition-all">
+                      <td className="py-6 px-8">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20 group-hover:scale-105 transition-transform shadow-sm">
+                            <span className="text-purple-600 font-black text-lg">{master.displayName?.charAt(0)}</span>
+                          </div>
+                          <span style={{ color: modeColors.text }} className="font-black text-sm tracking-tight">{master.displayName}</span>
+                        </div>
+                      </td>
+                      <td className="py-6 px-8">
+                        <p style={{ color: modeColors.text }} className="font-black text-sm tracking-tight">{master.userId?.firstName}</p>
+                        <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-bold opacity-60">{master.userId?.email}</p>
+                      </td>
+                      <td style={{ color: modeColors.text }} className="py-6 px-8 text-right font-black text-base tracking-tight">{master.stats?.activeFollowers || 0}</td>
+                      <td style={{ color: modeColors.text }} className="py-6 px-8 text-right font-mono text-sm font-bold">{master.approvedCommissionPercentage || master.requestedCommissionPercentage}%</td>
+                      <td className="py-6 px-8">
+                        <div className="flex justify-center">
+                          <span className={`px-3 py-1 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border shadow-sm ${
+                            master.status === 'ACTIVE' ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
+                            master.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' : 
+                            'bg-red-500/10 text-red-600 border-red-500/20'
+                          }`}>
+                            {master.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-6 px-8 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {master.status === 'PENDING' && (
+                            <>
+                              <button onClick={() => { setSelectedMaster(master); setShowApproveModal(true) }} className="p-2.5 bg-green-500/10 text-green-600 rounded-xl hover:bg-green-500 hover:text-white transition-all active:scale-90" title="Authorize"><Check size={18} /></button>
+                              <button onClick={() => handleReject(master._id)} className="p-2.5 bg-red-500/10 text-red-600 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90" title="Revoke"><X size={18} /></button>
+                            </>
+                          )}
+                          {master.status === 'ACTIVE' && (
+                            <button onClick={() => handleSuspend(master._id)} className="p-2.5 bg-red-500/10 text-red-600 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90" title="Decommission"><Trash2 size={18} /></button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Social Graph View */}
+        {activeTab === 'followers' && (
+          <div>
+            <div style={{ backgroundColor: modeColors.bgSecondary }} className="py-5 px-8 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-2 h-2 bg-blue-500 rounded-full" />
+              <h2 style={{ color: modeColors.text }} className="font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Follower Network Topography</h2>
+            </div>
+            {followers.length === 0 ? (
+              <div className="text-center py-24 grayscale opacity-30">
+                <Users size={48} className="mx-auto mb-4" />
+                <p className="font-black text-[10px] uppercase tracking-widest">No Node Connections Found</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-50">
+                      <th style={{ color: modeColors.textSecondary }} className="text-left py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Follower Core</th>
+                      <th style={{ color: modeColors.textSecondary }} className="text-left py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Signal Parent</th>
+                      <th style={{ color: modeColors.textSecondary }} className="text-center py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Protocol Mode</th>
+                      <th style={{ color: modeColors.textSecondary }} className="text-right py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Resonant Trades</th>
+                      <th style={{ color: modeColors.textSecondary }} className="text-center py-5 px-8 font-black text-[10px] uppercase tracking-[0.2em] opacity-60">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {followers.map(f => (
+                      <tr key={f._id} className="group hover:bg-slate-50/50 transition-all">
+                        <td className="py-6 px-8">
+                          <p style={{ color: modeColors.text }} className="font-black text-sm tracking-tight">{f.followerId?.firstName}</p>
+                          <p style={{ color: modeColors.textSecondary }} className="text-[10px] font-bold opacity-60">{f.followerId?.email}</p>
+                        </td>
+                        <td className="py-6 px-8">
+                          <div className="flex items-center gap-3">
+                            <Star size={14} className="text-yellow-500" />
+                            <span style={{ color: modeColors.text }} className="font-black text-sm tracking-tight">{f.masterId?.displayName}</span>
+                          </div>
+                        </td>
+                        <td className="py-6 px-8 text-center">
+                          <span style={{ backgroundColor: modeColors.bgSecondary }} className="px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest border border-slate-100 shadow-inner group-hover:bg-white">
+                            {f.copyMode === 'FIXED_LOT' ? `Fixed: ${f.copyValue}` : `${f.copyValue}x Multiplier`}
+                          </span>
+                        </td>
+                        <td style={{ color: modeColors.text }} className="py-6 px-8 text-right font-black text-base tracking-tight">{f.stats?.totalCopiedTrades || 0}</td>
+                        <td className="py-6 px-8 text-center">
+                          <span className={`px-3 py-1 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border shadow-sm ${
+                            f.status === 'ACTIVE' ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
+                          }`}>
+                            {f.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Authorization Modal */}
+      {showApproveModal && selectedMaster && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div 
+            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} 
+            className="rounded-[3rem] p-10 w-full max-w-xl border-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300"
+          >
+            <div className="absolute top-0 right-0 w-48 h-48 bg-purple-500/5 rounded-full -mr-24 -mt-24 blur-3xl" />
+            
+            <div className="relative">
+              <div className="flex items-center gap-6 mb-8">
+                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-[2rem] flex items-center justify-center shadow-xl shadow-purple-500/20">
+                  <Shield size={36} className="text-white" />
+                </div>
+                <div>
+                  <h2 style={{ color: modeColors.text }} className="text-3xl font-black tracking-tight">Authorize Protocol</h2>
+                  <p style={{ color: modeColors.textSecondary }} className="font-bold opacity-60">Granting clearance to: {selectedMaster.displayName}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                <div className="space-y-4">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Master Share (%)</label>
+                  <div className="relative group">
+                    <input 
+                      type="number" 
+                      value={approveForm.approvedCommissionPercentage === 0 ? '' : approveForm.approvedCommissionPercentage} 
+                      onChange={(e) => setApproveForm(prev => ({ ...prev, approvedCommissionPercentage: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} 
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-xl focus:outline-none focus:border-purple-500 transition-all shadow-inner group-hover:bg-white" 
+                      placeholder="0" 
+                    />
+                    <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-20 font-black text-sm">%</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* Masters Tab */}
-      {activeTab === 'masters' && (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-gray-800">
-            <h2 className="text-white font-semibold text-lg">All Masters</h2>
-            <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white" />
-            </div>
-          </div>
-
-        {loading ? (
-            <div className="text-center py-12 text-gray-500">Loading...</div>
-          ) : filteredMasters.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No masters found</div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Trader</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">User</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Followers</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Commission</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Status</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMasters.map(master => (
-                  <tr key={master._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center">
-                          <span className="text-purple-500 font-medium">{master.displayName?.charAt(0)}</span>
-                        </div>
-                        <span className="text-white font-medium">{master.displayName}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="text-white text-sm">{master.userId?.firstName}</p>
-                      <p className="text-gray-500 text-xs">{master.userId?.email}</p>
-                    </td>
-                    <td className="py-4 px-4 text-white">{master.stats?.activeFollowers || 0}</td>
-                    <td className="py-4 px-4 text-white">{master.approvedCommissionPercentage || master.requestedCommissionPercentage}%</td>
-                    <td className="py-4 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(master.status)}`}>{master.status}</span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-1">
-                        {master.status === 'PENDING' && (
-                          <>
-                            <button onClick={() => { setSelectedMaster(master); setShowApproveModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-green-500" title="Approve"><Check size={16} /></button>
-                            <button onClick={() => handleReject(master._id)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-red-500" title="Reject"><X size={16} /></button>
-                          </>
-                        )}
-                        {master.status === 'ACTIVE' && (
-                          <button onClick={() => handleSuspend(master._id)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-red-500" title="Suspend"><Trash2 size={16} /></button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* Followers Tab */}
-      {activeTab === 'followers' && (
-        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="p-4 border-b border-gray-800">
-            <h2 className="text-white font-semibold text-lg">All Followers</h2>
-          </div>
-          {followers.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No followers yet</div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Follower</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Following</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Copy Mode</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Trades</th>
-                  <th className="text-left text-gray-500 text-sm py-3 px-4">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {followers.map(f => (
-                  <tr key={f._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                    <td className="py-4 px-4">
-                      <p className="text-white text-sm">{f.followerId?.firstName}</p>
-                      <p className="text-gray-500 text-xs">{f.followerId?.email}</p>
-                    </td>
-                    <td className="py-4 px-4 text-white">{f.masterId?.displayName}</td>
-                    <td className="py-4 px-4 text-white">{f.copyMode === 'FIXED_LOT' ? `Fixed: ${f.copyValue}` : `${f.copyValue}x`}</td>
-                    <td className="py-4 px-4 text-white">{f.stats?.totalCopiedTrades || 0}</td>
-                    <td className="py-4 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${f.status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'}`}>{f.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* Approve Modal */}
-      {showApproveModal && selectedMaster && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-xl font-semibold text-white mb-4">Approve: {selectedMaster.displayName}</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Commission (%)</label>
-                <input type="number" value={approveForm.approvedCommissionPercentage === 0 ? '' : approveForm.approvedCommissionPercentage} onChange={(e) => setApproveForm(prev => ({ ...prev, approvedCommissionPercentage: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="0" />
+                <div className="space-y-4">
+                  <label style={{ color: modeColors.textSecondary }} className="text-[10px] font-black uppercase tracking-[0.2em] ml-2 opacity-60">Platform Tax (%)</label>
+                  <div className="relative group">
+                    <input 
+                      type="number" 
+                      value={approveForm.adminSharePercentage === 0 ? '' : approveForm.adminSharePercentage} 
+                      onChange={(e) => setApproveForm(prev => ({ ...prev, adminSharePercentage: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} 
+                      style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                      className="w-full border-2 rounded-2xl px-6 py-4 font-black text-xl focus:outline-none focus:border-blue-500 transition-all shadow-inner group-hover:bg-white" 
+                      placeholder="0" 
+                    />
+                    <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-20 font-black text-sm">%</div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Admin Share (%)</label>
-                <input type="number" value={approveForm.adminSharePercentage === 0 ? '' : approveForm.adminSharePercentage} onChange={(e) => setApproveForm(prev => ({ ...prev, adminSharePercentage: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="0" />
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setShowApproveModal(false)} 
+                  style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.textSecondary }}
+                  className="flex-1 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest border-2 border-transparent hover:border-slate-200 transition-all active:scale-95"
+                >
+                  Terminate
+                </button>
+                <button 
+                  onClick={handleApprove} 
+                  className="flex-[2] bg-gradient-to-r from-purple-600 to-blue-600 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-purple-500/40 hover:opacity-90 transition-all active:scale-95 border-b-4 border-purple-800"
+                >
+                  Finalize Authorization
+                </button>
               </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowApproveModal(false)} className="flex-1 bg-dark-700 text-white py-2 rounded-lg">Cancel</button>
-              <button onClick={handleApprove} className="flex-1 bg-green-500 text-white py-2 rounded-lg">Approve</button>
             </div>
           </div>
         </div>

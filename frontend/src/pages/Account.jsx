@@ -1,10 +1,11 @@
 // Account.jsx
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { TrendingUp } from "lucide-react";
 import { API_URL } from "../config/api";
+import { getSafeJSON } from '../utils/safeLocalStorage';
 import Sidebar from "../components/Sidebar";
 import NavbarClient from "../components/NavbarClient";
 import { useSidebar } from "../context/SidebarContext";
@@ -23,9 +24,8 @@ export default function Account() {
   const [wallet, setWallet] = useState(null);
 
   const dropdownRef = useRef(null);
-
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getSafeJSON("user", {});
+  const storedUser = user;
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -55,7 +55,7 @@ export default function Account() {
         setSelectedAccount(accs[0]); // default first account
       }
  */
-      const storedAccount = JSON.parse(localStorage.getItem("selectedAccount"));
+      const storedAccount = getSafeJSON("selectedAccount", "null");
 
       if (storedAccount) {
         const matched = accs.find((a) => a._id === storedAccount._id);

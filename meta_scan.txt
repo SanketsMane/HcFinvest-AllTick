@@ -1,0 +1,2 @@
+L75: //   const [metaApiPrices, setMetaApiPrices] = useState({}) // Store MetaAPI chart prices
+L697: //       setMetaApiPrices(prev => ({

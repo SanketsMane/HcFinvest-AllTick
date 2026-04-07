@@ -227,12 +227,23 @@ const competitionEmailTemplate = ({ name, competitionName, startDate }) => {
                                                                                             <table width="100%" border="0" cellpadding="0" cellspacing="0"
                                                                                               style="margin-top:20px;margin-bottom:20px;border:1px solid #ddd;border-radius:6px;background:#f9fafc;padding:10px">
 
+<<<<<<< HEAD
                                                                                               <!-- //Sanket v2.0 - removed JS-style comments that were rendering as visible text in email -->
+=======
+>>>>>>> 93db81972377c6c7ea03e2cd784eda39b310a681
                                                                                               <tr>
                                                                                                 <td><strong>Participant Name :</strong></td>
                                                                                                 <td>${name}</td>
                                                                                               </tr>
 
+<<<<<<< HEAD
+=======
+                                                                                              // <tr>
+                                                                                              //   <td><strong>Email :</strong></td>
+                                                                                              //   <td>${email}</td>
+                                                                                              // </tr>
+
+>>>>>>> 93db81972377c6c7ea03e2cd784eda39b310a681
                                                                                               <tr>
                                                                                                 <td><strong>Competition Name :</strong></td>
                                                                                                 <td>${competitionName}</td>
@@ -243,6 +254,14 @@ const competitionEmailTemplate = ({ name, competitionName, startDate }) => {
                                                                                                 <td>${startDate}</td>
                                                                                               </tr>
 
+<<<<<<< HEAD
+=======
+                                                                                              // <tr>
+                                                                                              //   <td><strong>End Date :</strong></td>
+                                                                                              //   <td>${endDate}</td>
+                                                                                              // </tr>
+
+>>>>>>> 93db81972377c6c7ea03e2cd784eda39b310a681
                                                                                               <tr>
                                                                                                 <td><strong>Status :</strong></td>
                                                                                                 <td style="color:#27ae60;font-weight:bold;">Joined</td>

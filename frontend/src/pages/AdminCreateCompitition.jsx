@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+
+// AdminCreateCompitition.jsx
+
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@mui/material";
 import axios from "axios";
 import { API_URL } from "../config/api.js";
 
-const AdminCreateCompitition = ({ open, onClose }) => {
+const AdminCreateCompitition = ({ open, onClose, editData }) => {
 
   const inputStyle = {
     width: "100%",
@@ -110,11 +113,29 @@ const AdminCreateCompitition = ({ open, onClose }) => {
         ...formData,
         prizeDistribution
       };
-
+/* 
       const response = await axios.post(
         `${API_URL}/competitions/create`,
         payload
       );
+ */
+
+      let response;
+
+if (editData?._id) {
+  // ✅ UPDATE API
+  response = await axios.put(
+    `${API_URL}/competitions/update/${editData._id}`,
+    payload
+  );
+} else {
+  // ✅ CREATE API
+  response = await axios.post(
+    `${API_URL}/competitions/create`,
+    payload
+  );
+}
+
 
       console.log("Competition Saved:", response.data);
 
@@ -132,6 +153,49 @@ const AdminCreateCompitition = ({ open, onClose }) => {
 
   };
 
+
+  useEffect(() => {
+  if (editData) {
+    // ✅ EDIT MODE
+    setFormData({
+      competitionName: editData.competitionName || "",
+      description: editData.description || "",
+      competitionType: editData.competitionType || "trading",
+      startDate: editData.startDate?.slice(0, 10) || "",
+      endDate: editData.endDate?.slice(0, 10) || "",
+      maxParticipants: editData.maxParticipants || "",
+      entryFee: editData.entryFee || "",
+      totalPrizePool: editData.totalPrizePool || "",
+      competitionRules: editData.competitionRules || "",
+      isPublic: editData.isPublic ?? true,
+      requiresKYC: editData.requiresKYC ?? false,
+      allowMultipleEntries: editData.allowMultipleEntries ?? false
+    });
+
+    setPrizeDistribution(editData.prizeDistribution || []);
+  } else {
+    // ✅ CREATE MODE (RESET FORM)
+    setFormData({
+      competitionName: "",
+      description: "",
+      competitionType: "trading",
+      startDate: "",
+      endDate: "",
+      maxParticipants: "",
+      entryFee: "",
+      totalPrizePool: "",
+      competitionRules: "",
+      isPublic: true,
+      requiresKYC: false,
+      allowMultipleEntries: false
+    });
+
+    setPrizeDistribution([]);
+  }
+}, [editData]);
+
+
+
   return (
 
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -144,7 +208,9 @@ const AdminCreateCompitition = ({ open, onClose }) => {
 
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
 
-              <h2>Add New Competition</h2>
+              <h2>
+  {editData ? "Edit Competition" : "Add New Competition"}
+</h2>
 
               <div>
 
@@ -163,17 +229,17 @@ const AdminCreateCompitition = ({ open, onClose }) => {
                 </button>
 
                 <button
-                  onClick={handleCreateCompetition}
-                  style={{
-                    background: "#4CAF50",
-                    color: "white",
-                    border: "none",
-                    padding: "10px 20px",
-                    borderRadius: "6px"
-                  }}
-                >
-                  Create Competition
-                </button>
+  onClick={handleCreateCompetition}
+  style={{
+    background: "#4CAF50",
+    color: "white",
+    border: "none",
+    padding: "10px 20px",
+    borderRadius: "6px"
+  }}
+>
+  {editData ? "Update Competition" : "Create Competition"}
+</button>
 
               </div>
 

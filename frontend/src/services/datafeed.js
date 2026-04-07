@@ -1,7 +1,9 @@
 import { API_URL } from "../config/api";
-import priceStreamService from "./priceStream";
-import { wrapOHLC } from "../utils/priceUtils";
 import { normalizeSymbol } from "../utils/symbolUtils";
+import priceStreamService from "./priceStream";
+import { getPriceEvents } from "./eventSystem";
+import { buildCandleFromTick, validateRealtimeBar } from "../utils/realtimeCandleBuilder";
+import { sanitizeBatch, validateRealtimeUpdate, getSpikeThreshold } from "../utils/chartSanitizer";
 
 /**
  * Custom Datafeed for TradingView Charting Library
@@ -9,8 +11,7 @@ import { normalizeSymbol } from "../utils/symbolUtils";
  */
 
 /* Event system used by TradingPage.jsx to receive live price updates */
-const priceEventTarget = new EventTarget();
-export const getPriceEvents = () => priceEventTarget;
+// Moved to shared eventSystem.js to break circular dependency
 
 const configurationData = {
   supported_resolutions: ["1", "5", "15", "30", "60", "120", "240", "1D", "1W", "1M"]
@@ -25,7 +26,17 @@ const formatResolution = (res) => {
   return map[res] || res;
 };
 
-const normalizeRealtimeSymbol = (value = '') => value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+//Sanket v2.0 - Strip .i suffix before removing non-alphanumeric so XAUUSD.i and XAUUSD both normalize to XAUUSD
+//Sanket v2.0 - Strip ALL suffixes and special chars for strict normalization
+const normalizeRealtimeSymbol = (value = '') => {
+  if (!value) return '';
+  return String(value)
+    .toUpperCase()
+    .replace(/\.I$/i, '')
+    .replace(/\.F$/i, '')
+    .replace(/\.C$/i, '')
+    .replace(/[^A-Z0-9]/g, '');
+};
 
 const toMs = (rawTime) => {
   let timeMs = rawTime;
@@ -42,79 +53,123 @@ const toNumber = (value) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
-const normalizeBars = (candles = []) => {
-  const barsByTime = new Map();
+const normalizeBars = (candles = [], symbol = '') => {
+  if (!candles || candles.length === 0) return [];
+  
+  // 1. Basic formatting (timestamps and numbers)
+  const rawBars = candles.map(c => ({
+    time: toMs(c?.time),
+    open: toNumber(c?.open),
+    high: toNumber(c?.high),
+    low: toNumber(c?.low),
+    close: toNumber(c?.close),
+    volume: Number.isFinite(Number(c?.volume)) ? Number(c.volume) : 0
+  })).filter(b => Number.isFinite(b.time) && b.time > 0);
 
-  candles.forEach((c) => {
-    const time = toMs(c?.time);
-    const open = toNumber(c?.open);
-    const high = toNumber(c?.high);
-    const low = toNumber(c?.low);
-    const close = toNumber(c?.close);
-    const volume = Number.isFinite(Number(c?.volume)) ? Number(c.volume) : 0;
-
-    if (!Number.isFinite(time) || time <= 0) return;
-    if (![open, high, low, close].every(Number.isFinite)) return;
-
-    const fixedHigh = Math.max(high, open, close, low);
-    const fixedLow = Math.min(low, open, close, high);
-
-    barsByTime.set(time, {
-      time,
-      open,
-      high: fixedHigh,
-      low: fixedLow,
-      close,
-      volume
-    });
-  });
-
-  return [...barsByTime.values()].sort((a, b) => a.time - b.time);
+  // 2. Production Sanitization (Anti-Spike, OHLC correction, Sorting)
+  return sanitizeBatch(rawBars, symbol);
 };
 
-// All supported symbols for the built-in TV symbol search
+const applyChartPriceModeToBar = (bar, symbol, adminSpreads, side = 'MID') => {
+  if (!bar) return bar;
+
+  // Keep historical bars raw for all chart modes. Applying retail markup at chart layer
+  // causes drift versus execution prices, open-position mark prices, and header quotes.
+  return bar;
+};
+
+const getChartExecutionPrice = (bid, ask, symbol, adminSpreads, side = 'MID') => {
+  const numBid = Number(bid);
+  const numAsk = Number(ask);
+
+  if (side === 'BUY') {
+    return numAsk;
+  }
+
+  if (side === 'SELL') {
+    return numBid;
+  }
+
+  return (numBid + numAsk) / 2;
+};
+
+//Sanket v2.0 - All symbols without .i suffix
+//Sanket v2.0 - Canonical Symbol Registry (Shared logic with Backend)
+const SYMBOL_REGISTRY_FE = {
+  'EURUSD': { pricescale: 100000, session: '2200-2200:12345' },
+  'GBPUSD': { pricescale: 100000, session: '2200-2200:12345' },
+  'USDJPY': { pricescale: 100,    session: '2200-2200:12345' },
+  'USDCHF': { pricescale: 100000, session: '2200-2200:12345' },
+  'AUDUSD': { pricescale: 100000, session: '2200-2200:12345' },
+  'NZDUSD': { pricescale: 100000, session: '2200-2200:12345' },
+  'USDCAD': { pricescale: 100000, session: '2200-2200:12345' },
+  'XAUUSD': { pricescale: 100,    session: '2200-2200:12345' },
+  'XAGUSD': { pricescale: 1000,   session: '2200-2200:12345' },
+  'BTCUSD': { pricescale: 100,    session: '24x7' },
+  'ETHUSD': { pricescale: 100,    session: '24x7' },
+  'BNBUSD': { pricescale: 100,    session: '24x7' },
+  'SOLUSD': { pricescale: 100,    session: '24x7' },
+  'US30':   { pricescale: 10,     session: '2200-2200:12345' },
+  'US500':  { pricescale: 100,    session: '2200-2200:12345' },
+  'US100':  { pricescale: 10,     session: '2200-2200:12345' },
+  'UK100':  { pricescale: 10,     session: '2200-2200:12345' },
+};
+
 const ALL_SYMBOLS = [
   // Forex
-  { symbol: 'EURUSD.i', description: 'Euro / US Dollar', type: 'forex' },
-  { symbol: 'GBPUSD.i', description: 'Great British Pound / US Dollar', type: 'forex' },
-  { symbol: 'USDJPY.i', description: 'US Dollar / Japanese Yen', type: 'forex' },
-  { symbol: 'USDCHF.i', description: 'US Dollar / Swiss Franc', type: 'forex' },
-  { symbol: 'AUDUSD.i', description: 'Australian Dollar / US Dollar', type: 'forex' },
-  { symbol: 'NZDUSD.i', description: 'New Zealand Dollar / US Dollar', type: 'forex' },
-  { symbol: 'USDCAD.i', description: 'US Dollar / Canadian Dollar', type: 'forex' },
-  { symbol: 'EURGBP.i', description: 'Euro / Great British Pound', type: 'forex' },
-  { symbol: 'EURJPY.i', description: 'Euro / Japanese Yen', type: 'forex' },
-  { symbol: 'GBPJPY.i', description: 'Great British Pound / Japanese Yen', type: 'forex' },
-  { symbol: 'EURAUD.i', description: 'Euro / Australian Dollar', type: 'forex' },
-  { symbol: 'EURCAD.i', description: 'Euro / Canadian Dollar', type: 'forex' },
-  { symbol: 'EURCHF.i', description: 'Euro / Swiss Franc', type: 'forex' },
-  { symbol: 'AUDJPY.i', description: 'Australian Dollar / Japanese Yen', type: 'forex' },
-  { symbol: 'CADJPY.i', description: 'Canadian Dollar / Japanese Yen', type: 'forex' },
-  { symbol: 'CHFJPY.i', description: 'Swiss Franc / Japanese Yen', type: 'forex' },
-  { symbol: 'GBPAUD.i', description: 'Great British Pound / Australian Dollar', type: 'forex' },
-  { symbol: 'GBPCAD.i', description: 'Great British Pound / Canadian Dollar', type: 'forex' },
-  { symbol: 'AUDCAD.i', description: 'Australian Dollar / Canadian Dollar', type: 'forex' },
-  { symbol: 'NZDJPY.i', description: 'New Zealand Dollar / Japanese Yen', type: 'forex' },
+  { symbol: 'EURUSD', description: 'Euro / US Dollar', type: 'forex' },
+  { symbol: 'GBPUSD', description: 'Great British Pound / US Dollar', type: 'forex' },
+  { symbol: 'USDJPY', description: 'US Dollar / Japanese Yen', type: 'forex' },
+  { symbol: 'USDCHF', description: 'US Dollar / Swiss Franc', type: 'forex' },
+  { symbol: 'AUDUSD', description: 'Australian Dollar / US Dollar', type: 'forex' },
+  { symbol: 'NZDUSD', description: 'New Zealand Dollar / US Dollar', type: 'forex' },
+  { symbol: 'USDCAD', description: 'US Dollar / Canadian Dollar', type: 'forex' },
+  { symbol: 'EURGBP', description: 'Euro / Great British Pound', type: 'forex' },
+  { symbol: 'EURJPY', description: 'Euro / Japanese Yen', type: 'forex' },
+  { symbol: 'GBPJPY', description: 'Great British Pound / Japanese Yen', type: 'forex' },
+  { symbol: 'EURAUD', description: 'Euro / Australian Dollar', type: 'forex' },
+  { symbol: 'EURCAD', description: 'Euro / Canadian Dollar', type: 'forex' },
+  { symbol: 'EURCHF', description: 'Euro / Swiss Franc', type: 'forex' },
+  { symbol: 'AUDJPY', description: 'Australian Dollar / Japanese Yen', type: 'forex' },
+  { symbol: 'CADJPY', description: 'Canadian Dollar / Japanese Yen', type: 'forex' },
+  { symbol: 'CHFJPY', description: 'Swiss Franc / Japanese Yen', type: 'forex' },
+  { symbol: 'GBPAUD', description: 'Great British Pound / Australian Dollar', type: 'forex' },
+  { symbol: 'GBPCAD', description: 'Great British Pound / Canadian Dollar', type: 'forex' },
+  { symbol: 'AUDCAD', description: 'Australian Dollar / Canadian Dollar', type: 'forex' },
+  { symbol: 'NZDJPY', description: 'New Zealand Dollar / Japanese Yen', type: 'forex' },
   // Metals
-  { symbol: 'XAUUSD.i', description: 'CFDs on Gold (US$ / OZ)', type: 'commodity' },
-  { symbol: 'XAGUSD.i', description: 'CFDs on Silver (US$ / OZ)', type: 'commodity' },
+  { symbol: 'XAUUSD', description: 'CFDs on Gold (US$ / OZ)', type: 'commodity' },
+  { symbol: 'XAGUSD', description: 'CFDs on Silver (US$ / OZ)', type: 'commodity' },
+  // Energy & Commodities
+  { symbol: 'USOIL',  description: 'US Crude Oil (WTI)', type: 'commodity' },
+  { symbol: 'UKOIL',  description: 'UK Brent Crude Oil', type: 'commodity' },
+  { symbol: 'NGAS',   description: 'Natural Gas', type: 'commodity' },
+  { symbol: 'COPPER', description: 'Copper', type: 'commodity' },
   // Indices
-  { symbol: 'US30.i',  description: 'US Wall Street 30', type: 'index' },
-  { symbol: 'US500.i', description: 'US S&P 500', type: 'index' },
-  { symbol: 'US100.i', description: 'US NASDAQ 100', type: 'index' },
-  { symbol: 'UK100.i', description: 'UK FTSE 100', type: 'index' },
-  { symbol: 'ES35.i',  description: 'Spain 35', type: 'index' },
+  { symbol: 'US30',  description: 'US Wall Street 30', type: 'index' },
+  { symbol: 'US500', description: 'US S&P 500', type: 'index' },
+  { symbol: 'US100', description: 'US NASDAQ 100', type: 'index' },
+  { symbol: 'UK100', description: 'UK FTSE 100', type: 'index' },
+  { symbol: 'ES35',  description: 'Spain 35', type: 'index' },
   // Crypto
-  { symbol: 'BTCUSD.i', description: 'Bitcoin / US Dollar', type: 'crypto' },
-  { symbol: 'ETHUSD.i', description: 'Ethereum / US Dollar', type: 'crypto' },
+  { symbol: 'BTCUSD', description: 'Bitcoin / US Dollar', type: 'crypto' },
+  { symbol: 'ETHUSD', description: 'Ethereum / US Dollar', type: 'crypto' },
+  { symbol: 'BNBUSD', description: 'Binance Coin / US Dollar', type: 'crypto' },
+  { symbol: 'SOLUSD', description: 'Solana / US Dollar', type: 'crypto' },
 ];
 
 const Datafeed = {
   interval: null,
   _adminSpreads: {},
+  _chartPriceSide: 'MID',
 
   setAdminSpreads: (spreads) => {
     Datafeed._adminSpreads = spreads || {};
+    console.log('[DATAFEED] Admin spreads updated', Object.keys(Datafeed._adminSpreads).length);
+  },
+
+  setChartPriceSide: (side) => {
+    Datafeed._chartPriceSide = side === 'BUY' || side === 'SELL' ? side : 'MID';
   },
 
   onReady: (callback) => {
@@ -137,7 +192,6 @@ const Datafeed = {
   searchSymbols: (userInput, _exchange, _symbolType, onResult) => {
     const query = (userInput || '').toUpperCase();
     const results = ALL_SYMBOLS
-      .filter(s => s.symbol.endsWith('.i')) // v7.77 Strict Filter
       .filter(s => s.symbol.toUpperCase().includes(query) || s.description.toUpperCase().includes(query))
       .map(s => ({
         symbol: s.symbol,
@@ -150,43 +204,44 @@ const Datafeed = {
     onResult(results);
   },
 
-  resolveSymbol: async (symbolName, onSymbolResolvedCallback) => {
-    // v7.77 Strict Normalization
-    const normalizedName = normalizeSymbol(symbolName);
-    
-    // Determine pricescale based on actual asset type and precision requirements
-    let pricescale = 100000; // Default 5 decimals (Forex)
-    const s = normalizedName.toUpperCase();
-    
-    if (s.includes("US30") || s.includes("US100") || s.includes("UK100") || s.includes("GER40") || s.includes("FRA40") || s.includes("SPA35") || s.includes("ES35")) {
-      pricescale = 10; // 1 decimal (e.g., 18000.5)
-    } else if (s.includes("US500") || s.includes("XAU") || s.includes("BTC") || s.includes("ETH") || s.includes("BNB") || s.includes("SOL") || s.includes("LTC")) {
-      pricescale = 100; // 2 decimals (e.g., 2150.50, 65000.00)
-    } else if (s.includes("JPY") || s.includes("XAG") || s.includes("NGAS") || s.includes("OIL")) {
-      pricescale = 1000; // 3 decimals (e.g., 150.123, 30.550)
-    } else if (s.includes("XRP") || s.includes("ADA") || s.includes("DOGE")) {
-      pricescale = 100000; // 5 decimals (Crypto micros)
+  //Sanket v2.0 - Added try/catch + onResolveErrorCallback so chart doesn't hang on bad symbols
+  resolveSymbol: async (symbolName, onSymbolResolvedCallback, onResolveErrorCallback) => {
+    try {
+      // v7.77 Strict Normalization using Registry
+      const cleanName = normalizeRealtimeSymbol(symbolName);
+      const meta = SYMBOL_REGISTRY_FE[cleanName] || {};
+      
+      const pricescale = meta.pricescale || 100000;
+      const session = meta.session || '24x7';
+      
+      const symbolItem = ALL_SYMBOLS.find(s => s.symbol === cleanName);
+      
+      const symbolInfo = {
+        name: symbolName,
+        ticker: symbolName,
+        description: symbolItem ? symbolItem.description : symbolName,
+        type: symbolItem ? symbolItem.type : 'forex',
+        session: session, // ✅ THE FIX: Native session support
+        timezone: 'Etc/UTC',
+        exchange: 'AllTick',
+        minmov: 1,
+        pricescale: pricescale,
+        has_intraday: true,
+        intraday_multipliers: ['1', '5', '15', '30', '60', '120', '240'],
+        has_daily: true,
+        has_weekly_and_monthly: true,
+        supported_resolutions: configurationData.supported_resolutions,
+        volume_precision: 2,
+        data_status: 'streaming'
+      };
+      console.log(`[v7.77] resolveSymbol: ${symbolName} using session ${session} and pricescale ${pricescale}`);
+      setTimeout(() => onSymbolResolvedCallback(symbolInfo), 0);
+    } catch (err) {
+      console.error(`[DATAFEED] resolveSymbol failed for ${symbolName}:`, err.message);
+      if (onResolveErrorCallback) {
+        onResolveErrorCallback(`Failed to resolve symbol: ${symbolName}`);
+      }
     }
-
-    const symbolInfo = {
-      name: normalizedName,
-      ticker: normalizedName,
-      description: normalizedName,
-      type: "forex",
-      session: (s.includes("XAU") || s.includes("XAG") || (!s.includes("BTC") && !s.includes("ETH") && !s.includes("USDT"))) ? "0000-2400:23456" : "24x7",
-      timezone: "Etc/UTC",
-      exchange: "AllTick",
-      minmov: 1,
-      pricescale: pricescale,
-      has_intraday: true,
-      intraday_multipliers: ['1', '5', '15', '30', '60', '240'],
-      has_daily: true,
-      has_weekly_and_monthly: true,
-      supported_resolutions: configurationData.supported_resolutions,
-      volume_precision: 2,
-      data_status: "streaming"
-    };
-    setTimeout(() => onSymbolResolvedCallback(symbolInfo), 0);
   },
 
   /**
@@ -198,7 +253,7 @@ const Datafeed = {
       const { from, to, countBack, firstDataRequest } = periodParams;
       const timeframe = formatResolution(resolution);
       const historyKey = `${normalizeRealtimeSymbol(symbolInfo.name)}|${timeframe}`;
-      const intradayTimeframes = new Set(['1m', '5m', '15m', '30m', '1h', '4h']);
+      const intradayTimeframes = new Set(['1m', '5m', '15m', '30m', '1h', '2h', '4h']);
       const useLiveCache = firstDataRequest && intradayTimeframes.has(timeframe);
       
       // Ensure minimum 500 candles for proper chart display
@@ -210,11 +265,14 @@ const Datafeed = {
       if (Number.isFinite(to)) params.set('to', String(to));
       params.set('limit', String(limit));
       if (useLiveCache) params.set('preferLive', '1');
+      params.set('v', '3'); // 🔥 THE FIX: Bust Browser HTTP Cache so TradingView pulls the newly pruned payload
       const url = `${API_URL}/prices/history?${params.toString()}`;
       
+      console.log(`[DATAFEED] getBars: ${symbolInfo.name} (${resolution}→${timeframe}) from=${from} to=${to} limit=${limit}`);
       
       const res = await fetch(url);
       if (!res.ok) {
+        console.error(`[DATAFEED] ❌ getBars HTTP ${res.status} for ${symbolInfo.name}`);
         // CRITICAL: Call onError instead of onHistory([], {noData: true})
         // This prevents TradingView from permanently marking this timeframe as "EMPTY"
         // if we are just experiencing a temporary 429 rate limit.
@@ -224,22 +282,34 @@ const Datafeed = {
 
       const result = await res.json();
       const candleCount = result.candles?.length || 0;
+      console.log(`[DATAFEED] ✓ getBars received ${candleCount} candles for ${symbolInfo.name}`);
 
       let bars = [];
       if (result.success && result.candles && result.candles.length > 0) {
         // Apply Retail Lens Markup to historical bars
-        const rawBars = normalizeBars(result.candles);
-        bars = rawBars.map(bar => wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads));
+        const rawBars = normalizeBars(result.candles, symbolInfo.name);
+        bars = rawBars.map(bar => applyChartPriceModeToBar(bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide));
       }
 
       if (bars.length === 0) {
+          console.log(`[DATAFEED] ⚠️ No valid bars for ${symbolInfo.name}. Returning noData.`);
           onHistoryCallback([], { noData: true });
       } else {
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
-          Datafeed._lastHistoryBars[historyKey] = { ...bars[bars.length - 1] };
+          //Sanket v2.0 - Only update if this batch is more recent. Backward pagination batches
+          // arrive AFTER the first (most-recent) batch and would overwrite _lastHistoryBars with
+          // stale old bars. subscribeBars seeds lastPushedBarTime from this value, so if it's
+          // stale, bootstrapLiveBar and handleCandleUpdate can push bars older than TV's last
+          // getBars bar, causing putToCacheNewBar time violations on 1W/1D/higher timeframes.
+          const candidateBar = bars[bars.length - 1];
+          if (!Datafeed._lastHistoryBars[historyKey] || candidateBar.time > Datafeed._lastHistoryBars[historyKey].time) {
+            Datafeed._lastHistoryBars[historyKey] = { ...candidateBar };
+          }
+          console.log(`[DATAFEED] ✅ Returning ${bars.length} bars with valid timestamps`);
           onHistoryCallback(bars, { noData: false });
       }
     } catch (err) {
+      console.error("[DATAFEED] ❌ getBars Exception:", err.message);
       onErrorCallback(err);
     }
   },
@@ -250,14 +320,13 @@ const Datafeed = {
    * Logic: Listens to priceUpdate events and creates proper OHLC candle updates
    */
   subscribeBars: (symbolInfo, resolution, onRealtimeCallback, subscriberUID) => {
-    // Parse resolution correctly - can be "1", "5", "15", "30", "60", "120", "240", "1D", "1W", "1M"
     let resolutionMinutes = 1;
     if (resolution === '1M' || resolution === 'M') {
-      resolutionMinutes = 30 * 24 * 60; // Approximate for throttling/candle logic
+      resolutionMinutes = 30 * 24 * 60;
     } else if (resolution === '1W' || resolution === 'W') {
-      resolutionMinutes = 7 * 24 * 60; // 10080 minutes in a week
+      resolutionMinutes = 7 * 24 * 60;
     } else if (resolution === '1D' || resolution === 'D') {
-      resolutionMinutes = 24 * 60; // 1440 minutes in a day
+      resolutionMinutes = 24 * 60;
     } else if (resolution === '4h' || resolution === '240') {
       resolutionMinutes = 4 * 60;
     } else if (resolution === '2h' || resolution === '120') {
@@ -268,7 +337,7 @@ const Datafeed = {
       resolutionMinutes = parseInt(resolution) || 1;
     }
     
-    const resolutionMs = resolutionMinutes * 60 * 1000; // Convert to milliseconds
+    const resolutionMs = resolutionMinutes * 60 * 1000;
     const timeframe = formatResolution(resolution);
     const historyKey = `${normalizeRealtimeSymbol(symbolInfo.name)}|${timeframe}`;
     
@@ -280,26 +349,59 @@ const Datafeed = {
     const throttleMs = 50;
     let isActive = true;
 
-    // Track active subscriber state for interpolation injection
-    Datafeed._activeSubscribers = Datafeed._activeSubscribers || {};
-    Datafeed._activeSubscribers[subscriberUID] = {
-      symbol: symbolInfo.name,
-      onRealtimeCallback,
-      get currentBar() { return currentBar; },
-      set currentBar(val) { currentBar = val; }
+    //Sanket v2.0 - Rolling median spike guard: tracks last N accepted chart prices to detect outlier ticks
+    //Sanket v2.0 - AllTick sends stale/cached quotes (e.g. session open price) that create spike wicks on chart
+    //Sanket v2.0 - These are only 0.35-0.40% from real price so they pass the 3% threshold — need tighter local check
+    const SPIKE_WINDOW_SIZE = 10;
+    let _priceWindow = [];
+    let _consecutiveSpikes = 0;
+    const MAX_CONSECUTIVE_SPIKES = 5;
+
+    const _getChartSpikeThresholdPct = (sym) => {
+      const u = String(sym).toUpperCase();
+      if (u.includes('BTC') || u.includes('ETH') || u.includes('BNB') || u.includes('SOL') || u.includes('XRP') || u.includes('DOGE')) return 5;
+      if (u.includes('XAU') || u.includes('XAG')) return 1.5;
+      if (u.includes('OIL') || u.includes('NGAS') || u.includes('US30') || u.includes('US100') || u.includes('US500') || u.includes('UK100') || u.includes('ES35')) return 1;
+      return 0.35; // FX pairs: 0.35% catches AllTick stale quote spikes (~0.36%) while allowing real moves
     };
 
-    // Seed real-time aggregation from the last historical bar so refresh during a forming
-    // candle does not restart OHLC from a single tick (dot-like candle issue).
+    const _isChartSpike = (price, sym) => {
+      if (_priceWindow.length < 5) return false; // not enough data yet
+      const sorted = [..._priceWindow].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const devPct = Math.abs((price - median) / median) * 100;
+      return devPct > _getChartSpikeThresholdPct(sym);
+    };
+
     const seededBar = Datafeed._lastHistoryBars?.[historyKey];
     if (seededBar && Number.isFinite(seededBar.time)) {
       currentBar = { ...seededBar };
       lastBarTime = seededBar.time;
       lastUpdateTime = Date.now();
+      //Sanket v2.0 - Pre-seed rolling window from historical bar close so spike guard is active from first tick
+      if (Number.isFinite(seededBar.close) && seededBar.close > 0 && (Date.now() - seededBar.time) < 120000) {
+        _priceWindow = Array(5).fill(seededBar.close);
+      }
     }
 
-    // Bootstrap with latest live-preferred history so opening mid-candle (e.g. 15:57 on 15:55 bar)
-    // can render already-formed OHLC instead of starting from a single incoming tick.
+    let lastPushedBarTime = seededBar ? seededBar.time : -Infinity;
+    const pushBar = (bar) => {
+      if (!bar || !Number.isFinite(bar.time)) return;
+      if (bar.time < lastPushedBarTime) return;
+      lastPushedBarTime = bar.time;
+      onRealtimeCallback(bar);
+      try {
+        getPriceEvents().dispatchEvent(new CustomEvent('chartBarUpdate', {
+          detail: {
+            symbol: symbolInfo.name,
+            close: bar.close,
+            time: bar.time,
+            side: Datafeed._chartPriceSide
+          }
+        }));
+      } catch {}
+    };
+
     const bootstrapLiveBar = async () => {
       try {
         const params = new URLSearchParams();
@@ -314,59 +416,56 @@ const Datafeed = {
         const payload = await response.json();
         if (!isActive) return;
 
-        const bars = normalizeBars(payload?.candles || []);
+        const bars = normalizeBars(payload?.candles || [], symbolInfo.name);
         if (bars.length === 0) return;
 
         const latest = bars[bars.length - 1];
         const currentBucket = Math.floor(Date.now() / resolutionMs) * resolutionMs;
 
         if (latest.time === currentBucket) {
-          currentBar = { ...latest };
+          currentBar = applyChartPriceModeToBar(latest, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
           lastBarTime = latest.time;
           lastUpdateTime = Date.now();
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
-          onRealtimeCallback(currentBar);
+          pushBar(currentBar);
           return;
         }
 
         if (lastBarTime === null) {
-          currentBar = { ...latest };
+          currentBar = applyChartPriceModeToBar(latest, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
           lastBarTime = latest.time;
           lastUpdateTime = Date.now();
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
         }
-      } catch (error) {
-        // Keep stream alive if bootstrap fails; tick updates will continue normally.
-      }
+      } catch (error) {}
     };
 
     bootstrapLiveBar();
     
-    // ✅ Backend Candle Authority: Join resolution-agnostic symbol room on backend
     priceStreamService.subscribeBars(symbolInfo.name);
     
-    
-    // ✅ Monitor for data gaps - production-grade health check
+    const normalizedSym = normalizeRealtimeSymbol(symbolInfo.name);
+    const existingPriority = Array.isArray(priceStreamService.prioritySymbols) ? priceStreamService.prioritySymbols : [];
+    if (!existingPriority.includes(normalizedSym)) {
+      priceStreamService.setPrioritySymbols([...existingPriority, normalizedSym]);
+    }
+
+    // ✅ Monitor for data gaps
     const dataGapMonitor = setInterval(() => {
       const now = Date.now();
-      if (lastTickTime > 0 && priceStreamService.isConnected) {
+      if (lastTickTime > 0) {
         const timeSinceLastTick = now - lastTickTime;
-        if (timeSinceLastTick > 300000) { // 5 minutes
-          console.debug(`[DATAFEED] ℹ️  Quiet Period: No ticks for ${(timeSinceLastTick / 1000).toFixed(1)}s`);
+        if (timeSinceLastTick > 15000) {
+          console.warn(`[DATAFEED] ⚠️ DATA GAP for ${symbolInfo.name} for ${(timeSinceLastTick/1000).toFixed(1)}s`);
         }
       }
-    }, 60000); // Check every minute
+    }, 10000);
 
-    // ✅ Backend Candle Authority: Authoritative bar updates (Source of Truth)
     const handleCandleUpdate = (e) => {
       const { symbol, timeframe: incomingTimeframe, candle } = e.detail;
-      
-      // Symbol match
-      if (normalizeRealtimeSymbol(symbol) !== normalizeRealtimeSymbol(symbolInfo.name)) return;
-      
-      // Resolution match (only process bars for the resolution we are watching)
+      if (normalizeRealtimeSymbol(symbol) !== normalizedSym) return;
       if (incomingTimeframe !== timeframe) return;
 
       const bar = {
@@ -377,20 +476,29 @@ const Datafeed = {
         close: candle.close,
         volume: candle.volume
       };
+      
+      const validatedBar = validateRealtimeBar({
+        symbol: symbolInfo.name,
+        bar,
+        previousBar: currentBar
+      });
+      if (!validatedBar.accepted) return;
+      //Sanket v2.0 - Skip same-minute and stale backend candle updates; handlePriceUpdate owns live bar state
+      if (validatedBar.bar.time <= lastBarTime) return;
 
-      // Apply Retail Lens Markup to AUTHORITATIVE bar
-      const authoritativeBar = wrapOHLC(bar, symbolInfo.name, Datafeed._adminSpreads);
+      const authoritativeBar = applyChartPriceModeToBar(validatedBar.bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
 
       currentBar = { ...authoritativeBar };
-      lastBarTime = bar.time;
+      lastBarTime = validatedBar.bar.time;
       lastUpdateTime = Date.now();
 
-      // Update the singleton cache so History -> Realtime is seamless
       Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
-      Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
+      const existing = Datafeed._lastHistoryBars[historyKey];
+      if (!existing || validatedBar.bar.time >= existing.time) {
+        Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
+      }
 
-      // Push to chart
-      onRealtimeCallback(currentBar);
+      pushBar(currentBar);
     };
     
     const handlePriceUpdate = (e) => {
@@ -399,88 +507,100 @@ const Datafeed = {
       const { symbol, bid, ask, time } = e.detail;
       lastTickTime = Date.now();
       
-      // Robust symbol matching
-      if (normalizeRealtimeSymbol(symbol) !== normalizeRealtimeSymbol(symbolInfo.name)) return;
+      if (normalizeRealtimeSymbol(symbol) !== normalizedSym) return;
 
-      // Throttle: don't flood the chart with every single tick
+      // 🔍 DEBUG-CHART: Log every tick reaching the chart candle builder
+      console.log(`[CHART-TICK] ${symbol} bid=${bid} ask=${ask} currentBar.close=${currentBar?.close} time=${time}`);
+
       const now = Date.now();
-      if ((now - lastUpdateTime) < throttleMs) return;
+      if ((now - lastUpdateTime) < throttleMs) {
+        console.log(`[CHART-THROTTLED] ${symbol} tick dropped (throttle ${throttleMs}ms, elapsed ${now-lastUpdateTime}ms)`);
+        return;
+      }
       lastUpdateTime = now;
 
-      // Use the mid-price to build candles
-      const price = (Number(bid) + Number(ask)) / 2;
-      if (!isFinite(price) || price <= 0) return;
-
-      // Calculate candle bucket for this tick
-      const tickTime = toMs(time) || now;
-      const bucketTime = Math.floor(tickTime / resolutionMs) * resolutionMs;
-
-      if (currentBar === null) {
-        // No bar yet — seed from this tick
-        currentBar = { time: bucketTime, open: price, high: price, low: price, close: price, volume: 0 };
-        lastBarTime = bucketTime;
-      } else if (bucketTime > lastBarTime) {
-        // New candle period — push the previous bar first, then start fresh
-        onRealtimeCallback({ ...currentBar });
-        currentBar = { time: bucketTime, open: currentBar.close, high: price, low: price, close: price, volume: 0 };
-        lastBarTime = bucketTime;
-      } else {
-        // Same bar — update OHLC
-        currentBar.high  = Math.max(currentBar.high,  price);
-        currentBar.low   = Math.min(currentBar.low,   price);
-        currentBar.close = price;
+      const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
+      if (!isFinite(price) || price <= 0) {
+        console.warn(`[CHART-INVALID-PRICE] ${symbol} price=${price} from bid=${bid} ask=${ask}`);
+        return;
       }
 
-      currentBar.volume = (currentBar.volume || 0) + 1;
+      //Sanket v2.0 - Rolling median spike guard: reject single stale/outlier AllTick quotes that create spike wicks
+      //Sanket v2.0 - Safety: after MAX_CONSECUTIVE_SPIKES rejections in a row, force-accept (handles real rapid moves)
+      if (_isChartSpike(price, symbolInfo.name)) {
+        if (_consecutiveSpikes < MAX_CONSECUTIVE_SPIKES) {
+          _consecutiveSpikes++;
+          console.warn(`[CHART-SPIKE-GUARD] ${symbol} price=${price} rejected (consecutive=${_consecutiveSpikes}) vs window median`);
+          return;
+        }
+        // Too many consecutive rejections → real market move, accept and reset
+        console.warn(`[CHART-SPIKE-GUARD] ${symbol} price=${price} force-accepted after ${_consecutiveSpikes} consecutive rejections`);
+        _priceWindow = []; // reset window to new price level
+      }
+      _consecutiveSpikes = 0;
 
-      // Apply spread markup and push to chart
-      const markupBar = wrapOHLC({ ...currentBar }, symbolInfo.name, Datafeed._adminSpreads);
-      onRealtimeCallback(markupBar);
+      //Sanket v2.0 - buildCandleFromTick handles same-bucket updates, new-minute bar creation, and gap interpolation
+      //Sanket v2.0 - replaces validateRealtimeUpdate which could not create new bars nor interpolate gaps
+      const result = buildCandleFromTick({
+        currentBar,
+        tickPrice: price,
+        tickTime: time,
+        resolutionMs,
+        symbol: symbolInfo.name
+      });
+
+      if (!result.accepted) {
+        //Sanket v2.0 - Show actual rejection reason (was mislabeled as CHART-SPIKE-DROPPED for all rejections including out_of_order_bucket)
+        console.warn(`[CHART-SKIP] ${symbol} reason=${result.reason} price=${price} currentBar.close=${currentBar?.close}`);
+        return;
+      }
+
+      //Sanket v2.0 - Update rolling window with accepted price so median stays current
+      _priceWindow.push(price);
+      if (_priceWindow.length > SPIKE_WINDOW_SIZE) _priceWindow.shift();
+
+      for (const bar of result.bars) {
+        console.log(`[CHART-PUSH] ${symbol} close=${bar.close} high=${bar.high} low=${bar.low} barTime=${bar.time}`);
+        pushBar(bar);
+      }
+      currentBar = result.bars[result.bars.length - 1];
+      lastBarTime = currentBar.time;
     };
 
-    // Store the listener on the subscriber for cleanup
     Datafeed._subscribers = Datafeed._subscribers || {};
-    Datafeed._subscribers[subscriberUID] = handlePriceUpdate;
+    Datafeed._subscribers[subscriberUID] = {
+      priceUpdate: handlePriceUpdate,
+      candleUpdate: handleCandleUpdate,
+      symbol: symbolInfo.name,
+      dataGapMonitor
+    };
 
-    priceEventTarget.addEventListener("candleUpdate", handleCandleUpdate);
-    priceEventTarget.addEventListener("priceUpdate", handlePriceUpdate);
+    getPriceEvents().addEventListener("candleUpdate", handleCandleUpdate);
+    getPriceEvents().addEventListener("priceUpdate", handlePriceUpdate);
     
-    // Return cleanup function so TradingView can call it when unsubscribing
     return function cleanup() {
       isActive = false;
       clearInterval(dataGapMonitor);
       priceStreamService.unsubscribeBars(symbolInfo.name);
-      priceEventTarget.removeEventListener("candleUpdate", handleCandleUpdate);
-      priceEventTarget.removeEventListener("priceUpdate", handlePriceUpdate);
+      getPriceEvents().removeEventListener("candleUpdate", handleCandleUpdate);
+      getPriceEvents().removeEventListener("priceUpdate", handlePriceUpdate);
       delete Datafeed._subscribers[subscriberUID];
-      delete Datafeed._activeSubscribers[subscriberUID];
+      
+      const remainingPriority = (priceStreamService.prioritySymbols || []).filter(s => s !== normalizedSym);
+      priceStreamService.setPrioritySymbols(remainingPriority);
     };
   },
 
-  updateInterpolatedTick: (symbol, interpolatedPrice) => {
-    // This allows the interpolation loop in the React component to push 
-    // smooth price updates into the TradingView candles.
-    if (!Datafeed._activeSubscribers) return;
-    
-    Object.values(Datafeed._activeSubscribers).forEach(sub => {
-      if (normalizeRealtimeSymbol(sub.symbol) === normalizeRealtimeSymbol(symbol)) {
-        if (!sub.currentBar) return;
-        
-        // Update the actual subscriber's bar state so next real tick builds on this
-        sub.currentBar.close = interpolatedPrice;
-        sub.currentBar.high = Math.max(sub.currentBar.high, interpolatedPrice);
-        sub.currentBar.low = Math.min(sub.currentBar.low, interpolatedPrice);
-        
-        const markupBar = wrapOHLC(sub.currentBar, sub.symbol, Datafeed._adminSpreads);
-        sub.onRealtimeCallback(markupBar);
-      }
-    });
-  },
-
   unsubscribeBars: (subscriberUID) => {
-    const handler = Datafeed._subscribers && Datafeed._subscribers[subscriberUID];
-    if (handler) {
-      priceEventTarget.removeEventListener("priceUpdate", handler);
+    const sub = Datafeed._subscribers && Datafeed._subscribers[subscriberUID];
+    if (sub) {
+      //Sanket v2.0 - Fixed: was using sub.handlePriceUpdate (undefined) instead of sub.priceUpdate
+      //Sanket v2.0 - Bug: listeners were never removed, causing duplicate CHART-TICK and time/countdown desync
+      getPriceEvents().removeEventListener("priceUpdate", sub.priceUpdate);
+      getPriceEvents().removeEventListener("candleUpdate", sub.candleUpdate);
+      if (sub.dataGapMonitor) clearInterval(sub.dataGapMonitor);
+      if (sub.heartbeatTimer) clearInterval(sub.heartbeatTimer);
+      if (sub.symbol) priceStreamService.unsubscribeBars(sub.symbol);
       delete Datafeed._subscribers[subscriberUID];
     }
   }

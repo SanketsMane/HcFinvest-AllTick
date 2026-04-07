@@ -25,7 +25,8 @@ class StorageService extends EventEmitter {
     this.inflightBackfillTasks = new Map();
     this.inflightHistoryRequests = new Map();
     this.liveBars = new Map();
-    this.realtimeTimeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w'];
+    //Sanket v2.0 - Added '2h' and '1M' so candleUpdate events fire for all supported timeframes
+    this.realtimeTimeframes = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'];
     this.livePersistedTicks = 0;
     this.livePersistedWrites = 0;
     this.livePersistErrors = 0;
@@ -332,6 +333,41 @@ class StorageService extends EventEmitter {
     }));
   }
 
+  async getLatestCloseQuote(symbol, timeframe = '1m') {
+    try {
+      const resolvedSymbol = this.resolveStorageSymbol(symbol);
+
+      const redisBars = await this.getCandlesFromRedis(resolvedSymbol, timeframe, null, null, 1);
+      const redisLast = Array.isArray(redisBars) && redisBars.length > 0 ? redisBars[redisBars.length - 1] : null;
+      if (redisLast && Number(redisLast.close) > 0) {
+        return {
+          symbol: resolvedSymbol,
+          close: Number(redisLast.close),
+          time: redisLast.time,
+          source: 'storage_redis_rolling'
+        };
+      }
+
+      const Model = getModelForSymbol(resolvedSymbol);
+      if (!Model) return null;
+
+      const lastCandle = await Model.findOne({ symbol: resolvedSymbol, timeframe })
+        .sort({ time: -1 })
+        .lean();
+
+      if (!lastCandle || Number(lastCandle.close) <= 0) return null;
+
+      return {
+        symbol: resolvedSymbol,
+        close: Number(lastCandle.close),
+        time: lastCandle.time,
+        source: 'storage_mongo_latest'
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
   async queryCandles(Model, symbol, timeframe, from, to, limit) {
     const query = { symbol, timeframe };
     let sortOrder = { time: 1 };
@@ -424,16 +460,20 @@ class StorageService extends EventEmitter {
       '15m': 15 * 60,
       '30m': 30 * 60,
       '1h':  60 * 60,
+      '2h':  2  * 60 * 60,
       '4h':  4  * 60 * 60,
       '1d':  24 * 60 * 60,
-      '1w':  7  * 24 * 60 * 60
+      '1w':  7  * 24 * 60 * 60,
+      '1M':  30 * 24 * 60 * 60
     };
     return map[timeframe] || 60;
   }
 
   getAggregationSourceTimeframe(timeframe) {
+    //Sanket v2.0 - Added 2h->1h aggregation source
     const sourceMap = {
       '30m': '1m',
+      '2h': '1h',
       '4h': '1h',
       '1w': '1d'
     };
@@ -505,7 +545,7 @@ class StorageService extends EventEmitter {
     const resolvedSymbol = this.resolveStorageSymbol(symbol);
     const bid = Number(priceData.bid);
     const ask = Number(priceData.ask);
-    const close = Number.isFinite(bid) && Number.isFinite(ask)
+    let close = Number.isFinite(bid) && Number.isFinite(ask)
       ? (bid + ask) / 2
       : Number.isFinite(bid)
         ? bid
@@ -514,6 +554,25 @@ class StorageService extends EventEmitter {
           : null;
 
     if (!Number.isFinite(close) || close <= 0) return;
+
+    // 🏆 PRODUCTION GUARD: Anti-Spike Filter
+    // Reject ticks that jump too far from the last known close (prevents 'fat finger' provider errors)
+    const upper = String(symbol).toUpperCase();
+    let threshold = 3.0; // Default forex
+    if (['XAU','XAG','OIL','NGAS','COPPER','US30','US100','US500','UK100','GER40'].some(s => upper.includes(s))) threshold = 5.0;
+    else if (['BTC','ETH','SOL','BNB','XRP','ADA'].some(s => upper.includes(s))) threshold = 20.0;
+
+    const barKey = `${resolvedSymbol}|1m`; // Use 1m as the baseline reference
+    const lastBar = this.liveBars.get(barKey);
+    if (lastBar && lastBar.close > 0) {
+      const changePct = (Math.abs(close - lastBar.close) / lastBar.close) * 100;
+      if (changePct > threshold) {
+        // Silently drop spike ticks to prevent chart corruption. 
+        // We log it only occasionally to avoid disk-burn.
+        if (Math.random() < 0.01) console.warn(`[StorageService] 🛡️ Spike Rejected: ${symbol} ${lastBar.close} -> ${close} (${changePct.toFixed(2)}%)`);
+        return;
+      }
+    }
 
     // ✅ FIX: Use bid/ask range for HIGH/LOW (like TradingView frontend does)
     // This ensures backend-built candles match frontend real-time candles
@@ -950,7 +1009,16 @@ class StorageService extends EventEmitter {
         }
       }
 
-      return this.mapDbCandles(dbCandles);
+      let mappedCandles = this.mapDbCandles(dbCandles);
+      // Filter out weekend candles for XAUUSD (and similar symbols if needed)
+      if (['XAUUSD', 'XAUUSD.i', 'XAUUSD.I'].includes(String(symbol).toUpperCase())) {
+        mappedCandles = mappedCandles.filter(candle => {
+          const day = (candle.time instanceof Date ? candle.time : new Date(candle.time)).getUTCDay();
+          // 0 = Sunday, 6 = Saturday
+          return day !== 0 && day !== 6;
+        });
+      }
+      return mappedCandles;
     }
 
     // DB cache miss: fetch once (deduped), store, then serve from DB.

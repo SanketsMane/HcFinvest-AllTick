@@ -11,8 +11,10 @@ import {
   Save,
   X
 } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 const AdminThemeSettings = () => {
+  const { modeColors } = useTheme()
   const [themes, setThemes] = useState([])
   const [presets, setPresets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -205,28 +207,31 @@ const AdminThemeSettings = () => {
     <AdminLayout title="Theme Settings" subtitle="Customize user dashboard appearance">
       {/* Message */}
       {message.text && (
-        <div className={`mb-4 p-3 rounded-lg ${message.type === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-          {message.text}
-          <button onClick={() => setMessage({ type: '', text: '' })} className="float-right">
-            <X size={16} />
+        <div style={{ backgroundColor: message.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderColor: message.type === 'success' ? '#22C55E' : '#EF4444' }} className={`mb-6 p-4 rounded-xl border flex items-center justify-between ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+          <div className="flex items-center gap-2">
+            <Check size={18} />
+            <p className="font-medium">{message.text}</p>
+          </div>
+          <button onClick={() => setMessage({ type: '', text: '' })} className="p-1 hover:bg-black/5 rounded-lg transition-colors">
+            <X size={18} />
           </button>
         </div>
       )}
 
       {/* Preset Themes */}
-      <div className="bg-dark-800 rounded-xl border border-gray-800 p-5 mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl border p-5 mb-6 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-              <Palette size={20} className="text-purple-500" />
+            <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
+              <Palette size={24} className="text-purple-500" />
             </div>
             <div>
-              <h2 className="text-white font-semibold">Quick Theme Presets</h2>
-              <p className="text-gray-500 text-sm">Click to apply a preset theme instantly</p>
+              <h2 style={{ color: modeColors.text }} className="font-bold text-lg">Quick Theme Presets</h2>
+              <p style={{ color: modeColors.textSecondary }} className="text-sm">Click to apply a preset theme instantly</p>
             </div>
           </div>
-          <button onClick={fetchThemes} className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600">
-            <RefreshCw size={18} className="text-gray-400" />
+          <button onClick={fetchThemes} style={{ color: modeColors.textSecondary }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+            <RefreshCw size={20} />
           </button>
         </div>
 
@@ -235,11 +240,11 @@ const AdminThemeSettings = () => {
             <button
               key={preset.name}
               onClick={() => applyPreset(preset.name)}
-              className={`p-3 rounded-xl border transition-all hover:scale-105 ${
-                activeTheme?.name === preset.name 
-                  ? 'border-green-500 bg-green-500/10' 
-                  : 'border-gray-700 bg-dark-700 hover:border-gray-600'
-              }`}
+              style={{ 
+                backgroundColor: activeTheme?.name === preset.name ? 'rgba(34, 197, 94, 0.05)' : modeColors.bgSecondary,
+                borderColor: activeTheme?.name === preset.name ? '#22C55E' : modeColors.border 
+              }}
+              className="p-3 rounded-xl border transition-all hover:scale-105 hover:shadow-md"
             >
               <div 
                 className="w-full h-8 rounded-lg mb-2 flex overflow-hidden"
@@ -249,7 +254,7 @@ const AdminThemeSettings = () => {
                 <div className="w-1/3 h-full" style={{ backgroundColor: preset.colors.accent }} />
                 <div className="w-1/3 h-full" style={{ backgroundColor: preset.colors.secondary }} />
               </div>
-              <p className="text-white text-xs font-medium truncate">{preset.name}</p>
+              <p style={{ color: modeColors.text }} className="text-xs font-semibold truncate">{preset.name}</p>
               {activeTheme?.name === preset.name && (
                 <div className="flex items-center justify-center gap-1 mt-1">
                   <Check size={12} className="text-green-500" />
@@ -262,50 +267,56 @@ const AdminThemeSettings = () => {
       </div>
 
       {/* Custom Themes */}
-      <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-gray-800">
+      <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-xl border overflow-hidden shadow-sm">
+        <div style={{ borderBottomColor: modeColors.border }} className="flex items-center justify-between p-5 border-b">
           <div>
-            <h2 className="text-white font-semibold">Custom Themes</h2>
-            <p className="text-gray-500 text-sm">{themes.length} themes configured</p>
+            <h2 style={{ color: modeColors.text }} className="font-bold text-lg">Custom Themes</h2>
+            <p style={{ color: modeColors.textSecondary }} className="text-sm">{themes.length} themes configured</p>
           </div>
           <button 
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
           >
-            <Plus size={16} />
+            <Plus size={18} />
             Create Theme
           </button>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading themes...</div>
+          <div className="p-12 text-center">
+            <RefreshCw size={40} className="text-gray-400 mx-auto mb-4 animate-spin" />
+            <p style={{ color: modeColors.textSecondary }}>Loading themes...</p>
+          </div>
         ) : themes.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <p>No custom themes yet.</p>
-            <p className="text-sm mt-2">Apply a preset or create a new theme.</p>
+          <div className="p-12 text-center text-gray-500">
+            <Palette size={48} className="mx-auto mb-4 text-gray-300" />
+            <p style={{ color: modeColors.textSecondary }} className="font-medium">No custom themes yet.</p>
+            <p className="text-sm mt-1 text-gray-400">Apply a preset or create a new theme from scratch.</p>
           </div>
         ) : (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {themes.map((theme) => (
               <div 
                 key={theme._id} 
-                className={`p-4 rounded-xl border ${
-                  theme.isActive ? 'border-green-500 bg-green-500/5' : 'border-gray-700 bg-dark-700'
-                }`}
+                style={{ 
+                  backgroundColor: theme.isActive ? 'rgba(34, 197, 94, 0.05)' : modeColors.bgSecondary, 
+                  borderColor: theme.isActive ? '#22C55E' : modeColors.border 
+                }}
+                className="p-4 rounded-xl border transition-all hover:shadow-md"
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-white font-medium">{theme.name}</h3>
+                    <h3 style={{ color: modeColors.text }} className="font-bold">{theme.name}</h3>
                     {theme.isActive && (
-                      <span className="px-2 py-0.5 bg-green-500/20 text-green-500 text-xs rounded-full">Active</span>
+                      <span className="px-2.5 py-0.5 bg-green-500/10 text-green-600 text-xs font-bold rounded-full border border-green-500/20">Active</span>
                     )}
                   </div>
                 </div>
 
                 {/* Color Preview */}
                 <div 
-                  className="w-full h-12 rounded-lg mb-3 flex overflow-hidden border border-gray-600"
-                  style={{ backgroundColor: theme.colors?.bgPrimary || '#000' }}
+                  className="w-full h-14 rounded-lg mb-4 flex overflow-hidden border shadow-inner"
+                  style={{ backgroundColor: theme.colors?.bgPrimary || '#ffffff', borderColor: modeColors.border }}
                 >
                   <div className="w-1/4 h-full" style={{ backgroundColor: theme.colors?.primary || '#3B82F6' }} />
                   <div className="w-1/4 h-full" style={{ backgroundColor: theme.colors?.accent || '#F59E0B' }} />
@@ -318,7 +329,7 @@ const AdminThemeSettings = () => {
                   {!theme.isActive && (
                     <button
                       onClick={() => activateTheme(theme._id)}
-                      className="flex-1 py-2 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 text-sm flex items-center justify-center gap-1"
+                      className="flex-1 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-bold flex items-center justify-center gap-1 transition-colors"
                     >
                       <Check size={14} />
                       Activate
@@ -326,7 +337,8 @@ const AdminThemeSettings = () => {
                   )}
                   <button
                     onClick={() => openEditModal(theme)}
-                    className="flex-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 text-sm flex items-center justify-center gap-1"
+                    style={{ backgroundColor: modeColors.card, color: modeColors.text, borderColor: modeColors.border }}
+                    className="flex-1 py-2.5 border rounded-lg hover:bg-slate-50 text-sm font-bold flex items-center justify-center gap-2 transition-all"
                   >
                     <Eye size={14} />
                     Edit
@@ -334,9 +346,9 @@ const AdminThemeSettings = () => {
                   {!theme.isActive && (
                     <button
                       onClick={() => deleteTheme(theme._id)}
-                      className="py-2 px-3 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30"
+                      className="py-2.5 px-3 bg-red-50 text-red-500 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </div>
@@ -348,34 +360,36 @@ const AdminThemeSettings = () => {
 
       {/* Create Theme Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl border border-gray-700 w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-semibold text-lg">Create New Theme</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl border w-full max-w-md p-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 style={{ color: modeColors.text }} className="font-bold text-xl">Create New Theme</h3>
+              <button onClick={() => setShowCreateModal(false)} style={{ color: modeColors.textSecondary }} className="hover:text-blue-500 transition-colors">
+                <X size={24} />
               </button>
             </div>
-            <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">Theme Name</label>
+            <div className="mb-6">
+              <label style={{ color: modeColors.textSecondary }} className="block text-sm mb-2 font-medium">Theme Name</label>
               <input
                 type="text"
                 value={newThemeName}
                 onChange={(e) => setNewThemeName(e.target.value)}
                 placeholder="e.g., My Custom Theme"
-                className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white"
+                style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border, color: modeColors.text }}
+                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600"
+                style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.text }}
+                className="flex-1 py-3 rounded-xl font-medium hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={createTheme}
-                className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="flex-1 py-3 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all"
               >
                 Create Theme
               </button>
@@ -386,35 +400,44 @@ const AdminThemeSettings = () => {
 
       {/* Edit Theme Modal */}
       {showEditModal && selectedTheme && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-dark-800 rounded-xl border border-gray-700 w-full max-w-4xl p-6 my-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white font-semibold text-lg">Edit Theme: {selectedTheme.name}</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div style={{ backgroundColor: modeColors.card, borderColor: modeColors.border }} className="rounded-2xl border w-full max-w-4xl p-8 my-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-8">
+              <h3 style={{ color: modeColors.text }} className="font-bold text-2xl flex items-center gap-3">
+                <Palette className="text-blue-500" />
+                Edit Theme: {selectedTheme.name}
+              </h3>
+              <button onClick={() => setShowEditModal(false)} style={{ color: modeColors.textSecondary }} className="hover:text-blue-500 transition-colors">
+                <X size={28} />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
               {colorGroups.map((group) => (
-                <div key={group.title} className="bg-dark-700 rounded-lg p-4">
-                  <h4 className="text-white font-medium mb-3">{group.title}</h4>
-                  <div className="space-y-3">
+                <div key={group.title} style={{ backgroundColor: modeColors.bgSecondary, borderColor: modeColors.border }} className="rounded-2xl p-6 border shadow-sm">
+                  <h4 style={{ color: modeColors.text }} className="font-bold mb-5 flex items-center justify-between">
+                    {group.title}
+                    <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-500 rounded-full">{group.colors.length} colors</span>
+                  </h4>
+                  <div className="space-y-4">
                     {group.colors.map((colorKey) => (
-                      <div key={colorKey} className="flex items-center justify-between">
-                        <span className="text-gray-400 text-sm">{formatColorName(colorKey)}</span>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={editColors[colorKey] || '#000000'}
-                            onChange={(e) => setEditColors({ ...editColors, [colorKey]: e.target.value })}
-                            className="w-10 h-8 rounded cursor-pointer border-0"
-                          />
+                      <div key={colorKey} className="flex items-center justify-between group">
+                        <span style={{ color: modeColors.textSecondary }} className="text-sm font-medium">{formatColorName(colorKey)}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <input
+                              type="color"
+                              value={editColors[colorKey] || '#000000'}
+                              onChange={(e) => setEditColors({ ...editColors, [colorKey]: e.target.value })}
+                              className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 overflow-hidden shadow-sm"
+                            />
+                          </div>
                           <input
                             type="text"
                             value={editColors[colorKey] || ''}
                             onChange={(e) => setEditColors({ ...editColors, [colorKey]: e.target.value })}
-                            className="w-24 bg-dark-600 border border-gray-600 rounded px-2 py-1 text-white text-xs"
+                            style={{ backgroundColor: modeColors.card, borderColor: modeColors.border, color: modeColors.text }}
+                            className="w-28 border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500"
                           />
                         </div>
                       </div>
@@ -424,19 +447,20 @@ const AdminThemeSettings = () => {
               ))}
             </div>
 
-            <div className="flex gap-3 mt-6 pt-4 border-t border-gray-700">
+            <div style={{ borderTopColor: modeColors.border }} className="flex gap-4 mt-8 pt-6 border-t">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600"
+                style={{ backgroundColor: modeColors.bgSecondary, color: modeColors.text }}
+                className="flex-1 py-3 rounded-xl font-medium hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={updateTheme}
-                className="flex-1 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-[0.98] transition-all"
               >
-                <Save size={18} />
-                Save Changes
+                <Save size={20} />
+                Save Theme Changes
               </button>
             </div>
           </div>

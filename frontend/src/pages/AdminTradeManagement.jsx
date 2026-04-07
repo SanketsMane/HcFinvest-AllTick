@@ -485,54 +485,54 @@ const AdminTradeManagement = () => {
     <AdminLayout title="Trade Management" subtitle="Monitor and manage all trading activities">
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <p className="text-gray-500 text-sm mb-1">Total Trades</p>
-          <p className="text-white text-2xl font-bold">{stats.total.toLocaleString()}</p>
+        <div className="bg-white rounded-xl p-5 border border-slate-200">
+          <p className="text-slate-500 text-sm mb-1">Total Trades</p>
+          <p className="text-slate-900 text-2xl font-bold">{stats.total.toLocaleString()}</p>
         </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <p className="text-gray-500 text-sm mb-1">Open Positions</p>
-          <p className="text-white text-2xl font-bold">{stats.open}</p>
+        <div className="bg-white rounded-xl p-5 border border-slate-200">
+          <p className="text-slate-500 text-sm mb-1">Open Positions</p>
+          <p className="text-slate-900 text-2xl font-bold">{stats.open}</p>
         </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <p className="text-gray-500 text-sm mb-1">Total Volume</p>
-          <p className="text-white text-2xl font-bold">${(stats.volume / 1000000).toFixed(2)}M</p>
+        <div className="bg-white rounded-xl p-5 border border-slate-200">
+          <p className="text-slate-500 text-sm mb-1">Total Volume</p>
+          <p className="text-slate-900 text-2xl font-bold">${(stats.volume / 1000000).toFixed(2)}M</p>
         </div>
-        <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-          <p className="text-gray-500 text-sm mb-1">Platform P&L</p>
-          <p className={`text-2xl font-bold ${stats.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+        <div className="bg-white rounded-xl p-5 border border-slate-200">
+          <p className="text-slate-500 text-sm mb-1">Platform P&L</p>
+          <p className={`text-2xl font-bold ${stats.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {stats.pnl >= 0 ? '+' : ''}${stats.pnl.toFixed(2)}
           </p>
         </div>
       </div>
 
       {/* Trades Table */}
-      <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
-          <h2 className="text-white font-semibold text-lg">All Trades</h2>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-slate-200">
+          <h2 className="text-slate-900 font-semibold text-lg">All Trades</h2>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               onClick={() => {
                 setShowCreateModal(true)
                 fetchMarketPrice('XAUUSD')
               }}
-              className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
             >
               <Plus size={18} /> Create Trade
             </button>
             <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search trades..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
+                className="w-full sm:w-64 bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
               />
             </div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-dark-700 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-gray-600"
+              className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-slate-900 focus:outline-none focus:border-blue-500"
             >
               <option value="all">All Status</option>
               <option value="open">Open</option>
@@ -551,17 +551,17 @@ const AdminTradeManagement = () => {
             {/* Mobile Card View */}
             <div className="block lg:hidden p-4 space-y-3">
               {filteredTrades.map((trade) => (
-                <div key={trade._id} className="bg-dark-700 rounded-xl p-4 border border-gray-700">
+                <div key={trade._id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-medium">{trade.symbol}</span>
+                      <span className="text-slate-900 font-medium">{trade.symbol}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        trade.side === 'BUY' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                        trade.side === 'BUY' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
                         {trade.side}
                       </span>
                       {trade.closedBy === 'ADMIN' && (
-                        <span className="px-2 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-500">Admin Close</span>
+                        <span className="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700">Admin Close</span>
                       )}
                     </div>
                     <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusColor(trade.status)}`}>
@@ -571,30 +571,30 @@ const AdminTradeManagement = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                     <div>
-                      <p className="text-gray-500">User</p>
-                      <p className="text-white truncate">{trade.userId?.firstName || trade.userId?.email}</p>
-                      <p className="text-gray-500 text-xs font-mono truncate">ID: {trade.userId?._id || 'N/A'}</p>
+                      <p className="text-slate-500">User</p>
+                      <p className="text-slate-900 truncate">{trade.userId?.firstName || trade.userId?.email}</p>
+                      <p className="text-slate-400 text-xs font-mono truncate">ID: {trade.userId?._id || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Lots</p>
-                      <p className="text-white">{trade.quantity}</p>
+                      <p className="text-slate-500">Lots</p>
+                      <p className="text-slate-900">{trade.quantity}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Open Price</p>
-                      <p className="text-white">${trade.openPrice?.toFixed(5)}</p>
+                      <p className="text-slate-500">Open Price</p>
+                      <p className="text-slate-900">${trade.openPrice?.toFixed(5)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Live P&L</p>
-                      <p className={`font-semibold ${calculateFloatingPnl(trade) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      <p className="text-slate-500">Live P&L</p>
+                      <p className={`font-semibold ${calculateFloatingPnl(trade) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {calculateFloatingPnl(trade) >= 0 ? '+' : ''}${calculateFloatingPnl(trade).toFixed(2)}
                       </p>
                     </div>
                   </div>
                   {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-600">
+                  <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200">
                     <button
                       onClick={() => openEditModal(trade)}
-                      className="flex-1 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                      className="flex-1 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                     >
                       <Edit size={14} /> Edit
                     </button>
@@ -602,13 +602,13 @@ const AdminTradeManagement = () => {
                       <>
                         <button
                           onClick={() => handleChangeSide(trade)}
-                          className="flex-1 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                          className="flex-1 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                         >
                           <RefreshCw size={14} /> Flip
                         </button>
                         <button
                           onClick={() => openCloseModal(trade)}
-                          className="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                          className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                         >
                           <XCircle size={14} /> Close
                         </button>
@@ -617,14 +617,14 @@ const AdminTradeManagement = () => {
                     {trade.status === 'CLOSED' && (
                       <button
                         onClick={() => handleReopenTrade(trade)}
-                        className="flex-1 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                        className="flex-1 py-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                       >
                         <CheckCircle size={14} /> Reopen
                       </button>
                     )}
                     <button
                       onClick={() => handleDeleteTrade(trade)}
-                      className="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                      className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                     >
                       <Trash2 size={14} /> Delete
                     </button>
@@ -637,36 +637,36 @@ const AdminTradeManagement = () => {
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Trade ID</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Symbol</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Side</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Lots</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Open Price</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">P&L</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Status</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Actions</th>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">Trade ID</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">User</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">Symbol</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">Side</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">Lots</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">Open Price</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">P&L</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">Status</th>
+                    <th className="text-left text-slate-500 text-sm font-medium py-3 px-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTrades.map((trade) => (
-                    <tr key={trade._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                      <td className="py-4 px-4 text-white font-mono text-sm">{trade.tradeId}</td>
+                    <tr key={trade._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-4 text-slate-900 font-mono text-sm">{trade.tradeId}</td>
                       <td className="py-4 px-4">
-                        <p className="text-white">{trade.userId?.firstName || trade.userId?.email}</p>
-                        <p className="text-gray-500 text-xs font-mono">{trade.userId?._id || 'N/A'}</p>
+                        <p className="text-slate-900">{trade.userId?.firstName || trade.userId?.email}</p>
+                        <p className="text-slate-400 text-xs font-mono">{trade.userId?._id || 'N/A'}</p>
                       </td>
-                      <td className="py-4 px-4 text-white font-medium">{trade.symbol}</td>
+                      <td className="py-4 px-4 text-slate-900 font-medium">{trade.symbol}</td>
                       <td className="py-4 px-4">
-                        <span className={`flex items-center gap-1 ${trade.side === 'BUY' ? 'text-green-500' : 'text-red-500'}`}>
+                        <span className={`flex items-center gap-1 ${trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'}`}>
                           {trade.side === 'BUY' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                           {trade.side}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-white">{trade.quantity}</td>
-                      <td className="py-4 px-4 text-gray-400">${trade.openPrice?.toFixed(5)}</td>
-                      <td className={`py-4 px-4 font-medium ${calculateFloatingPnl(trade) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      <td className="py-4 px-4 text-slate-900">{trade.quantity}</td>
+                      <td className="py-4 px-4 text-slate-500">${trade.openPrice?.toFixed(5)}</td>
+                      <td className={`py-4 px-4 font-medium ${calculateFloatingPnl(trade) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {calculateFloatingPnl(trade) >= 0 ? '+' : ''}${calculateFloatingPnl(trade).toFixed(2)}
                       </td>
                       <td className="py-4 px-4">
@@ -676,7 +676,7 @@ const AdminTradeManagement = () => {
                             {trade.status}
                           </span>
                           {trade.closedBy === 'ADMIN' && (
-                            <span className="text-xs text-yellow-500">Admin Close</span>
+                            <span className="text-xs text-yellow-600">Admin Close</span>
                           )}
                         </div>
                       </td>
@@ -684,7 +684,7 @@ const AdminTradeManagement = () => {
                         <div className="flex items-center gap-1">
                           <button 
                             onClick={() => openEditModal(trade)}
-                            className="p-2 hover:bg-blue-500/20 rounded-lg transition-colors text-gray-400 hover:text-blue-500" 
+                            className="p-2 hover:bg-blue-50 rounded-lg transition-colors text-slate-400 hover:text-blue-600" 
                             title="Edit Trade"
                           >
                             <Edit size={16} />
@@ -693,14 +693,14 @@ const AdminTradeManagement = () => {
                             <>
                               <button 
                                 onClick={() => handleChangeSide(trade)}
-                                className="p-2 hover:bg-yellow-500/20 rounded-lg transition-colors text-gray-400 hover:text-yellow-500" 
+                                className="p-2 hover:bg-yellow-50 rounded-lg transition-colors text-slate-400 hover:text-yellow-600" 
                                 title={`Change to ${trade.side === 'BUY' ? 'SELL' : 'BUY'}`}
                               >
                                 <RefreshCw size={16} />
                               </button>
                               <button 
                                 onClick={() => openCloseModal(trade)}
-                                className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-red-500" 
+                                className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-400 hover:text-red-600" 
                                 title="Close Trade"
                               >
                                 <XCircle size={16} />
@@ -710,7 +710,7 @@ const AdminTradeManagement = () => {
                           {trade.status === 'CLOSED' && (
                             <button 
                               onClick={() => handleReopenTrade(trade)}
-                              className="p-2 hover:bg-green-500/20 rounded-lg transition-colors text-gray-400 hover:text-green-500" 
+                              className="p-2 hover:bg-green-50 rounded-lg transition-colors text-slate-400 hover:text-green-600" 
                               title="Reopen Trade"
                             >
                               <CheckCircle size={16} />
@@ -718,7 +718,7 @@ const AdminTradeManagement = () => {
                           )}
                           <button 
                             onClick={() => handleDeleteTrade(trade)}
-                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-red-500" 
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-400 hover:text-red-600" 
                             title="Delete Trade"
                           >
                             <Trash2 size={16} />
@@ -733,25 +733,25 @@ const AdminTradeManagement = () => {
             
             {/* Pagination */}
             {totalTrades > tradesPerPage && (
-              <div className="p-4 border-t border-gray-800 flex items-center justify-between">
-                <p className="text-gray-400 text-sm">
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between">
+                <p className="text-slate-500 text-sm">
                   Showing {((currentPage - 1) * tradesPerPage) + 1} - {Math.min(currentPage * tradesPerPage, totalTrades)} of {totalTrades} trades
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
-                  <span className="text-white px-3">
+                  <span className="text-slate-900 px-3">
                     Page {currentPage} of {Math.ceil(totalTrades / tradesPerPage)}
                   </span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalTrades / tradesPerPage), p + 1))}
                     disabled={currentPage >= Math.ceil(totalTrades / tradesPerPage)}
-                    className="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>
@@ -764,24 +764,24 @@ const AdminTradeManagement = () => {
 
       {/* Create Trade Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-2xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">Create Trade</h2>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-white">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Create Trade</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X size={24} />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-gray-400 text-sm mb-1">User</label>
+                <label className="block text-slate-500 text-sm mb-1">User</label>
                 <select
                   value={createForm.userId}
                   onChange={(e) => {
                     setCreateForm({ ...createForm, userId: e.target.value, tradingAccountId: '' })
                     if (e.target.value) fetchTradingAccounts(e.target.value)
                   }}
-                  className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">Select User</option>
                   {users.map(u => (
@@ -790,11 +790,11 @@ const AdminTradeManagement = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-gray-400 text-sm mb-1">Trading Account</label>
+                <label className="block text-slate-500 text-sm mb-1">Trading Account</label>
                 <select
                   value={createForm.tradingAccountId}
                   onChange={(e) => setCreateForm({ ...createForm, tradingAccountId: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">Select Account</option>
                   {tradingAccounts.map(a => (

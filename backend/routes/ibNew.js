@@ -5,7 +5,9 @@ import IBCommission from '../models/IBCommissionNew.js'
 import IBWallet from '../models/IBWallet.js'
 import IBLevel from '../models/IBLevel.js'
 import ibEngine from '../services/ibEngineNew.js'
+import IBSettings from '../models/IBSettings.js'
 import mongoose from 'mongoose'
+import { authMiddleware, adminMiddleware } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -14,15 +16,24 @@ const isValidObjectId = (id) => {
   return id && id !== 'undefined' && id !== 'null' && /^[a-fA-F0-9]{24}$/.test(id)
 }
 
+const normalizeCommissionType = (value) => value === 'PERCENTAGE' ? 'PERCENT' : (value || 'PER_LOT')
+
+const ensureOwner = (reqUser, targetUserId) => String(reqUser?._id || '') === String(targetUserId || '')
+
+const mapLevelCommissionsToLevels = (levelCommissions = {}, maxLevels = 3) => {
+  const levels = []
+  for (let level = 1; level <= maxLevels; level += 1) {
+    levels.push({ level, rate: Number(levelCommissions[`level${level}`] || 0) })
+  }
+  return levels
+}
+
 // ==================== USER ROUTES ====================
 
 // POST /api/ib/apply - Apply to become an IB
-router.post('/apply', async (req, res) => {
+router.post('/apply', authMiddleware, async (req, res) => {
   try {
-    const { userId } = req.body
-    if (!userId) {
-      return res.status(400).json({ success: false, message: 'User ID is required' })
-    }
+    const userId = req.user?._id
 
     const user = await ibEngine.applyForIB(userId)
     res.json({
@@ -44,9 +55,10 @@ router.post('/apply', async (req, res) => {
 })
 
 // POST /api/ib/register-referral - Register with referral code
-router.post('/register-referral', async (req, res) => {
+router.post('/register-referral', authMiddleware, async (req, res) => {
   try {
-    const { userId, referralCode } = req.body
+    const userId = req.user?._id
+    const { referralCode } = req.body
     if (!userId || !referralCode) {
       return res.status(400).json({ success: false, message: 'User ID and referral code are required' })
     }
@@ -64,11 +76,14 @@ router.post('/register-referral', async (req, res) => {
 })
 
 // GET /api/ib/my-profile/:userId - Get IB profile
-router.get('/my-profile/:userId', async (req, res) => {
+router.get('/my-profile/:userId', authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' })
+    }
+    if (!ensureOwner(req.user, userId)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' })
     }
     const user = await User.findById(userId).populate('ibPlanId').populate('ibLevelId')
     
@@ -109,11 +124,13 @@ router.get('/my-profile/:userId', async (req, res) => {
         ibLevelOrder: user.ibLevelOrder,
         ibLevelId: user.ibLevelId,
         autoUpgradeEnabled: user.autoUpgradeEnabled,
-        ibPlan: user.ibPlanId
+        ibPlan: user.ibPlanId,
+        ibCommissionOverride: user.ibCommissionOverride || null
       },
       wallet,
       stats: stats.stats,
-      levelProgress
+      levelProgress,
+      commissionProfile: await ibEngine.getCommissionProfile(user)
     })
   } catch (error) {
     console.error('Error fetching IB profile:', error)
@@ -122,11 +139,14 @@ router.get('/my-profile/:userId', async (req, res) => {
 })
 
 // GET /api/ib/my-referrals/:userId - Get direct referrals
-router.get('/my-referrals/:userId', async (req, res) => {
+router.get('/my-referrals/:userId', authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' })
+    }
+    if (!ensureOwner(req.user, userId)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' })
     }
     const referrals = await User.find({ parentIBId: userId })
       .select('firstName email createdAt isIB ibStatus')
@@ -140,11 +160,14 @@ router.get('/my-referrals/:userId', async (req, res) => {
 })
 
 // GET /api/ib/my-commissions/:userId - Get commission history
-router.get('/my-commissions/:userId', async (req, res) => {
+router.get('/my-commissions/:userId', authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' })
+    }
+    if (!ensureOwner(req.user, userId)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' })
     }
     const { limit = 50, offset = 0 } = req.query
 
@@ -165,11 +188,14 @@ router.get('/my-commissions/:userId', async (req, res) => {
 })
 
 // GET /api/ib/my-downline/:userId - Get downline tree
-router.get('/my-downline/:userId', async (req, res) => {
+router.get('/my-downline/:userId', authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' })
+    }
+    if (!ensureOwner(req.user, userId)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' })
     }
     const { maxDepth = 5 } = req.query
 
@@ -186,9 +212,10 @@ router.get('/my-downline/:userId', async (req, res) => {
 })
 
 // POST /api/ib/withdraw - Withdraw to main wallet
-router.post('/withdraw', async (req, res) => {
+router.post('/withdraw', authMiddleware, async (req, res) => {
   try {
-    const { userId, amount } = req.body
+    const userId = req.user?._id
+    const { amount } = req.body
     if (!userId || !amount || amount <= 0) {
       return res.status(400).json({ success: false, message: 'Valid user ID and amount are required' })
     }
@@ -208,7 +235,7 @@ router.post('/withdraw', async (req, res) => {
 // ==================== ADMIN ROUTES ====================
 
 // GET /api/ib/admin/all - Get all IBs
-router.get('/admin/all', async (req, res) => {
+router.get('/admin/all', adminMiddleware, async (req, res) => {
   try {
     const { status, limit = 50, offset = 0 } = req.query
 
@@ -217,7 +244,8 @@ router.get('/admin/all', async (req, res) => {
 
     const ibs = await User.find(query)
       .populate('ibPlanId', 'name')
-      .select('firstName email referralCode ibStatus ibLevel ibPlanId createdAt')
+      .populate('ibLevelId', 'name order commissionRate color')
+      .select('firstName lastName email referralCode ibStatus ibLevel ibLevelId ibLevelOrder ibPlanId createdAt autoUpgradeEnabled ibCommissionOverride')
       .sort({ createdAt: -1 })
       .skip(parseInt(offset))
       .limit(parseInt(limit))
@@ -227,8 +255,13 @@ router.get('/admin/all', async (req, res) => {
     // Get wallet balances for each IB
     const ibsWithWallets = await Promise.all(ibs.map(async (ib) => {
       const wallet = await IBWallet.findOne({ ibUserId: ib._id })
+      const referralCount = await User.countDocuments({ parentIBId: ib._id })
+      const normalizedLevelOrder = ib.ibLevelOrder || ib.ibLevelId?.order || ib.ibLevel || 1
       return {
         ...ib.toObject(),
+        referralCount,
+        ibLevelOrder: normalizedLevelOrder,
+        ibLevel: ib.ibLevel || normalizedLevelOrder,
         walletBalance: wallet?.balance || 0,
         totalEarned: wallet?.totalEarned || 0
       }
@@ -242,7 +275,7 @@ router.get('/admin/all', async (req, res) => {
 })
 
 // GET /api/ib/admin/pending - Get pending IB applications
-router.get('/admin/pending', async (req, res) => {
+router.get('/admin/pending', adminMiddleware, async (req, res) => {
   try {
     const pending = await User.find({ isIB: true, ibStatus: 'PENDING' })
       .select('firstName lastName email referralCode ibLevel createdAt')
@@ -256,7 +289,7 @@ router.get('/admin/pending', async (req, res) => {
 })
 
 // PUT /api/ib/admin/approve/:userId - Approve IB application
-router.put('/admin/approve/:userId', async (req, res) => {
+router.put('/admin/approve/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
@@ -272,7 +305,10 @@ router.put('/admin/approve/:userId', async (req, res) => {
         _id: user._id,
         firstName: user.firstName,
         ibStatus: user.ibStatus,
-        ibPlanId: user.ibPlanId
+        ibPlanId: user.ibPlanId,
+        ibLevelId: user.ibLevelId,
+        ibLevelOrder: user.ibLevelOrder,
+        ibLevel: user.ibLevel
       }
     })
   } catch (error) {
@@ -282,7 +318,7 @@ router.put('/admin/approve/:userId', async (req, res) => {
 })
 
 // PUT /api/ib/admin/reject/:userId - Reject IB application
-router.put('/admin/reject/:userId', async (req, res) => {
+router.put('/admin/reject/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
@@ -313,7 +349,7 @@ router.put('/admin/reject/:userId', async (req, res) => {
 })
 
 // PUT /api/ib/admin/block/:userId - Block IB
-router.put('/admin/block/:userId', async (req, res) => {
+router.put('/admin/block/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
@@ -338,7 +374,7 @@ router.put('/admin/block/:userId', async (req, res) => {
 })
 
 // PUT /api/ib/admin/unblock/:userId - Unblock IB
-router.put('/admin/unblock/:userId', async (req, res) => {
+router.put('/admin/unblock/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
@@ -366,21 +402,61 @@ router.put('/admin/unblock/:userId', async (req, res) => {
 })
 
 // PUT /api/ib/admin/update/:userId - Update IB details (level)
-router.put('/admin/update/:userId', async (req, res) => {
+router.put('/admin/update/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' })
     }
-    const { ibLevel } = req.body
+    const { ibLevel, levelId, planId, autoUpgradeEnabled, commissionOverride } = req.body
 
     const user = await User.findById(userId)
     if (!user) throw new Error('User not found')
     if (!user.isIB) throw new Error('User is not an IB')
 
-    // Update IB level if provided
-    if (ibLevel !== undefined) {
-      user.ibLevel = parseInt(ibLevel) || 1
+    if (levelId) {
+      const level = await IBLevel.findById(levelId)
+      if (!level) {
+        return res.status(404).json({ success: false, message: 'IB level not found' })
+      }
+      user.ibLevelId = level._id
+      user.ibLevelOrder = level.order
+      user.ibLevel = level.order
+    } else if (ibLevel !== undefined) {
+      const numericLevel = parseInt(ibLevel, 10) || 1
+      const level = await IBLevel.findOne({ order: numericLevel, isActive: true })
+      user.ibLevel = numericLevel
+      if (level) {
+        user.ibLevelId = level._id
+        user.ibLevelOrder = level.order
+      }
+    }
+
+    if (planId !== undefined) {
+      user.ibPlanId = planId || null
+    }
+
+    if (autoUpgradeEnabled !== undefined) {
+      user.autoUpgradeEnabled = Boolean(autoUpgradeEnabled)
+    }
+
+    if (commissionOverride !== undefined) {
+      const normalizedLevels = {
+        level1: Number(commissionOverride?.levels?.level1 || 0),
+        level2: Number(commissionOverride?.levels?.level2 || 0),
+        level3: Number(commissionOverride?.levels?.level3 || 0),
+        level4: Number(commissionOverride?.levels?.level4 || 0),
+        level5: Number(commissionOverride?.levels?.level5 || 0)
+      }
+
+      user.ibCommissionOverride = {
+        enabled: Boolean(commissionOverride?.enabled),
+        commissionType: normalizeCommissionType(commissionOverride?.commissionType),
+        levels: normalizedLevels,
+        updatedAt: new Date(),
+        updatedBy: req.admin?._id || null,
+        notes: String(commissionOverride?.notes || '')
+      }
     }
 
     await user.save()
@@ -391,7 +467,12 @@ router.put('/admin/update/:userId', async (req, res) => {
       user: {
         _id: user._id,
         firstName: user.firstName,
-        ibLevel: user.ibLevel
+        ibLevel: user.ibLevel,
+        ibLevelId: user.ibLevelId,
+        ibLevelOrder: user.ibLevelOrder,
+        ibPlanId: user.ibPlanId,
+        autoUpgradeEnabled: user.autoUpgradeEnabled,
+        ibCommissionOverride: user.ibCommissionOverride || null
       }
     })
   } catch (error) {
@@ -401,7 +482,7 @@ router.put('/admin/update/:userId', async (req, res) => {
 })
 
 // PUT /api/ib/admin/change-plan/:userId - Change IB plan
-router.put('/admin/change-plan/:userId', async (req, res) => {
+router.put('/admin/change-plan/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
@@ -426,7 +507,7 @@ router.put('/admin/change-plan/:userId', async (req, res) => {
 })
 
 // GET /api/ib/admin/tree/:userId - Get IB tree for admin
-router.get('/admin/tree/:userId', async (req, res) => {
+router.get('/admin/tree/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
@@ -447,7 +528,7 @@ router.get('/admin/tree/:userId', async (req, res) => {
 })
 
 // GET /api/ib/admin/stats/:userId - Get IB stats for admin
-router.get('/admin/stats/:userId', async (req, res) => {
+router.get('/admin/stats/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     if (!isValidObjectId(userId)) {
@@ -462,7 +543,7 @@ router.get('/admin/stats/:userId', async (req, res) => {
 })
 
 // POST /api/ib/admin/reverse-commission - Reverse a commission
-router.post('/admin/reverse-commission', async (req, res) => {
+router.post('/admin/reverse-commission', adminMiddleware, async (req, res) => {
   try {
     const { commissionId, adminId, reason } = req.body
     if (!commissionId || !adminId) {
@@ -482,7 +563,7 @@ router.post('/admin/reverse-commission', async (req, res) => {
 })
 
 // GET /api/ib/admin/commissions - Get all commissions
-router.get('/admin/commissions', async (req, res) => {
+router.get('/admin/commissions', adminMiddleware, async (req, res) => {
   try {
     const { status, limit = 50, offset = 0 } = req.query
 
@@ -540,7 +621,7 @@ router.get('/plans', async (req, res) => {
 })
 
 // GET /api/ib/admin/plans - Get all plans (admin)
-router.get('/admin/plans', async (req, res) => {
+router.get('/admin/plans', adminMiddleware, async (req, res) => {
   try {
     const plans = await IBPlan.find().sort({ createdAt: -1 })
     
@@ -567,27 +648,28 @@ router.get('/admin/plans', async (req, res) => {
 })
 
 // POST /api/ib/admin/plans - Create new plan
-router.post('/admin/plans', async (req, res) => {
+router.post('/admin/plans', adminMiddleware, async (req, res) => {
   try {
-    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, minWithdrawalAmount, isDefault } = req.body
+    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, isDefault } = req.body
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'Plan name is required' })
     }
 
     // Convert levelCommissions object to levels array for IBPlanNew.js compatibility
-    const levels = []
-    const lc = levelCommissions || { level1: 5, level2: 3, level3: 2, level4: 1, level5: 0.5 }
-    for (let i = 1; i <= (maxLevels || 3); i++) {
-      levels.push({ level: i, rate: lc[`level${i}`] || 0 })
-    }
+    const levels = mapLevelCommissionsToLevels(
+      levelCommissions || { level1: 5, level2: 3, level3: 2, level4: 1, level5: 0.5 },
+      maxLevels || 3
+    )
 
     const plan = await IBPlan.create({
       name,
+      description,
       maxLevels: maxLevels || 3,
-      commissionType: commissionType || 'PER_LOT',
+      commissionType: normalizeCommissionType(commissionType),
       levels,
-      source: commissionSources || { spread: true, tradeCommission: true, swap: false }
+      source: commissionSources || { spread: true, tradeCommission: true, swap: false },
+      isDefault: Boolean(isDefault)
     })
 
     // If this is default, unset other defaults
@@ -610,10 +692,10 @@ router.post('/admin/plans', async (req, res) => {
 })
 
 // PUT /api/ib/admin/plans/:planId - Update plan
-router.put('/admin/plans/:planId', async (req, res) => {
+router.put('/admin/plans/:planId', adminMiddleware, async (req, res) => {
   try {
     const { planId } = req.params
-    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, minWithdrawalAmount, isActive, isDefault } = req.body
+    const { name, description, maxLevels, commissionType, levelCommissions, commissionSources, isActive, isDefault } = req.body
 
     const plan = await IBPlan.findById(planId)
     if (!plan) throw new Error('Plan not found')
@@ -621,10 +703,9 @@ router.put('/admin/plans/:planId', async (req, res) => {
     if (name) plan.name = name
     if (description !== undefined) plan.description = description
     if (maxLevels) plan.maxLevels = maxLevels
-    if (commissionType) plan.commissionType = commissionType
-    if (levelCommissions) plan.levelCommissions = levelCommissions
-    if (commissionSources) plan.commissionSources = commissionSources
-    if (minWithdrawalAmount !== undefined) plan.minWithdrawalAmount = minWithdrawalAmount
+    if (commissionType) plan.commissionType = normalizeCommissionType(commissionType)
+    if (levelCommissions) plan.levels = mapLevelCommissionsToLevels(levelCommissions, maxLevels || plan.maxLevels || 3)
+    if (commissionSources) plan.source = commissionSources
     if (isActive !== undefined) plan.isActive = isActive
     if (isDefault !== undefined) plan.isDefault = isDefault
 
@@ -646,7 +727,7 @@ router.put('/admin/plans/:planId', async (req, res) => {
 })
 
 // DELETE /api/ib/admin/plans/:planId - Delete plan
-router.delete('/admin/plans/:planId', async (req, res) => {
+router.delete('/admin/plans/:planId', adminMiddleware, async (req, res) => {
   try {
     const { planId } = req.params
     
@@ -668,7 +749,7 @@ router.delete('/admin/plans/:planId', async (req, res) => {
 })
 
 // POST /api/ib/admin/transfer-referrals - Transfer users to a different IB
-router.post('/admin/transfer-referrals', async (req, res) => {
+router.post('/admin/transfer-referrals', adminMiddleware, async (req, res) => {
   try {
     const { userIds, targetIBId } = req.body
 
@@ -723,7 +804,7 @@ router.post('/admin/transfer-referrals', async (req, res) => {
 })
 
 // GET /api/ib/admin/dashboard - Admin dashboard stats
-router.get('/admin/dashboard', async (req, res) => {
+router.get('/admin/dashboard', adminMiddleware, async (req, res) => {
   try {
     const totalIBs = await User.countDocuments({ isIB: true })
     const activeIBs = await User.countDocuments({ isIB: true, ibStatus: 'ACTIVE' })
@@ -770,6 +851,37 @@ router.get('/admin/dashboard', async (req, res) => {
   }
 })
 
+// GET /api/ib/admin/settings - Get IB settings
+router.get('/admin/settings', adminMiddleware, async (req, res) => {
+  try {
+    const settings = await IBSettings.getSettings()
+    res.json({ success: true, settings })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching settings', error: error.message })
+  }
+})
+
+// PUT /api/ib/admin/settings - Update IB settings
+router.put('/admin/settings', adminMiddleware, async (req, res) => {
+  try {
+    const settings = await IBSettings.getSettings()
+    
+    const { ibRequirements, commissionSettings, isEnabled, allowNewApplications, autoApprove } = req.body
+
+    if (ibRequirements) settings.ibRequirements = { ...settings.ibRequirements, ...ibRequirements }
+    if (commissionSettings) settings.commissionSettings = { ...settings.commissionSettings, ...commissionSettings }
+    if (isEnabled !== undefined) settings.isEnabled = isEnabled
+    if (allowNewApplications !== undefined) settings.allowNewApplications = allowNewApplications
+    if (autoApprove !== undefined) settings.autoApprove = autoApprove
+
+    await settings.save()
+
+    res.json({ success: true, message: 'Settings updated', settings })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating settings', error: error.message })
+  }
+})
+
 // ==================== IB LEVEL ROUTES ====================
 
 // GET /api/ib/levels - Get all IB levels (public)
@@ -788,7 +900,7 @@ router.get('/levels', async (req, res) => {
 })
 
 // GET /api/ib/admin/levels - Get all IB levels (admin)
-router.get('/admin/levels', async (req, res) => {
+router.get('/admin/levels', adminMiddleware, async (req, res) => {
   try {
     let levels = await IBLevel.find().sort({ order: 1 })
     if (levels.length === 0) {
@@ -803,7 +915,7 @@ router.get('/admin/levels', async (req, res) => {
 })
 
 // POST /api/ib/admin/levels - Create new IB level
-router.post('/admin/levels', async (req, res) => {
+router.post('/admin/levels', adminMiddleware, async (req, res) => {
   try {
     const { name, order, referralTarget, commissionRate, commissionType, downlineCommission, color, icon } = req.body
 
@@ -839,7 +951,7 @@ router.post('/admin/levels', async (req, res) => {
 })
 
 // PUT /api/ib/admin/levels/:levelId - Update IB level
-router.put('/admin/levels/:levelId', async (req, res) => {
+router.put('/admin/levels/:levelId', adminMiddleware, async (req, res) => {
   try {
     const { levelId } = req.params
     const { name, order, referralTarget, commissionRate, commissionType, downlineCommission, color, icon, isActive } = req.body
@@ -877,7 +989,7 @@ router.put('/admin/levels/:levelId', async (req, res) => {
 })
 
 // DELETE /api/ib/admin/levels/:levelId - Delete IB level
-router.delete('/admin/levels/:levelId', async (req, res) => {
+router.delete('/admin/levels/:levelId', adminMiddleware, async (req, res) => {
   try {
     const { levelId } = req.params
 
@@ -899,7 +1011,7 @@ router.delete('/admin/levels/:levelId', async (req, res) => {
 })
 
 // PUT /api/ib/admin/user-level/:userId - Manually change user's IB level
-router.put('/admin/user-level/:userId', async (req, res) => {
+router.put('/admin/user-level/:userId', adminMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     const { levelId } = req.body
@@ -935,10 +1047,14 @@ router.put('/admin/user-level/:userId', async (req, res) => {
 })
 
 // PUT /api/ib/toggle-auto-upgrade/:userId - Toggle auto-upgrade for user
-router.put('/toggle-auto-upgrade/:userId', async (req, res) => {
+router.put('/toggle-auto-upgrade/:userId', authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params
     const { enabled } = req.body
+
+    if (!ensureOwner(req.user, userId)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' })
+    }
 
     const user = await User.findById(userId)
     if (!user || !user.isIB) {
@@ -960,7 +1076,7 @@ router.put('/toggle-auto-upgrade/:userId', async (req, res) => {
 })
 
 // POST /api/ib/admin/init-levels - Initialize default levels
-router.post('/admin/init-levels', async (req, res) => {
+router.post('/admin/init-levels', adminMiddleware, async (req, res) => {
   try {
     await IBLevel.initializeDefaultLevels()
     const levels = await IBLevel.getAllLevels()

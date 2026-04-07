@@ -1,6 +1,4 @@
 
-// internalTransfer.jsx
-
 import express from "express";
 import Wallet from "../models/Wallet.js";
 import TradingAccount from "../models/TradingAccount.js";

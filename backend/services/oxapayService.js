@@ -15,23 +15,65 @@ class OxapayService {
     this.baseUrl = process.env.OXAPAY_API_URL || 'https://api.oxapay.com'
     this.merchantApiKey = process.env.OXAPAY_MERCHANT_API_KEY || ''
     this.payoutApiKey = process.env.OXAPAY_PAYOUT_API_KEY || ''
+    this.configCache = null
+    this.configCacheTime = 0
+    this.CACHE_TTL = 30000 // 30 seconds
     
     console.log(`[Oxapay] Service initialized`)
   }
 
-  // Load config from database (allows admin to update without restart)
+  /**
+   * Helper to execute work within a transaction if supported by the MongoDB cluster.
+   * Falls back to standard execution if on a standalone instance.
+   */
+  async runInTransaction(workFn) {
+    let session = null
+    try {
+      session = await mongoose.startSession()
+      let result
+      await session.withTransaction(async () => {
+        result = await workFn(session)
+      })
+      return result
+    } catch (error) {
+      // Check if the error is due to MongoDB not being a replica set
+      if (error.message.includes('replica set member') || error.codeName === 'CommandNotSupportedOnStandalone') {
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('[Oxapay] Performance Warning: Running multi-document operations without replica-set transactions in production.')
+        }
+        return await workFn(null)
+      }
+      throw error
+    } finally {
+      if (session) await session.endSession()
+    }
+  }
+
+  // Load config from database with simple 30s caching
   async loadConfig() {
     try {
+      const now = Date.now()
+      if (this.configCache && (now - this.configCacheTime < this.CACHE_TTL)) {
+        return this.configCache
+      }
+
       const gateway = await PaymentGateway.findOne({ name: 'oxapay' })
-      if (gateway && gateway.apiConfig) {
-        this.merchantApiKey = gateway.apiConfig.merchantApiKey || this.merchantApiKey
-        this.payoutApiKey = gateway.apiConfig.payoutApiKey || this.payoutApiKey
-        if (gateway.apiConfig.baseUrl) {
-          this.baseUrl = gateway.apiConfig.baseUrl
+      if (gateway) {
+        this.configCache = gateway
+        this.configCacheTime = now
+        
+        if (gateway.apiConfig) {
+          this.merchantApiKey = gateway.apiConfig.merchantApiKey || this.merchantApiKey
+          this.payoutApiKey = gateway.apiConfig.payoutApiKey || this.payoutApiKey
+          if (gateway.apiConfig.baseUrl) {
+            this.baseUrl = gateway.apiConfig.baseUrl
+          }
         }
       }
+      return this.configCache
     } catch (error) {
       console.error('[Oxapay] Error loading config:', error.message)
+      return null
     }
   }
 
@@ -58,11 +100,12 @@ class OxapayService {
     }
   }
 
-  // Generate idempotency key
+  // Generate robust idempotency key
   generateIdempotencyKey(userId, amount, timestamp) {
+    const salt = crypto.randomBytes(16).toString('hex')
     return crypto
       .createHash('sha256')
-      .update(`${userId}-${amount}-${timestamp}`)
+      .update(`${userId}-${amount}-${timestamp}-${salt}`)
       .digest('hex')
   }
 
@@ -326,7 +369,11 @@ class OxapayService {
       }
       console.log('[Oxapay] Webhook signature verified successfully')
     } else {
-      console.warn('[Oxapay] No HMAC header or API key - signature verification skipped')
+      const allowUnsigned = String(process.env.OXAPAY_ALLOW_UNSIGNED_WEBHOOKS || '').toLowerCase() === 'true'
+      if (!allowUnsigned) {
+        throw new Error('Missing webhook signature or merchant key')
+      }
+      console.warn('[Oxapay] Unsigned webhook accepted (OXAPAY_ALLOW_UNSIGNED_WEBHOOKS=true)')
     }
 
     const { track_id, status, type, order_id, amount } = payload
@@ -404,7 +451,7 @@ class OxapayService {
     return { success: true, status: normalizedStatus }
   }
 
-  // Handle successful payment - credit user wallet with ATOMIC transaction
+  // Handle successful payment - credit user wallet with ATOMIC transaction (replica-set aware)
   async handlePaymentSuccess(transaction) {
     // Idempotency check
     if (transaction.walletCredited) {
@@ -412,29 +459,25 @@ class OxapayService {
       return { success: true, alreadyCredited: true }
     }
 
-    const session = await mongoose.startSession()
-    
     try {
-      let result
-
-      await session.withTransaction(async () => {
-        // Re-fetch transaction within session to prevent race conditions
+      return await this.runInTransaction(async (session) => {
+        // Re-fetch transaction (within session if available) to prevent race conditions
         const freshTxn = await CryptoTransaction.findById(transaction._id).session(session)
+        if (!freshTxn) throw new Error('Transaction record lost')
         
-        // Double-check idempotency within transaction
+        // Double-check idempotency
         if (freshTxn.walletCredited) {
           console.log(`[Oxapay] Transaction ${transaction._id} already credited (race condition prevented)`)
-          result = { success: true, alreadyCredited: true }
-          return
+          return { success: true, alreadyCredited: true }
         }
 
-        // Get user within transaction
+        // Get user
         const user = await User.findById(freshTxn.userId).session(session)
         if (!user) {
           throw new Error('User not found')
         }
 
-        // Credit wallet atomically
+        // Credit wallet
         const previousBalance = user.walletBalance || 0
         const creditAmount = freshTxn.amount
         user.walletBalance = previousBalance + creditAmount
@@ -447,22 +490,18 @@ class OxapayService {
         freshTxn.creditedAmount = creditAmount
         await freshTxn.save({ session })
 
-        console.log(`[Oxapay] ATOMIC CREDIT: User ${user._id} credited $${creditAmount}. Balance: $${previousBalance} → $${user.walletBalance}`)
+        console.log(`[Oxapay] ${session ? 'ATOMIC' : 'SEQUENTIAL'} CREDIT: User ${user._id} credited $${creditAmount}. Balance: $${previousBalance} → $${user.walletBalance}`)
         
-        result = {
+        return {
           success: true,
           credited: creditAmount,
           previousBalance,
           newBalance: user.walletBalance
         }
       })
-
-      return result
     } catch (error) {
-      console.error(`[Oxapay] ATOMIC CREDIT FAILED for transaction ${transaction._id}:`, error.message)
+      console.error(`[Oxapay] CREDIT OPERATION FAILED for transaction ${transaction._id}:`, error.message)
       throw error
-    } finally {
-      await session.endSession()
     }
   }
 
@@ -478,15 +517,11 @@ class OxapayService {
 
   // ==================== PAY-OUT (WITHDRAWAL) ====================
 
-  // ATOMIC debit for withdrawal - deduct from wallet with transaction safety
+  // ATOMIC debit for withdrawal - deduct from wallet with transaction safety (replica-set aware)
   async atomicDebitForWithdrawal(userId, amount, transactionId) {
-    const session = await mongoose.startSession()
-    
     try {
-      let result
-
-      await session.withTransaction(async () => {
-        // Get transaction within session
+      return await this.runInTransaction(async (session) => {
+        // Get transaction
         const transaction = await CryptoTransaction.findById(transactionId).session(session)
         if (!transaction) {
           throw new Error('Transaction not found')
@@ -495,11 +530,10 @@ class OxapayService {
         // Idempotency check - already debited
         if (transaction.walletDebited) {
           console.log(`[Oxapay] Transaction ${transactionId} already debited, skipping`)
-          result = { success: true, alreadyDebited: true }
-          return
+          return { success: true, alreadyDebited: true }
         }
 
-        // Get user within transaction
+        // Get user
         const user = await User.findById(userId).session(session)
         if (!user) {
           throw new Error('User not found')
@@ -511,7 +545,7 @@ class OxapayService {
           throw new Error(`Insufficient balance. Available: $${currentBalance}, Required: $${amount}`)
         }
 
-        // Debit wallet atomically
+        // Debit wallet
         const previousBalance = currentBalance
         user.walletBalance = previousBalance - amount
         await user.save({ session })
@@ -523,26 +557,22 @@ class OxapayService {
         transaction.status = 'processing'
         await transaction.save({ session })
 
-        console.log(`[Oxapay] ATOMIC DEBIT: User ${userId} debited $${amount}. Balance: $${previousBalance} → $${user.walletBalance}`)
+        console.log(`[Oxapay] ${session ? 'ATOMIC' : 'SEQUENTIAL'} DEBIT: User ${userId} debited $${amount}. Balance: $${previousBalance} → $${user.walletBalance}`)
         
-        result = {
+        return {
           success: true,
           debited: amount,
           previousBalance,
           newBalance: user.walletBalance
         }
       })
-
-      return result
     } catch (error) {
-      console.error(`[Oxapay] ATOMIC DEBIT FAILED for transaction ${transactionId}:`, error.message)
+      console.error(`[Oxapay] DEBIT OPERATION FAILED for transaction ${transactionId}:`, error.message)
       throw error
-    } finally {
-      await session.endSession()
     }
   }
 
-  // ATOMIC refund for failed/rejected withdrawal
+  // ATOMIC refund for failed/rejected withdrawal (replica-set aware)
   async atomicRefundWithdrawal(transactionId, reason = 'Withdrawal failed') {
     const transaction = await CryptoTransaction.findById(transactionId)
     if (!transaction) {
@@ -564,19 +594,15 @@ class OxapayService {
       return { success: true, noDebitToRefund: true }
     }
 
-    const session = await mongoose.startSession()
-    
     try {
-      let result
-      
-      await session.withTransaction(async () => {
-        // Get user within transaction
+      return await this.runInTransaction(async (session) => {
+        // Get user
         const user = await User.findById(transaction.userId).session(session)
         if (!user) {
           throw new Error('User not found')
         }
 
-        // Refund wallet atomically
+        // Refund wallet
         const previousBalance = user.walletBalance || 0
         const refundAmount = transaction.debitedAmount || transaction.amount
         user.walletBalance = previousBalance + refundAmount
@@ -584,6 +610,8 @@ class OxapayService {
 
         // Update transaction with refund info
         const freshTxn = await CryptoTransaction.findById(transactionId).session(session)
+        if (!freshTxn) throw new Error('Transaction record lost')
+        
         freshTxn.status = 'failed'
         freshTxn.refunded = true
         freshTxn.refundedAt = new Date()
@@ -591,22 +619,18 @@ class OxapayService {
         freshTxn.errorMessage = reason
         await freshTxn.save({ session })
 
-        console.log(`[Oxapay] ATOMIC REFUND: User ${user._id} refunded $${refundAmount}. Balance: $${previousBalance} → $${user.walletBalance}`)
+        console.log(`[Oxapay] ${session ? 'ATOMIC' : 'SEQUENTIAL'} REFUND: User ${user._id} refunded $${refundAmount}. Balance: $${previousBalance} → $${user.walletBalance}`)
         
-        result = {
+        return {
           success: true,
           refunded: refundAmount,
           previousBalance,
           newBalance: user.walletBalance
         }
       })
-
-      return result
     } catch (error) {
-      console.error(`[Oxapay] ATOMIC REFUND FAILED for transaction ${transactionId}:`, error.message)
+      console.error(`[Oxapay] REFUND OPERATION FAILED for transaction ${transactionId}:`, error.message)
       throw error
-    } finally {
-      await session.endSession()
     }
   }
 
@@ -742,6 +766,82 @@ class OxapayService {
     }
   }
 
+  // Process payout for an already-created withdrawal transaction (single-ledger flow)
+  async executePayoutForTransaction(transactionId, options = {}) {
+    await this.loadConfig()
+
+    if (!this.payoutApiKey) {
+      throw new Error('Oxapay Payout API Key not configured')
+    }
+
+    const transaction = await CryptoTransaction.findById(transactionId)
+    if (!transaction) {
+      throw new Error('Withdrawal transaction not found')
+    }
+
+    if (transaction.type !== 'withdrawal') {
+      throw new Error('Transaction is not a withdrawal')
+    }
+
+    if (!transaction.walletDebited) {
+      throw new Error('Wallet must be debited before payout execution')
+    }
+
+    if (!transaction.paymentAddress) {
+      throw new Error('Withdrawal wallet address is missing')
+    }
+
+    if (transaction.status === 'success') {
+      return {
+        success: true,
+        transaction: {
+          id: transaction._id,
+          trackId: transaction.gatewayOrderId,
+          amount: transaction.amount,
+          cryptoCurrency: transaction.cryptoCurrency,
+          walletAddress: transaction.paymentAddress,
+          status: transaction.status
+        }
+      }
+    }
+
+    const user = await User.findById(transaction.userId)
+    if (!user) {
+      throw new Error('User not found')
+    }
+
+    const payoutData = {
+      address: transaction.paymentAddress,
+      amount: transaction.amount,
+      currency: transaction.cryptoCurrency || 'USDT',
+      network: transaction.network || 'TRC20',
+      callback_url: process.env.OXAPAY_WEBHOOK_URL || `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/oxapay/webhook`,
+      description: options.description || `Withdrawal payout to ${user.email}`
+    }
+
+    const response = await this.makePayoutRequest('/v1/payout', payoutData)
+    const trackId = response.data?.track_id
+    const payoutStatus = response.data?.status
+
+    transaction.gatewayOrderId = trackId || transaction.gatewayOrderId
+    transaction.gatewayPaymentId = trackId || transaction.gatewayPaymentId
+    transaction.adminNotes = options.adminNotes || transaction.adminNotes
+    transaction.status = (payoutStatus === 'complete' || payoutStatus === 'confirmed') ? 'success' : 'processing'
+    await transaction.save()
+
+    return {
+      success: true,
+      transaction: {
+        id: transaction._id,
+        trackId: transaction.gatewayOrderId,
+        amount: transaction.amount,
+        cryptoCurrency: transaction.cryptoCurrency,
+        walletAddress: transaction.paymentAddress,
+        status: transaction.status
+      }
+    }
+  }
+
   // ==================== UTILITY METHODS ====================
 
   // Get transaction status
@@ -753,6 +853,7 @@ class OxapayService {
 
     return {
       id: transaction._id,
+      userId: transaction.userId,
       trackId: transaction.gatewayOrderId,
       status: transaction.status,
       amount: transaction.amount,

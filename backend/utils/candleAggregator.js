@@ -48,8 +48,13 @@ export const aggregateToTimeframe = (candles1m, timeframeMinutes) => {
     }
 
     if (!found) {
-      // 🔥 THE FIX: Gap found in 1m source for this timeframe bucket
-      // We fill with the last known price to prevent chart disconnects.
+      // Skip emitting flat candles if the gap to the next real data point is >= 12 hours (weekend)
+      if (i < sorted.length && sorted[i].time - t >= 12 * 60 * 60 * 1000) {
+        // Fast-forward t to the bucket of the next real candle
+        const nextRealCandleBucket = Math.floor(sorted[i].time / intervalMs) * intervalMs;
+        t = nextRealCandleBucket - intervalMs; // -intervalMs because the loop will += intervalMs
+        continue;
+      }
       open = high = low = close = lastClose;
       volume = 0;
     }
@@ -74,10 +79,11 @@ export const aggregateToTimeframe = (candles1m, timeframeMinutes) => {
  * Ensures the chart line is continuous even when no trading occurred.
  * @param {Array} candles - Array of {time, open, high, low, close, volume}
  * @param {number} intervalMinutes - Time interval in minutes
+ * @param {number} until - Optional timestamp to fill up to (e.g., current time)
  * @returns {Array} Continuous candles
  */
-export const fillGaps = (candles, intervalMinutes) => {
-  if (!candles || candles.length < 2) return candles;
+export const fillGaps = (candles, intervalMinutes, until) => {
+  if (!candles || candles.length === 0) return candles;
   
   const intervalMs = intervalMinutes * 60 * 1000;
   const filled = [];
@@ -85,48 +91,66 @@ export const fillGaps = (candles, intervalMinutes) => {
   // Ensure data is sorted by time before processing
   const sorted = [...candles].sort((a, b) => a.time - b.time);
 
+  // 1. Fill gaps between candles
   for (let i = 0; i < sorted.length - 1; i++) {
     const current = sorted[i];
     const next = sorted[i + 1];
     
     filled.push(current);
 
-    let currentTime = current.time;
+    const currentTime = current.time;
     const nextTime = next.time;
 
-    // Detect and fill gaps larger than 1.5x the interval (to allow for minor jitter)
-    // but typically it should be exactly intervalMs. 
-    // We skip massive gaps (> 2 days) to avoid generating millions of virtual bars during weekend/shutdowns.
     const gapMs = nextTime - currentTime;
     
-    // Detect and log gaps for "PROVE IT" transparency
-    if (gapMs > intervalMs * 1.5) {
-      console.log(`[GapFinder] ❌ GAP FOUND for ${intervalMinutes}m resolution:`, {
-        gapDurationMins: Math.round(gapMs / 60000),
-        between: new Date(currentTime).toISOString(),
-        and: new Date(nextTime).toISOString()
-      });
-    }
-
-    // 🛡️ Skip weekend gaps (roughly > 48h) or massive outages to prevent memory overflow
-    if (gapMs > intervalMs && gapMs < (48 * 60 * 60 * 1000)) {
-      while (nextTime - currentTime > intervalMs * 1.5) {
-        currentTime += intervalMs;
+    // Fill if gap is between 1.5x interval and 12 hours
+    if (gapMs > intervalMs * 1.5 && gapMs < (12 * 60 * 60 * 1000)) {
+      const nextBucket = Math.floor(nextTime / intervalMs) * intervalMs;
+      let fillTime = Math.floor(currentTime / intervalMs) * intervalMs + intervalMs;
+      while (fillTime < nextBucket) {
         filled.push({
-          time: currentTime,
+          time: fillTime,
           open: current.close,
           high: current.close,
           low: current.close,
           close: current.close,
-          volume: 0,
-          isFilled: true // 🏷️ Mark as virtual/filler for debugging if needed
+          volume: 0.0001, // Micro-volume for better rendering
+          isFilled: true
         });
+        fillTime += intervalMs;
       }
     }
   }
 
-  // Push the last candle
-  filled.push(sorted[sorted.length - 1]);
+  // 2. Push the last real candle
+  const lastReal = sorted[sorted.length - 1];
+  filled.push(lastReal);
+
+  // 3. Proactive Filling: fill from last real candle up to 'until'
+  if (until && Number.isFinite(until)) {
+    const untilMs = until < 10000000000 ? until * 1000 : until;
+    const lastBucket = Math.floor(lastReal.time / intervalMs) * intervalMs;
+    const untilBucket = Math.floor(untilMs / intervalMs) * intervalMs;
+
+    let fillTime = lastBucket + intervalMs;
+    // Limit proactive padding to 2 hours max to prevent over-filling during long closures
+    const maxPadding = 2 * 60 * 60 * 1000;
+    const actualUntil = Math.min(untilBucket, lastBucket + maxPadding);
+
+    while (fillTime <= actualUntil) {
+      filled.push({
+        time: fillTime,
+        open: lastReal.close,
+        high: lastReal.close,
+        low: lastReal.close,
+        close: lastReal.close,
+        volume: 0.0001,
+        isFilled: true,
+        isPadding: true
+      });
+      fillTime += intervalMs;
+    }
+  }
 
   return filled;
 };
@@ -186,33 +210,58 @@ export const updateCandleListWithTick = (candles, tick, timeframeMinutes) => {
       high: tickPrice,
       low: tickPrice,
       close: tickPrice,
-      volume: 0
+      volume: 1
     });
     return updated;
   }
 
-  const lastCandle = updated[updated.length - 1];
+  const lastIndex = updated.length - 1;
+  const lastCandle = updated[lastIndex];
 
   if (lastCandle.time === bucketTime) {
-    // ✍️ Update existing "Live" candle
-    lastCandle.close = tickPrice;
-    if (tickPrice > lastCandle.high) lastCandle.high = tickPrice;
-    if (tickPrice < lastCandle.low) lastCandle.low = tickPrice;
-    // Note: Volume increment depends on tick data, here we assume it's just a price update
+    // ✍️ Update existing "Live" candle (IMMUTABLE UPDATE)
+    updated[lastIndex] = {
+      ...lastCandle,
+      close: tickPrice,
+      high: Math.max(lastCandle.high, tickPrice),
+      low: Math.min(lastCandle.low, tickPrice),
+      volume: (Number(lastCandle.volume) || 0) + 1
+    };
   } else if (bucketTime > lastCandle.time) {
-    // 🆕 Start new candle bucket
+    // 🚀 NEW: Interpolation / Gap Filling logic
+    // Fill the gap with flat candles if the gap represents less than 2 hours of missing data.
+    // This maintains continuity for the chart library.
+    const gapMs = bucketTime - lastCandle.time;
+    if (gapMs > intervalMs && gapMs < 2 * 60 * 60 * 1000) {
+      let fillTime = lastCandle.time + intervalMs;
+      while (fillTime < bucketTime) {
+        updated.push({
+          time: fillTime,
+          open: lastCandle.close,
+          high: lastCandle.close,
+          low: lastCandle.close,
+          close: lastCandle.close,
+          volume: 0,
+          isInterpolated: true
+        });
+        fillTime += intervalMs;
+      }
+    }
+
+    // Push the new real tick bucket
+    const openPrice = lastCandle.close;
     updated.push({
       time: bucketTime,
-      open: tickPrice,
-      high: tickPrice,
-      low: tickPrice,
+      open: openPrice,
+      high: Math.max(openPrice, tickPrice),
+      low: Math.min(openPrice, tickPrice),
       close: tickPrice,
-      volume: 0
+      volume: 1
     });
     
-    // Maintain a reasonable buffer (e.g. 1500 candles) to avoid memory leaks
+    // Performance: Maintain a reasonable buffer to avoid unbounded growth
     if (updated.length > 2000) {
-      updated.shift();
+      return updated.slice(-2000);
     }
   }
 

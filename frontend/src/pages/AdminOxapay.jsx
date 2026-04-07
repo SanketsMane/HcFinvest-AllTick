@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import { 
   Settings, Save, RefreshCw, Check, X, AlertTriangle, 
-  DollarSign, Shield, Bitcoin, Wallet,
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle, XCircle
+  DollarSign, Shield, Bitcoin, Wallet, User,
+  ArrowUpRight, ArrowDownRight, Clock, CheckCircle, XCircle 
 } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 const AdminOxapay = () => {
+  const { modeColors } = useTheme()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
@@ -304,15 +306,10 @@ const AdminOxapay = () => {
     setMessage({ type: '', text: '' })
     
     try {
-      // Only save config settings, not API keys (API keys are managed in server .env)
-      const payload = {
-        ...config
-      }
-
       const res = await fetch(`${API_URL}/oxapay/admin/config`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify(config)
       })
       
       const data = await res.json()
@@ -350,654 +347,584 @@ const AdminOxapay = () => {
     }
   }
 
+  const handleSyncStatus = async (transactionId) => {
+    try {
+      const res = await fetch(`${API_URL}/oxapay/admin/sync-status/${transactionId}`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMessage({ type: 'success', text: `Status synced: ${data.status}` })
+        fetchTransactions()
+        fetchStats()
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Sync failed' })
+      }
+    } catch (error) {
+      console.error('Sync error:', error)
+      setMessage({ type: 'error', text: 'Connection error during sync' })
+    }
+  }
+
   const getStatusBadge = (status) => {
     const styles = {
-      pending: 'bg-yellow-500/20 text-yellow-500',
-      processing: 'bg-blue-500/20 text-blue-500',
-      success: 'bg-green-500/20 text-green-500',
-      failed: 'bg-red-500/20 text-red-500',
-      expired: 'bg-gray-500/20 text-gray-500',
-      cancelled: 'bg-gray-500/20 text-gray-500'
+      pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      processing: 'bg-blue-50 text-blue-700 border-blue-200',
+      success: 'bg-green-50 text-green-700 border-green-200',
+      failed: 'bg-red-50 text-red-700 border-red-200',
+      expired: 'bg-slate-50 text-slate-500 border-slate-200',
+      cancelled: 'bg-slate-50 text-slate-500 border-slate-200'
     }
-    return styles[status] || 'bg-gray-500/20 text-gray-500'
+    return styles[status] || 'bg-slate-50 text-slate-500 border-slate-200'
   }
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'success': return <CheckCircle size={14} />
-      case 'failed': return <XCircle size={14} />
-      case 'pending': return <Clock size={14} />
-      case 'processing': return <RefreshCw size={14} className="animate-spin" />
-      default: return <Clock size={14} />
+      case 'success': return <CheckCircle size={12} />
+      case 'failed': return <XCircle size={12} />
+      case 'pending': return <Clock size={12} />
+      case 'processing': return <RefreshCw size={12} className="animate-spin" />
+      default: return <Clock size={12} />
     }
   }
 
   return (
-    <AdminLayout title="oxapay Payment Gateway">
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
-              <Bitcoin size={24} className="text-orange-500" />
+    <AdminLayout title="Oxapay Settings" subtitle="Crypto Gateway Management">
+      <div className="p-6 max-w-7xl mx-auto space-y-8 min-h-screen">
+        
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center">
+              <Bitcoin className="text-orange-500" size={24} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">oxapay Gateway</h1>
-              <p className="text-gray-400 text-sm">Crypto payment gateway configuration</p>
+              <h1 className="text-2xl font-bold text-slate-900 font-black tracking-tight">Oxapay Gateway</h1>
+              <p className="text-slate-500 text-sm">Configure crypto deposits and manual/automated payouts</p>
             </div>
           </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${config.isActive ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-            {config.isActive ? 'Active' : 'Inactive'}
+          <div className="flex items-center gap-3">
+             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-bold text-[10px] uppercase tracking-wider ${config.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${config.isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`} />
+              {config.isActive ? 'Active' : 'Offline'}
+            </div>
           </div>
         </div>
 
-        {/* Message */}
+        {/* Global Feedback Message */}
         {message.text && (
-          <div className={`mb-4 p-4 rounded-lg ${message.type === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-            {message.text}
+          <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 ${message.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+            {message.type === 'error' ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
+            <span className="font-bold text-sm">{message.text}</span>
+            <button onClick={() => setMessage({ type: '', text: '' })} className="ml-auto p-1 hover:bg-black/5 rounded-lg">
+              <X size={16} />
+            </button>
           </div>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <ArrowUpRight size={20} className="text-green-500" />
-              </div>
-              <span className="text-gray-400 text-sm">Total Deposits</span>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-slate-50 rounded-lg text-slate-500"><DollarSign size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Lifetime Vol.</span>
             </div>
-            <p className="text-2xl font-bold text-white">${stats.totalDeposits?.totalAmount?.toFixed(2) || '0.00'}</p>
-            <p className="text-gray-500 text-xs">{stats.totalDeposits?.count || 0} transactions</p>
+            <p className="text-2xl font-black text-slate-900">${stats.totalDeposits?.totalAmount?.toLocaleString() || '0.00'}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">{stats.totalDeposits?.count || 0} Successful deposits</p>
           </div>
-          
-          <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <DollarSign size={20} className="text-blue-500" />
-              </div>
-              <span className="text-gray-400 text-sm">Today's Deposits</span>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-orange-50 rounded-lg text-orange-600"><Clock size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Today</span>
             </div>
-            <p className="text-2xl font-bold text-white">${stats.todayDeposits?.totalAmount?.toFixed(2) || '0.00'}</p>
-            <p className="text-gray-500 text-xs">{stats.todayDeposits?.count || 0} transactions</p>
+            <p className="text-2xl font-black text-slate-900">${stats.todayDeposits?.totalAmount?.toLocaleString() || '0.00'}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">{stats.todayDeposits?.count || 0} New deposits</p>
           </div>
-          
-          <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                <Clock size={20} className="text-yellow-500" />
-              </div>
-              <span className="text-gray-400 text-sm">Pending</span>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><AlertTriangle size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Pending Sync</span>
             </div>
-            <p className="text-2xl font-bold text-white">
-              {stats.byStatus?.find(s => s._id === 'pending')?.count || 0}
-            </p>
-            <p className="text-gray-500 text-xs">awaiting payment</p>
+            <p className="text-2xl font-black text-slate-900">{stats.byStatus?.find(s => s._id === 'pending')?.count || 0}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">Awaiting verification</p>
           </div>
-          
-          <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
-                <XCircle size={20} className="text-red-500" />
-              </div>
-              <span className="text-gray-400 text-sm">Failed</span>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><CheckCircle size={18} /></div>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-tight">Withdrawal Queue</span>
             </div>
-            <p className="text-2xl font-bold text-white">
-              {stats.byStatus?.find(s => s._id === 'failed')?.count || 0}
-            </p>
-            <p className="text-gray-500 text-xs">failed transactions</p>
+            <p className="text-2xl font-black text-slate-900">{pendingWithdrawals}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold">Requests pending approval</p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {['config', 'withdrawals', 'transactions', 'payouts'].map(tab => (
+        {/* Navigation Tabs */}
+        <div className="bg-slate-100 p-1.5 rounded-2xl flex gap-1 w-fit shadow-inner">
+          {[
+            { id: 'config', label: 'Configuration', icon: Settings },
+            { id: 'transactions', label: 'History', icon: Bitcoin },
+            { id: 'withdrawals', label: 'Withdrawals', icon: ArrowUpRight },
+            { id: 'payouts', label: 'Direct Payouts', icon: Wallet }
+          ].map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors relative ${
-                activeTab === tab 
-                  ? 'bg-orange-500 text-white' 
-                  : 'bg-dark-700 text-gray-400 hover:text-white'
-              }`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-md shadow-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              {tab === 'config' ? 'Configuration' : tab === 'transactions' ? 'Deposits' : tab === 'withdrawals' ? 'Withdrawal Requests' : 'Payouts'}
-              {tab === 'withdrawals' && pendingWithdrawals > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {pendingWithdrawals}
-                </span>
+              <tab.icon size={16} />
+              {tab.label}
+              {tab.id === 'withdrawals' && pendingWithdrawals > 0 && (
+                <span className="ml-1 w-5 h-5 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center animate-bounce">{pendingWithdrawals}</span>
               )}
             </button>
           ))}
         </div>
 
-        {/* Configuration Tab */}
+        {/* Tab Content */}
         {activeTab === 'config' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* General Settings */}
-            <div className="bg-dark-800 rounded-xl p-6 border border-gray-800">
-              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                <Settings size={18} /> General Settings
-              </h3>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300 pb-20">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white">Enable Gateway</p>
-                    <p className="text-gray-500 text-sm">Allow users to deposit via oxapay</p>
-                  </div>
-                  <button
-                    onClick={() => setConfig({ ...config, isActive: !config.isActive })}
-                    className={`w-12 h-6 rounded-full transition-colors ${config.isActive ? 'bg-green-500' : 'bg-gray-600'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full transition-transform ${config.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
+              {/* General Settings */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-8">
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Shield size={20} className="text-slate-400" />
+                  Gateway Intelligence
+                </h3>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white">Enable Deposits</p>
-                    <p className="text-gray-500 text-sm">Allow deposit transactions</p>
-                  </div>
-                  <button
-                    onClick={() => setConfig({ ...config, depositEnabled: !config.depositEnabled })}
-                    className={`w-12 h-6 rounded-full transition-colors ${config.depositEnabled ? 'bg-green-500' : 'bg-gray-600'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full transition-transform ${config.depositEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-1">Min Deposit ($)</label>
-                    <input
-                      type="number"
-                      value={config.minDeposit}
-                      onChange={(e) => setConfig({ ...config, minDeposit: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-1">Max Deposit ($)</label>
-                    <input
-                      type="number"
-                      value={config.maxDeposit}
-                      onChange={(e) => setConfig({ ...config, maxDeposit: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-1">Deposit Fee (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={config.depositFeePercent}
-                      onChange={(e) => setConfig({ ...config, depositFeePercent: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-1">Fixed Fee ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={config.depositFeeFixed}
-                      onChange={(e) => setConfig({ ...config, depositFeeFixed: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* API Status Info */}
-            <div className="bg-dark-800 rounded-xl p-6 border border-gray-800">
-              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                <Shield size={18} /> API Status
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <Shield size={16} className="text-green-500 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="text-green-500 font-medium">API Keys Configured</p>
-                      <p className="text-gray-400 mt-1">
-                        Oxapay API keys are configured in the server environment. Use the enable/disable toggle above to control gateway visibility for users.
-                      </p>
+                <div className="space-y-6">
+                  {/* Master Toggle */}
+                  <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">Master Switch</p>
+                      <p className="text-[10px] text-slate-500 leading-tight">Turn entire gateway on or off for all users</p>
                     </div>
+                    <button
+                      onClick={() => setConfig({ ...config, isActive: !config.isActive })}
+                      className={`w-14 h-7 rounded-full transition-all relative ${config.isActive ? 'bg-green-500' : 'bg-slate-300'}`}
+                    >
+                      <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${config.isActive ? 'left-8' : 'left-1'}`} />
+                    </button>
                   </div>
-                </div>
 
-                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle size={16} className="text-yellow-500 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="text-yellow-500 font-medium">Webhook URL</p>
-                      <p className="text-gray-400 mt-1">Ensure this URL is configured in your Oxapay dashboard:</p>
-                      <code className="block mt-1 p-2 bg-dark-900 rounded text-xs text-green-400 break-all">
-                        https://api.hcfinvest.com/api/oxapay/webhook
-                      </code>
+                  {/* Deposit Access */}
+                  <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">Deposit Access</p>
+                      <p className="text-[10px] text-slate-500 leading-tight">Allow or disallow new payment invoices</p>
+                    </div>
+                    <button
+                      onClick={() => setConfig({ ...config, depositEnabled: !config.depositEnabled })}
+                      className={`w-14 h-7 rounded-full transition-all relative ${config.depositEnabled ? 'bg-blue-500' : 'bg-slate-300'}`}
+                    >
+                      <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${config.depositEnabled ? 'left-8' : 'left-1'}`} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Min Deposit ($)</label>
+                      <input
+                        type="number"
+                        value={config.minDeposit}
+                        onChange={(e) => setConfig({ ...config, minDeposit: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Max Deposit ($)</label>
+                      <input
+                        type="number"
+                        value={config.maxDeposit}
+                        onChange={(e) => setConfig({ ...config, maxDeposit: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Fee & API Status */}
+              <div className="space-y-8">
+                <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+                  <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <DollarSign size={20} className="text-slate-400" />
+                    Fee Infrastructure
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Percentage (%)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={config.depositFeePercent}
+                        onChange={(e) => setConfig({ ...config, depositFeePercent: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 ml-1">Fixed Fee ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={config.depositFeeFixed}
+                        onChange={(e) => setConfig({ ...config, depositFeeFixed: e.target.value })}
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-3xl p-8 text-white space-y-6">
+                   <h3 className="text-lg font-black flex items-center gap-2 text-slate-100">
+                    <Shield size={20} className="text-slate-500" />
+                    Backend System
+                  </h3>
+                  <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-slate-400 text-[10px] font-bold uppercase">Webhooks</span>
+                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded-lg border border-blue-500/10 tracking-widest">STABLE</span>
+                    </div>
+                    <code className="text-[10px] text-white/50 block break-all font-mono leading-relaxed select-all">
+                      https://api.hcfinvest.com/api/oxapay/webhook
+                    </code>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                    Credentials (Merchant Key, Payout Key) are safely managed via server-side environment variables and are not exposed in browser sessions.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Save Button */}
-            <div className="lg:col-span-2">
+            {/* Save Button Bar */}
+            <div className="flex justify-end pt-4">
               <button
                 onClick={handleSaveConfig}
                 disabled={saving}
-                className="w-full py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="px-8 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-900/20 hover:scale-[1.02] active:scale-95 transition-all text-sm flex items-center gap-3 disabled:opacity-50"
               >
-                {saving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
+                {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
                 {saving ? 'Saving...' : 'Save Configuration'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Withdrawal Requests Tab */}
-        {activeTab === 'withdrawals' && (
-          <div className="bg-dark-800 rounded-xl border border-gray-800">
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-semibold">Pending Withdrawal Requests</h3>
-                <p className="text-gray-500 text-sm">{pendingWithdrawals} requests awaiting approval</p>
-              </div>
-              <button
-                onClick={fetchWithdrawalRequests}
-                className="px-3 py-2 bg-dark-700 text-gray-400 rounded-lg hover:text-white"
-              >
-                <RefreshCw size={18} />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Date</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Amount</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Crypto</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Wallet Address</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {withdrawalLoading ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-8">
-                        <RefreshCw size={24} className="text-gray-500 animate-spin mx-auto" />
-                      </td>
-                    </tr>
-                  ) : withdrawalRequests.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-8 text-gray-500">
-                        No pending withdrawal requests
-                      </td>
-                    </tr>
-                  ) : (
-                    withdrawalRequests.map(req => (
-                      <tr key={req._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                        <td className="py-3 px-4 text-gray-400 text-sm">
-                          {new Date(req.createdAt).toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="text-white text-sm">{req.userId?.firstName || 'Unknown'}</p>
-                          <p className="text-gray-500 text-xs">{req.userId?.email || ''}</p>
-                        </td>
-                        <td className="py-3 px-4 text-white font-medium">
-                          ${req.amount?.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-gray-400 text-sm">
-                          {req.cryptoCurrency || 'USDT'}
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="text-gray-400 text-xs font-mono truncate max-w-[150px]" title={req.paymentAddress}>
-                            {req.paymentAddress}
-                          </p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleApproveWithdrawal(req._id)}
-                              className="px-3 py-1 bg-green-500/20 text-green-500 rounded text-xs hover:bg-green-500/30"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectWithdrawal(req._id)}
-                              className="px-3 py-1 bg-red-500/20 text-red-500 rounded text-xs hover:bg-red-500/30"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {/* Transactions Tab */}
         {activeTab === 'transactions' && (
-          <div className="bg-dark-800 rounded-xl border border-gray-800">
-            {/* Filters */}
-            <div className="p-4 border-b border-gray-700 flex items-center gap-4">
-              <select
-                value={txFilter}
-                onChange={(e) => { setTxFilter(e.target.value); setTxPage(1) }}
-                className="px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="success">Success</option>
-                <option value="failed">Failed</option>
-                <option value="expired">Expired</option>
-              </select>
-              <button
-                onClick={fetchTransactions}
-                className="px-3 py-2 bg-dark-700 text-gray-400 rounded-lg hover:text-white"
-              >
-                <RefreshCw size={18} />
-              </button>
-              <span className="text-gray-500 text-sm ml-auto">{txTotal} total transactions</span>
+          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="font-black text-slate-900">Transaction History</h3>
+              <div className="flex gap-2">
+                <select 
+                  value={txFilter} 
+                  onChange={(e) => setTxFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:outline-none"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="success">Success</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                </select>
+                <button onClick={fetchTransactions} className="p-2 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition-colors">
+                  <RefreshCw size={16} />
+                </button>
+              </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Date</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Amount</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Crypto</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Status</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Credited</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Actions</th>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID / User</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Crypto</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {txLoading ? (
-                    <tr>
-                      <td colSpan="7" className="text-center py-8">
-                        <RefreshCw size={24} className="text-gray-500 animate-spin mx-auto" />
-                      </td>
-                    </tr>
+                    <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-bold">Loading...</td></tr>
                   ) : transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="text-center py-8 text-gray-500">
-                        No transactions found
+                    <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-bold">No records found</td></tr>
+                  ) : transactions.map(tx => (
+                    <tr key={tx._id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-mono font-bold text-slate-900 mb-1">{tx.gatewayOrderId || tx._id.slice(-8)}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{tx.userId?.firstName || 'User'}</p>
                       </td>
-                    </tr>
-                  ) : (
-                    transactions.map(tx => (
-                      <tr key={tx._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                        <td className="py-3 px-4 text-gray-400 text-sm">
-                          {new Date(tx.createdAt).toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="text-white text-sm">{tx.userId?.firstName || 'Unknown'}</p>
-                          <p className="text-gray-500 text-xs">{tx.userId?.email || ''}</p>
-                        </td>
-                        <td className="py-3 px-4 text-white font-medium">
-                          ${tx.amount?.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-gray-400 text-sm">
-                          {tx.cryptoCurrency || '-'}
-                          {tx.cryptoAmount > 0 && <span className="block text-xs">{tx.cryptoAmount}</span>}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(tx.status)}`}>
-                            {getStatusIcon(tx.status)}
-                            {tx.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          {tx.walletCredited ? (
-                            <span className="text-green-500 flex items-center gap-1">
-                              <Check size={14} /> Yes
-                            </span>
-                          ) : (
-                            <span className="text-gray-500">No</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          {!tx.walletCredited && tx.status !== 'failed' && tx.status !== 'expired' && (
-                            <button
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${tx.type === 'deposit' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-black text-slate-900">${tx.amount?.toFixed(2)}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-bold text-slate-700 uppercase">{tx.cryptoCurrency} {tx.cryptoAmount}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black border uppercase ${getStatusBadge(tx.status)}`}>
+                          {getStatusIcon(tx.status)}
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleSyncStatus(tx._id)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all shadow-sm"
+                            title="Force Sync"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                          {tx.status === 'pending' && (
+                            <button 
                               onClick={() => handleManualCredit(tx._id)}
-                              className="px-2 py-1 bg-green-500/20 text-green-500 rounded text-xs hover:bg-green-500/30"
+                              className="px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black rounded-lg hover:bg-black transition-all shadow-sm"
                             >
-                              Credit
+                              Direct Credit
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination */}
-            {txTotal > 20 && (
-              <div className="p-4 border-t border-gray-700 flex items-center justify-between">
-                <button
-                  onClick={() => setTxPage(p => Math.max(1, p - 1))}
-                  disabled={txPage === 1}
-                  className="px-3 py-1 bg-dark-700 text-gray-400 rounded disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <span className="text-gray-500 text-sm">
-                  Page {txPage} of {Math.ceil(txTotal / 20)}
-                </span>
-                <button
-                  onClick={() => setTxPage(p => p + 1)}
-                  disabled={txPage >= Math.ceil(txTotal / 20)}
-                  className="px-3 py-1 bg-dark-700 text-gray-400 rounded disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Payouts Tab */}
-        {activeTab === 'payouts' && (
-          <div className="bg-dark-800 rounded-xl border border-gray-800">
-            {/* Header */}
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-semibold">Crypto Payouts</h3>
-                <p className="text-gray-500 text-sm">Total paid: ${stats.totalPayouts?.totalAmount?.toFixed(2) || '0.00'}</p>
-              </div>
-              <button
-                onClick={() => setShowPayoutModal(true)}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2"
-              >
-                <ArrowDownRight size={18} /> New Payout
-              </button>
+        {/* Withdrawal Requests Tab */}
+        {activeTab === 'withdrawals' && (
+          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="p-6 border-b border-slate-100">
+              <h3 className="font-black text-slate-900 text-lg">Withdrawal Verification Queue</h3>
             </div>
-
-            {/* Payouts Table */}
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Date</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Amount</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Wallet Address</th>
-                    <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Status</th>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">User / Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destination Address</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Verification</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {payoutLoading ? (
-                    <tr>
-                      <td colSpan="5" className="text-center py-8">
-                        <RefreshCw size={24} className="text-gray-500 animate-spin mx-auto" />
+                <tbody className="divide-y divide-slate-100">
+                  {withdrawalLoading ? (
+                    <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 font-bold">Scanning queue...</td></tr>
+                  ) : withdrawalRequests.length === 0 ? (
+                    <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Queue Clear</td></tr>
+                  ) : withdrawalRequests.map(req => (
+                    <tr key={req._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-bold text-slate-900 mb-1">{req.userId?.firstName || 'Client'}</p>
+                        <p className="text-[10px] text-slate-400">{new Date(req.createdAt).toLocaleString()}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-black text-slate-900">${req.amount?.toFixed(2)}</p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">{req.cryptoCurrency} ({req.network})</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <code className="text-[10px] font-mono bg-white px-2 py-1 rounded border border-slate-100 text-slate-600 block w-fit max-w-[200px] truncate select-all">{req.walletAddress}</code>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleRejectWithdrawal(req._id)}
+                            className="px-4 py-2 bg-white text-red-600 text-[10px] font-black rounded-xl border border-slate-200 hover:bg-red-50 hover:border-red-200 transition-all"
+                          >
+                            Reject
+                          </button>
+                          <button 
+                            onClick={() => handleApproveWithdrawal(req._id)}
+                            className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-900/10"
+                          >
+                            Approve Payout
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ) : payouts.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="text-center py-8 text-gray-500">
-                        No payouts yet
-                      </td>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Direct Payouts (Admin Only) */}
+        {activeTab === 'payouts' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Direct Crypto Payout</h3>
+                  <p className="text-slate-500 text-xs font-medium">Instantly send funds from master wallet to any client address</p>
+                </div>
+                <button 
+                  onClick={() => setShowPayoutModal(true)}
+                  className="px-6 py-3 bg-slate-900 text-white font-black rounded-2xl flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all text-sm shadow-xl shadow-slate-900/10"
+                >
+                  <ArrowUpRight size={18} />
+                  Initiate New Payout
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50">
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction ID</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">User</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                     </tr>
-                  ) : (
-                    payouts.map(payout => (
-                      <tr key={payout._id} className="border-b border-gray-800 hover:bg-dark-700/50">
-                        <td className="py-3 px-4 text-gray-400 text-sm">
-                          {new Date(payout.createdAt).toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="text-white text-sm">{payout.userId?.firstName || 'Unknown'}</p>
-                          <p className="text-gray-500 text-xs">{payout.userId?.email || ''}</p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="text-white font-medium">${payout.amount?.toFixed(2)}</p>
-                          {payout.cryptoAmount > 0 && (
-                            <p className="text-gray-500 text-xs">{payout.cryptoAmount} {payout.cryptoCurrency}</p>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="text-gray-400 text-xs font-mono truncate max-w-[200px]" title={payout.paymentAddress}>
-                            {payout.paymentAddress}
-                          </p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(payout.status)}`}>
-                            {getStatusIcon(payout.status)}
-                            {payout.status}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-400">
+                    {payoutLoading ? (
+                      <tr><td colSpan="4" className="px-6 py-12 text-center font-bold">Synchronizing...</td></tr>
+                    ) : payouts.length === 0 ? (
+                      <tr><td colSpan="4" className="px-6 py-12 text-center text-[10px] font-black uppercase tracking-widest">No payout history</td></tr>
+                    ) : payouts.map(po => (
+                      <tr key={po._id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-xs font-mono font-bold text-slate-900">{po.trackId || po._id.slice(-8)}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-slate-700">{po.userId?.firstName || 'Admin Transfer'}</td>
+                        <td className="px-6 py-4 text-sm font-black text-slate-900">${po.amount?.toFixed(2)}</td>
+                        <td className="px-6 py-4">
+                           <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black border uppercase ${getStatusBadge(po.status)}`}>
+                            {getStatusIcon(po.status)}
+                            {po.status}
                           </span>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Payout Modal */}
-        {showPayoutModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-dark-800 rounded-2xl w-full max-w-md border border-gray-700 overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b border-gray-700">
-                <h3 className="text-white font-semibold">Create Crypto Payout</h3>
-                <button onClick={() => setShowPayoutModal(false)} className="p-2 hover:bg-dark-700 rounded-lg">
-                  <X size={18} className="text-gray-400" />
-                </button>
+      </div>
+
+      {/* Payout Modal */}
+      {showPayoutModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Direct Payout Auth</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Authorized Admins Only</p>
               </div>
-              <div className="p-4 space-y-4">
-                <div>
-                  <label className="block text-gray-400 text-sm mb-1">Search User</label>
+              <button onClick={() => setShowPayoutModal(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-colors">
+                <X size={24} className="text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="relative">
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Search User (Email/Name)</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     type="text"
                     value={userSearch}
-                    onChange={(e) => { setUserSearch(e.target.value); searchUsers(e.target.value) }}
-                    placeholder="Search by email or name..."
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
+                    onChange={(e) => {
+                      setUserSearch(e.target.value)
+                      searchUsers(e.target.value)
+                    }}
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all placeholder:text-slate-300 shadow-inner"
+                    placeholder="Type to search..."
                   />
-                  {users.length > 0 && (
-                    <div className="mt-1 bg-dark-700 border border-gray-600 rounded-lg max-h-32 overflow-y-auto">
-                      {users.map(user => (
-                        <button
-                          key={user._id}
-                          onClick={() => {
-                            setPayoutForm({ ...payoutForm, userId: user._id, userEmail: user.email })
-                            setUserSearch(user.email)
-                            setUsers([])
-                          }}
-                          className="w-full px-3 py-2 text-left hover:bg-dark-600 text-sm"
-                        >
-                          <span className="text-white">{user.firstName}</span>
-                          <span className="text-gray-500 ml-2">{user.email}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {payoutForm.userId && (
-                    <p className="text-green-500 text-xs mt-1">Selected: {payoutForm.userEmail}</p>
-                  )}
                 </div>
+                
+                {users.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 overflow-hidden">
+                    {users.map(u => (
+                      <button
+                        key={u._id}
+                        onClick={() => {
+                          setPayoutForm({ ...payoutForm, userId: u._id, userEmail: u.email })
+                          setUsers([])
+                          setUserSearch(u.email)
+                        }}
+                        className="w-full px-5 py-4 text-left hover:bg-slate-50 flex flex-col gap-0.5 border-b border-slate-50 last:border-0"
+                      >
+                        <span className="font-bold text-slate-900 text-sm">{u.firstName} {u.lastName}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{u.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-400 text-sm mb-1">Amount (USD)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Amount ($)</label>
                   <input
                     type="number"
                     value={payoutForm.amount}
                     onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
-                    placeholder="Enter amount"
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                    placeholder="0.00"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 text-sm mb-1">Cryptocurrency</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Asset</label>
                   <select
                     value={payoutForm.cryptoCurrency}
                     onChange={(e) => setPayoutForm({ ...payoutForm, cryptoCurrency: e.target.value })}
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
                   >
-                    <option value="USDT">USDT (Tether)</option>
-                    <option value="BTC">BTC (Bitcoin)</option>
-                    <option value="ETH">ETH (Ethereum)</option>
-                    <option value="USDC">USDC</option>
+                    <option value="USDT">USDT (TRC20)</option>
+                    <option value="BTC">BTC</option>
+                    <option value="ETH">ETH (ERC20)</option>
+                    <option value="LTC">LTC</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-1">Wallet Address</label>
-                  <input
-                    type="text"
-                    value={payoutForm.walletAddress}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, walletAddress: e.target.value })}
-                    placeholder="Enter recipient wallet address"
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white font-mono text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-1">Notes (Optional)</label>
-                  <input
-                    type="text"
-                    value={payoutForm.adminNotes}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, adminNotes: e.target.value })}
-                    placeholder="Admin notes..."
-                    className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => setShowPayoutModal(false)}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCreatePayout}
-                    disabled={payoutLoading || !payoutForm.userId || !payoutForm.amount || !payoutForm.walletAddress}
-                    className="flex-1 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50"
-                  >
-                    {payoutLoading ? 'Processing...' : 'Send Payout'}
-                  </button>
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Destination Wallet Address</label>
+                <input
+                  type="text"
+                  value={payoutForm.walletAddress}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, walletAddress: e.target.value })}
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-xs font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-inner"
+                  placeholder="Enter recipient address..."
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setShowPayoutModal(false)}
+                  className="flex-1 py-4 font-black text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest text-[10px]"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleCreatePayout}
+                  disabled={payoutLoading}
+                  className="flex-[2] py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-900/20 hover:scale-[1.02] active:scale-95 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {payoutLoading ? <RefreshCw className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                  {payoutLoading ? 'Relaying...' : 'Confirm Payout'}
+                </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </AdminLayout>
   )
 }

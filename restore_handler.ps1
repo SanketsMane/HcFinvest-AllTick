@@ -1,0 +1,24 @@
+$f = 'frontend\src\pages\TradingPage.jsx'
+$c = [IO.File]::ReadAllText($f)
+
+$anchor = "    priceEvents.addEventListener('chartBarUpdate', handleChartBarUpdate)`r`n    return () => priceEvents.removeEventListener('chartBarUpdate', handleChartBarUpdate)`r`n  }, [selectedInstrument?.symbol, expectedChartSidePrice])"
+
+$handler = @"
+`r`n  //Sanket v2.0 - Single source of truth: listen to priceUpdate events, update metaApiPrices per-tick`r`n  useEffect(() => {`r`n    const priceEventTarget = getPriceEvents()`r`n`r`n    const handleMetaApiPriceUpdate = (event) => {`r`n      const { symbol, bid, ask, time } = event.detail`r`n      //Sanket v2.0 - SINGLE SOURCE: update metaApiPrices (the price bus) per-tick from priceUpdate event`r`n      setMetaApiPrices(prev => ({`r`n        ...prev,`r`n        [symbol]: { bid, ask, time }`r`n      }))`r`n      //Sanket v2.0 - SYNC_CHECK: uncomment to verify all consumers update from same tick`r`n      // console.log('SYNC_CHECK', { symbol, bid, ask, time: Date.now() })`r`n      if (selectedInstrument?.symbol === symbol) {`r`n        setSelectedInstrument(prev => ({ ...prev, bid, ask, spread: Math.abs(ask - bid) }))`r`n      }`r`n      setInstruments(prev => prev.map(inst =>`r`n        inst.symbol === symbol ? { ...inst, bid, ask, spread: Math.abs(ask - bid) } : inst`r`n      ))`r`n      setOpenTabs(prev => prev.map(tab =>`r`n        tab.symbol === symbol ? { ...tab, bid, ask, spread: Math.abs(ask - bid) } : tab`r`n      ))`r`n    }`r`n`r`n    priceEventTarget.addEventListener('priceUpdate', handleMetaApiPriceUpdate)`r`n    return () => priceEventTarget.removeEventListener('priceUpdate', handleMetaApiPriceUpdate)`r`n  }, [selectedInstrument?.symbol])
+"@
+
+if ($c.Contains($anchor)) {
+    $c = $c.Replace($anchor, $anchor + $handler)
+    [IO.File]::WriteAllText($f, $c)
+    Write-Output "OK: handleMetaApiPriceUpdate restored"
+} else {
+    Write-Output "MISS: anchor not found - checking LF only variant"
+    $anchor2 = "    priceEvents.addEventListener('chartBarUpdate', handleChartBarUpdate)`n    return () => priceEvents.removeEventListener('chartBarUpdate', handleChartBarUpdate)`n  }, [selectedInstrument?.symbol, expectedChartSidePrice])"
+    if ($c.Contains($anchor2)) {
+        $c = $c.Replace($anchor2, $anchor2 + $handler.Replace("`r`n", "`n"))
+        [IO.File]::WriteAllText($f, $c)
+        Write-Output "OK (LF): handleMetaApiPriceUpdate restored"
+    } else {
+        Write-Output "FAIL: neither CRLF nor LF anchor found"
+    }
+}

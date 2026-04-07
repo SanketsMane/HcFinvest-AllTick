@@ -8,7 +8,7 @@ import User from '../models/User.js'
 
 const router = express.Router()
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const getJwtSecret = () => process.env.JWT_SECRET || 'your-secret-key'
 
 // ==================== ADMIN AUTH ====================
 
@@ -40,7 +40,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { adminId: admin._id, role: admin.role, email: admin.email },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '4h' }
     )
 

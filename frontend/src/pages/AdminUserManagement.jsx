@@ -30,7 +30,8 @@ import {
   CreditCard,
   Plus,
   Minus,
-  Key
+  Key,
+  Users
 } from 'lucide-react'
 
 const AdminUserManagement = () => {
@@ -713,7 +714,7 @@ const AdminUserManagement = () => {
             </div>
             <button 
               onClick={closeModal}
-              className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <X size={18} className="text-gray-400" />
             </button>
@@ -735,28 +736,28 @@ const AdminUserManagement = () => {
             {modalType === 'view' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-dark-700 p-3 rounded-lg">
+                  <div className="bg-slate-50 p-3 rounded-lg">
                     <p className="text-gray-500 text-xs mb-1">Full Name</p>
-                    <p className="text-white">{selectedUser.firstName}</p>
+                    <p className="text-slate-900">{selectedUser.firstName}</p>
                   </div>
-                  <div className="bg-dark-700 p-3 rounded-lg">
+                  <div className="bg-slate-50 p-3 rounded-lg">
                     <p className="text-gray-500 text-xs mb-1">Phone</p>
-                    <p className="text-white">{selectedUser.phone || 'N/A'}</p>
+                    <p className="text-slate-900">{selectedUser.phone || 'N/A'}</p>
                   </div>
-                  <div className="bg-dark-700 p-3 rounded-lg">
+                  <div className="bg-slate-50 p-3 rounded-lg">
                     <p className="text-gray-500 text-xs mb-1">Joined</p>
-                    <p className="text-white">{formatDate(selectedUser.createdAt)}</p>
+                    <p className="text-slate-900">{formatDate(selectedUser.createdAt)}</p>
                   </div>
-                  <div className="bg-dark-700 p-3 rounded-lg">
+                  <div className="bg-slate-50 p-3 rounded-lg">
                     <p className="text-gray-500 text-xs mb-1">Status</p>
                     <p className={`${selectedUser.isBanned ? 'text-red-500' : selectedUser.isBlocked ? 'text-yellow-500' : 'text-green-500'}`}>
                       {selectedUser.isBanned ? 'Banned' : selectedUser.isBlocked ? 'Blocked' : 'Active'}
                     </p>
                   </div>
                 </div>
-                <div className="bg-dark-700 p-3 rounded-lg">
+                <div className="bg-slate-50 p-3 rounded-lg">
                   <p className="text-gray-500 text-xs mb-1">Email</p>
-                  <p className="text-white">{selectedUser.email}</p>
+                  <p className="text-slate-900">{selectedUser.email}</p>
                 </div>
                 {/* Wallet Balance with Actions */}
                 <div className="bg-gradient-to-r from-green-500/10 to-teal-500/10 border border-green-500/30 p-4 rounded-lg">
@@ -856,17 +857,17 @@ const AdminUserManagement = () => {
                   <h4 className="font-semibold">Trading Accounts</h4>
                 </div>
                 {userAccounts.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500 text-sm bg-dark-700 rounded-lg">
-                    No trading accounts found
+                  <div className="p-4 text-center text-slate-500 text-sm bg-slate-50 rounded-lg">
+                    No trading accounts found for this user
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {userAccounts.map(acc => (
-                      <div key={acc._id} className="bg-dark-700 rounded-lg p-4 border border-gray-700">
+                      <div key={acc._id} className="bg-white rounded-lg p-4 border border-slate-200">
                         <div className="flex items-center justify-between mb-3">
                           <div>
-                            <p className="text-white font-medium">{acc.accountId}</p>
-                            <p className="text-gray-500 text-xs">{acc.accountTypeId?.name || 'Standard'} • Leverage: {acc.leverage}</p>
+                            <p className="text-slate-900 font-medium">{acc.accountId}</p>
+                            <p className="text-slate-500 text-xs">{acc.accountTypeId?.name || 'Standard'} • Leverage: {acc.leverage}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-white text-lg font-bold">${acc.balance?.toFixed(2) || '0.00'}</p>
@@ -910,7 +911,7 @@ const AdminUserManagement = () => {
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -932,7 +933,7 @@ const AdminUserManagement = () => {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter new password"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -942,13 +943,13 @@ const AdminUserManagement = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirm new password"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -970,7 +971,7 @@ const AdminUserManagement = () => {
                   <DollarSign size={20} />
                   <h4 className="font-semibold">Deduct Funds</h4>
                 </div>
-                <div className="bg-dark-700 p-3 rounded-lg">
+                <div className="bg-slate-50 p-3 rounded-lg">
                   <p className="text-gray-500 text-xs mb-1">Current Wallet Balance</p>
                   <p className="text-white text-xl font-bold">${userWalletBalance?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0.00'}</p>
                 </div>
@@ -983,7 +984,7 @@ const AdminUserManagement = () => {
                     placeholder="Enter amount"
                     min="0"
                     step="0.01"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div>
@@ -993,13 +994,13 @@ const AdminUserManagement = () => {
                     value={deductReason}
                     onChange={(e) => setDeductReason(e.target.value)}
                     placeholder="Enter reason for deduction"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1021,7 +1022,7 @@ const AdminUserManagement = () => {
                   <Wallet size={20} />
                   <h4 className="font-semibold">Add Funds</h4>
                 </div>
-                <div className="bg-dark-700 p-3 rounded-lg">
+                <div className="bg-slate-50 p-3 rounded-lg">
                   <p className="text-gray-500 text-xs mb-1">Current Wallet Balance</p>
                   <p className="text-white text-xl font-bold">${userWalletBalance?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0.00'}</p>
                 </div>
@@ -1034,7 +1035,7 @@ const AdminUserManagement = () => {
                     placeholder="Enter amount"
                     min="0"
                     step="0.01"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
                 <div>
@@ -1044,13 +1045,13 @@ const AdminUserManagement = () => {
                     value={addFundReason}
                     onChange={(e) => setAddFundReason(e.target.value)}
                     placeholder="Enter reason for adding funds"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1085,14 +1086,14 @@ const AdminUserManagement = () => {
                       value={blockReason}
                       onChange={(e) => setBlockReason(e.target.value)}
                       placeholder="Enter reason for blocking"
-                      className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-yellow-500"
                     />
                   </div>
                 )}
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1131,14 +1132,14 @@ const AdminUserManagement = () => {
                       value={blockReason}
                       onChange={(e) => setBlockReason(e.target.value)}
                       placeholder="Enter reason for banning"
-                      className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500"
                     />
                   </div>
                 )}
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1172,7 +1173,7 @@ const AdminUserManagement = () => {
                   <select
                     value={selectedAccountId}
                     onChange={(e) => setSelectedAccountId(e.target.value)}
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-purple-500"
                   >
                     {userAccounts.length === 0 && <option value="">No accounts available</option>}
                     {userAccounts.map(acc => (
@@ -1207,7 +1208,7 @@ const AdminUserManagement = () => {
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1250,7 +1251,7 @@ const AdminUserManagement = () => {
                   </select>
                 </div>
                 {selectedAccountId && (
-                  <div className="bg-dark-700 p-3 rounded-lg">
+                  <div className="bg-slate-50 p-3 rounded-lg">
                     <p className="text-gray-500 text-xs mb-1">Available Credit</p>
                     <p className="text-pink-400 text-xl font-bold">
                       ${userAccounts.find(acc => acc._id === selectedAccountId)?.credit?.toFixed(2) || '0.00'}
@@ -1282,7 +1283,7 @@ const AdminUserManagement = () => {
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('tradingAccounts')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1315,7 +1316,7 @@ const AdminUserManagement = () => {
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={closeModal}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Cancel
                   </button>
@@ -1337,7 +1338,7 @@ const AdminUserManagement = () => {
                   <Wallet size={20} />
                   <h4 className="font-semibold">Add Funds to Wallet</h4>
                 </div>
-                <div className="bg-dark-700 p-3 rounded-lg">
+                <div className="bg-slate-50 p-3 rounded-lg">
                   <p className="text-gray-500 text-xs mb-1">Current Wallet Balance</p>
                   <p className="text-white text-xl font-bold">${userWalletBalance?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0.00'}</p>
                 </div>
@@ -1350,7 +1351,7 @@ const AdminUserManagement = () => {
                     placeholder="Enter amount"
                     min="0"
                     step="0.01"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
                 <div>
@@ -1360,13 +1361,13 @@ const AdminUserManagement = () => {
                     value={addFundReason}
                     onChange={(e) => setAddFundReason(e.target.value)}
                     placeholder="Enter reason"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1388,7 +1389,7 @@ const AdminUserManagement = () => {
                   <Wallet size={20} />
                   <h4 className="font-semibold">Deduct from Wallet</h4>
                 </div>
-                <div className="bg-dark-700 p-3 rounded-lg">
+                <div className="bg-slate-50 p-3 rounded-lg">
                   <p className="text-gray-500 text-xs mb-1">Current Wallet Balance</p>
                   <p className="text-white text-xl font-bold">${userWalletBalance?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0.00'}</p>
                 </div>
@@ -1401,7 +1402,7 @@ const AdminUserManagement = () => {
                     placeholder="Enter amount"
                     min="0"
                     step="0.01"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div>
@@ -1411,13 +1412,13 @@ const AdminUserManagement = () => {
                     value={deductReason}
                     onChange={(e) => setDeductReason(e.target.value)}
                     placeholder="Enter reason"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('view')}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1439,7 +1440,7 @@ const AdminUserManagement = () => {
                   <DollarSign size={20} />
                   <h4 className="font-semibold">Add Funds to Trading Account</h4>
                 </div>
-                <div className="bg-dark-700 p-3 rounded-lg">
+                <div className="bg-slate-50 p-3 rounded-lg">
                   <p className="text-gray-500 text-xs mb-1">Selected Account</p>
                   <p className="text-white font-medium">{userAccounts.find(a => a._id === selectedAccountId)?.accountId || 'N/A'}</p>
                   <p className="text-gray-400 text-sm">Balance: ${userAccounts.find(a => a._id === selectedAccountId)?.balance?.toFixed(2) || '0.00'}</p>
@@ -1453,7 +1454,7 @@ const AdminUserManagement = () => {
                     placeholder="Enter amount"
                     min="0"
                     step="0.01"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
                 <div>
@@ -1463,13 +1464,13 @@ const AdminUserManagement = () => {
                     value={accountFundReason}
                     onChange={(e) => setAccountFundReason(e.target.value)}
                     placeholder="Enter reason"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => { setAccountFundAmount(''); setAccountFundReason(''); setModalType('view'); }}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1491,7 +1492,7 @@ const AdminUserManagement = () => {
                   <DollarSign size={20} />
                   <h4 className="font-semibold">Deduct from Trading Account</h4>
                 </div>
-                <div className="bg-dark-700 p-3 rounded-lg">
+                <div className="bg-slate-50 p-3 rounded-lg">
                   <p className="text-gray-500 text-xs mb-1">Selected Account</p>
                   <p className="text-white font-medium">{userAccounts.find(a => a._id === selectedAccountId)?.accountId || 'N/A'}</p>
                   <p className="text-gray-400 text-sm">Balance: ${userAccounts.find(a => a._id === selectedAccountId)?.balance?.toFixed(2) || '0.00'}</p>
@@ -1505,7 +1506,7 @@ const AdminUserManagement = () => {
                     placeholder="Enter amount"
                     min="0"
                     step="0.01"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div>
@@ -1515,13 +1516,13 @@ const AdminUserManagement = () => {
                     value={accountFundReason}
                     onChange={(e) => setAccountFundReason(e.target.value)}
                     placeholder="Enter reason"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button 
                     onClick={() => { setAccountFundAmount(''); setAccountFundReason(''); setModalType('view'); }}
-                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Back
                   </button>
@@ -1542,168 +1543,193 @@ const AdminUserManagement = () => {
   }
 
   return (
-    <AdminLayout title="Clients List" subtitle="Manage all registered clients">
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'users' ? 'bg-blue-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
-          }`}
-        >
-          Users ({users.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('password-reset')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'password-reset' ? 'bg-blue-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
-          }`}
-        >
-          <Key size={16} />
-          Password Requests
-          {resetRequestStats.pending > 0 && (
-            <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">{resetRequestStats.pending}</span>
-          )}
-        </button>
+    <AdminLayout 
+      title="User Management" 
+      subtitle="Comprehensive control over global user nodes and financial access"
+    >
+      {/* Stats Cluster */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[
+          { label: 'Verified Nodes', value: users.length, icon: User, color: 'blue' },
+          { label: 'Capital Requests', value: passwordResetRequests.filter(r => r.status === 'pending').length, icon: Key, color: 'orange' },
+          { label: 'Active Sessions', value: users.filter(u => !u.isBlocked && !u.isBanned).length, icon: Shield, color: 'green' },
+          { label: 'Flagged Assets', value: users.filter(u => u.isBlocked || u.isBanned).length, icon: Lock, color: 'red' }
+        ].map((stat, idx) => (
+          <div key={idx} className="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all group">
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 bg-${stat.color}-50 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform`}>
+                <stat.icon size={24} className={`text-${stat.color}-600`} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">Live Sync</span>
+            </div>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest italic">{stat.label}</p>
+            <p className="text-slate-900 text-3xl font-black mt-1 tracking-tight">{stat.value.toLocaleString()}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Message */}
-      {message.text && (
-        <div className={`mb-4 p-3 rounded-lg ${message.type === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-          {message.text}
-        </div>
-      )}
+      {/* Main Control Interface */}
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm shadow-slate-100 animate-in fade-in slide-in-from-bottom-4">
+        {/* Advanced Toolbar */}
+        <div className="p-8 border-b border-slate-50 space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+             <div className="flex items-center gap-5">
+             </div>
 
-      {activeTab === 'password-reset' ? (
-        <div className="rounded-xl border overflow-hidden"
-          style={{
-            backgroundColor: modeColors.bgCard,
-            borderColor: modeColors.border
-          }}>
-          <div className="flex items-center justify-between p-4 sm:p-5 border-b" style={{ borderColor: modeColors.border }}>
-            <div>
-              <h2 className="font-semibold text-lg" style={{ color: modeColors.textPrimary }}>Password Reset Requests</h2>
-              <p className="text-sm" style={{ color: modeColors.textSecondary }}>
-                Pending: {resetRequestStats.pending} | Completed: {resetRequestStats.completed} | Rejected: {resetRequestStats.rejected}
-              </p>
-            </div>
-            <button onClick={fetchPasswordResetRequests} className="p-2 rounded-lg transition-colors" style={{
-              backgroundColor: modeColors.bgHover,
-              color: modeColors.textMuted
-            }}>
-              <RefreshCw size={18} style={{ color: modeColors.textMuted }} />
-            </button>
-          </div>
-
-          <div className="p-4 space-y-3">
-            {passwordResetRequests.length === 0 ? (
-              <p className="text-center py-8" style={{ color: modeColors.textMuted }}>No password reset requests</p>
-            ) : (
-              passwordResetRequests.map(request => (
-                <div key={request._id} className="p-4 rounded-xl border" style={{
-                  backgroundColor: modeColors.bgSecondary,
-                  borderColor: modeColors.border
-                }}>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                        <User size={20} className="text-blue-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium" style={{ color: modeColors.textPrimary }}>
-                          {request.userId?.firstName} {request.userId?.lastName}
-                        </p>
-                        <p className="text-sm" style={{ color: modeColors.textSecondary }}>{request.email}</p>
-                        {request.newEmail && (
-                          <p className="text-xs mt-1" style={{ color: '#F59E0B' }}>
-                            Wants to change email to: {request.newEmail}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs ${
-                        request.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500' :
-                        request.status === 'Completed' ? 'bg-green-500/20 text-green-500' :
-                        'bg-red-500/20 text-red-500'
-                      }`}>
-                        {request.status}
-                      </span>
-                      <span className="text-xs" style={{ color: modeColors.textMuted }}>
-                        {new Date(request.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {request.status === 'Pending' && (
-                    <div className="mt-4 pt-4 border-t" style={{ borderColor: modeColors.border }}>
-                      {selectedResetRequest === request._id ? (
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-sm mb-1 block" style={{ color: modeColors.textMuted }}>New Password</label>
-                            <input
-                              type="text"
-                              value={resetPassword}
-                              onChange={(e) => setResetPassword(e.target.value)}
-                              placeholder="Enter new password (min 6 chars)"
-                              className="w-full border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
-                              style={{
-                                backgroundColor: modeColors.bgSecondary,
-                                borderColor: modeColors.border,
-                                color: modeColors.textPrimary
-                              }}
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { setSelectedResetRequest(null); setResetPassword('') }}
-                              className="px-4 py-2 rounded-lg text-sm transition-colors"
-                              style={{
-                                backgroundColor: modeColors.bgSecondary,
-                                color: modeColors.textMuted
-                              }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => handleProcessResetRequest(request._id, 'approve')}
-                              disabled={actionLoading}
-                              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm disabled:opacity-50"
-                            >
-                              {actionLoading ? 'Processing...' : 'Reset Password'}
-                            </button>
-                            <button
-                              onClick={() => handleProcessResetRequest(request._id, 'reject')}
-                              disabled={actionLoading}
-                              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm disabled:opacity-50"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                          <p className="text-xs" style={{ color: modeColors.textMuted }}>
-                            After resetting, send the new password to user's email manually.
-                          </p>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setSelectedResetRequest(request._id)}
-                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
-                        >
-                          Process Request
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {request.status !== 'Pending' && request.adminRemarks && (
-                    <p className="mt-2 text-xs" style={{ color: modeColors.textMuted }}>Remarks: {request.adminRemarks}</p>
-                  )}
+             <div className="flex flex-wrap items-center gap-3">
+                <div className="relative group">
+                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-all" />
+                  <input 
+                    type="text" 
+                    placeholder="Search User Protocol..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-12 pr-6 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 font-bold text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner w-full sm:w-64"
+                  />
                 </div>
-              ))
-            )}
+                <div className="flex bg-slate-50 p-1.5 rounded-[1.2rem] border-2 border-slate-100">
+                   {['users', 'resets'].map(t => (
+                     <button 
+                       key={t} 
+                       onClick={() => setActiveTab(t === 'users' ? 'users' : 'password-reset')} 
+                       className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${((activeTab === 'users' && t === 'users') || (activeTab === 'password-reset' && t === 'resets')) ? 'bg-white text-blue-600 shadow-xl shadow-slate-100' : 'text-slate-400 hover:text-slate-900'}`}
+                     >
+                       {t === 'users' ? 'User Database' : `Reset Vectors (${passwordResetRequests.filter(r => r.status === 'pending').length})`}
+                     </button>
+                   ))}
+                </div>
+                <button 
+                  onClick={() => setShowAddUserModal(true)}
+                  className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-2xl hover:bg-blue-600 transition-all shadow-xl shadow-slate-200 font-black text-xs uppercase tracking-widest active:scale-95 group"
+                >
+                  <Plus size={18} className="group-hover:rotate-90 transition-transform" />
+                  <span>Provision New User</span>
+                </button>
+             </div>
           </div>
+
+          {message.text && (
+            <div className={`p-4 rounded-2xl flex items-center gap-3 font-black text-[10px] uppercase tracking-widest animate-in slide-in-from-top-2 border ${
+              message.type === 'success' ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-700'
+            }`}>
+              {message.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
+              {message.text}
+            </div>
+          )}
         </div>
-      ) : (
+
+          {activeTab === 'password-reset' ? (
+           <div className="p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2">
+             <div className="flex items-center justify-between mb-2">
+               <div>
+                 <h3 className="text-slate-900 font-black text-xl uppercase tracking-tighter">Security Reset Vectors</h3>
+                 <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">Status: {resetRequestStats.pending} PENDING | {resetRequestStats.completed} RESOLVED</p>
+               </div>
+               <button 
+                 onClick={fetchPasswordResetRequests} 
+                 className="p-3 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-xl transition-all active:scale-95 shadow-inner"
+               >
+                 <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+               </button>
+             </div>
+
+             <div className="grid grid-cols-1 gap-4">
+               {passwordResetRequests.length === 0 ? (
+                 <div className="bg-slate-50/50 p-20 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                       <Key size={24} className="text-slate-300" />
+                    </div>
+                    <p className="text-slate-400 font-black text-xs uppercase tracking-widest">No active reset requests detected</p>
+                 </div>
+               ) : (
+                 passwordResetRequests.map(request => (
+                   <div key={request._id} className="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all group">
+                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                       <div className="flex items-center gap-5">
+                         <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                           <User size={24} />
+                         </div>
+                         <div>
+                           <p className="text-slate-900 font-black text-lg tracking-tight uppercase">
+                             {request.userId?.firstName} {request.userId?.lastName}
+                           </p>
+                           <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">{request.email}</p>
+                           {request.newEmail && (
+                             <div className="flex items-center gap-2 mt-2 bg-orange-50 px-3 py-1 rounded-lg border border-orange-100 w-fit">
+                                <AlertTriangle size={12} className="text-orange-600" />
+                                <p className="text-orange-600 font-black text-[10px] uppercase tracking-widest">Email Update Requested: {request.newEmail}</p>
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-4">
+                         <div className="text-right hidden sm:block">
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logged: {new Date(request.createdAt).toLocaleDateString()}</p>
+                           <span className={`inline-block mt-1 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${
+                             request.status === 'Pending' ? 'bg-orange-50 text-orange-600 border border-orange-100' :
+                             request.status === 'Completed' ? 'bg-green-50 text-green-600 border border-green-100' :
+                             'bg-red-50 text-red-600 border border-red-100'
+                           }`}>
+                             {request.status}
+                           </span>
+                         </div>
+                         {request.status === 'Pending' && (
+                           <div className="flex gap-2">
+                             {selectedResetRequest === request._id ? (
+                               <div className="flex flex-col sm:flex-row items-center gap-2 animate-in slide-in-from-right-2">
+                                  <input
+                                    type="text"
+                                    value={resetPassword}
+                                    onChange={(e) => setResetPassword(e.target.value)}
+                                    placeholder="Enter new credentials..."
+                                    className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold text-xs focus:outline-none focus:border-blue-500 transition-all w-48"
+                                  />
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => handleProcessResetRequest(request._id, 'approve')}
+                                      className="p-2 bg-green-900 text-white rounded-xl hover:bg-green-600 transition-all"
+                                      title="Approve"
+                                    >
+                                      <Check size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleProcessResetRequest(request._id, 'reject')}
+                                      className="p-2 bg-red-900 text-white rounded-xl hover:bg-red-600 transition-all"
+                                      title="Reject"
+                                    >
+                                      <X size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => { setSelectedResetRequest(null); setResetPassword('') }}
+                                      className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition-all"
+                                    >
+                                      <RefreshCw size={16} />
+                                    </button>
+                                  </div>
+                               </div>
+                             ) : (
+                               <button
+                                 onClick={() => setSelectedResetRequest(request._id)}
+                                 className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl shadow-slate-200 active:scale-95"
+                               >
+                                 Execute Reset
+                               </button>
+                             )}
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                     {request.status !== 'Pending' && request.adminRemarks && (
+                       <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 italic text-slate-500 text-xs font-bold">
+                         Protocol Remarks: {request.adminRemarks}
+                       </div>
+                     )}
+                   </div>
+                 ))
+               )}
+             </div>
+           </div>
+        ) : (
       <div className="rounded-xl border overflow-hidden"
         style={{
           backgroundColor: modeColors.bgCard,
@@ -2245,6 +2271,7 @@ const AdminUserManagement = () => {
         )}
       </div>
       )}
+      </div>
 
       {/* Modal */}
       {renderModal()}
@@ -2252,28 +2279,31 @@ const AdminUserManagement = () => {
       {/* Add User Modal */}
       {showAddUserModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-dark-800 rounded-2xl w-full max-w-md border border-gray-700 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <div className="bg-white rounded-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
                   <User size={20} className="text-green-500" />
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold">Add New User</h3>
-                  <p className="text-gray-500 text-sm">Create a new user account</p>
+                  <User size={20} className="text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-slate-900 font-semibold">Add New User</h3>
+                  <p className="text-slate-500 text-sm">Create a new user account</p>
                 </div>
               </div>
               <button 
                 onClick={() => { setShowAddUserModal(false); setAddUserForm({ firstName: '', lastName: '', email: '', phone: '', password: '' }) }}
-                className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
-                <X size={18} className="text-gray-400" />
+                <X size={18} className="text-slate-400" />
               </button>
             </div>
             <div className="p-4 space-y-4">
               {message.text && (
                 <div className={`p-3 rounded-lg flex items-center gap-2 ${
-                  message.type === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                  message.type === 'success' ? 'bg-green-500/20 text-green-600' : 'bg-red-500/20 text-red-600'
                 }`}>
                   {message.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
                   <span className="text-sm">{message.text}</span>
@@ -2281,13 +2311,13 @@ const AdminUserManagement = () => {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-gray-400 text-sm mb-1 block">First Name *</label>
+                  <label className="text-slate-500 text-sm mb-1 block">First Name *</label>
                   <input
                     type="text"
                     value={addUserForm.firstName}
                     onChange={(e) => setAddUserForm({ ...addUserForm, firstName: e.target.value })}
                     placeholder="John"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
                 <div>
@@ -2297,7 +2327,7 @@ const AdminUserManagement = () => {
                     value={addUserForm.lastName}
                     onChange={(e) => setAddUserForm({ ...addUserForm, lastName: e.target.value })}
                     placeholder="Doe"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                   />
                 </div>
               </div>
@@ -2308,7 +2338,7 @@ const AdminUserManagement = () => {
                   value={addUserForm.email}
                   onChange={(e) => setAddUserForm({ ...addUserForm, email: e.target.value })}
                   placeholder="john@example.com"
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                 />
               </div>
               <div>
@@ -2318,7 +2348,7 @@ const AdminUserManagement = () => {
                   value={addUserForm.phone}
                   onChange={(e) => setAddUserForm({ ...addUserForm, phone: e.target.value })}
                   placeholder="+1234567890"
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                 />
               </div>
               <div>
@@ -2328,13 +2358,13 @@ const AdminUserManagement = () => {
                   value={addUserForm.password}
                   onChange={(e) => setAddUserForm({ ...addUserForm, password: e.target.value })}
                   placeholder="Minimum 6 characters"
-                  className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-500"
                 />
               </div>
               <div className="flex gap-2 pt-2">
                 <button 
                   onClick={() => { setShowAddUserModal(false); setAddUserForm({ firstName: '', lastName: '', email: '', phone: '', password: '' }) }}
-                  className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
                 >
                   Cancel
                 </button>

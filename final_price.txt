@@ -1,0 +1,51 @@
+L73: //   //Sanket v2.0 - livePrices REMOVED; single source of truth is metaApiPrices (per-tick priceUpdate event)
+L74: //   const [priceUpdateTick, setPriceUpdateTick] = useState(0) // Force re-render on price updates
+L75: //   const [metaApiPrices, setMetaApiPrices] = useState({}) // Store MetaAPI chart prices
+L126: //       metaApiService.disconnect()
+L305: if (Object.keys(metaApiPrices).length === 0 && instruments.every(i => !i.bid)) return
+L353: //   //Sanket v2.0 - Single source of truth: metaApiPrices+instruments (per-tick), livePrices removed
+L354: }, [metaApiPrices, instruments, openTrades])
+L363: //       // Single batch call to backend (handles both MetaAPI and Binance)
+L364: //       const allPrices = await metaApiService.getAllPrices(allSymbols)
+L473: //     const priceData = metaApiPrices[symbol] || instruments.find(i => i.symbol === symbol)
+L689: //   // Listen to MetaAPI price events from TradingView chart
+L696: //       // Update MetaAPI prices state
+L739: //     priceEvents.addEventListener('priceUpdate', handlePriceUpdate)
+L742: //       priceEvents.removeEventListener('priceUpdate', handlePriceUpdate)
+L897: //       //Sanket v2.0 - Single source: metaApiPrices (per-tick)
+L898: const livePrice = metaApiPrices[selectedInstrument.symbol]
+L1642: //               {metaApiPrices[selectedInstrument.symbol] && (
+L2284: //                       {metaApiPrices[selectedInstrument.symbol] && (
+L2290: //                           // Use MetaAPI prices for XAUUSD when available, otherwise use current logic
+L2292: //                           if (selectedInstrument.symbol === 'XAUUSD' && metaApiPrices['XAUUSD']) {
+L2293: //                             price = metaApiPrices['XAUUSD'].bid; // Use bid for SELL
+L2311: //                       {metaApiPrices[selectedInstrument.symbol] && (
+L2317: //                           // Use MetaAPI prices for XAUUSD when available, otherwise use current logic
+L2319: //                           if (selectedInstrument.symbol === 'XAUUSD' && metaApiPrices['XAUUSD']) {
+L2320: //                             price = metaApiPrices['XAUUSD'].ask; // Use ask for BUY
+L3228: //Sanket v2.0 - livePrices REMOVED; single source of truth is metaApiPrices (per-tick priceUpdate event)
+L3229: const [metaApiPrices, setMetaApiPrices] = useState({}) // Per-tick price bus (priceUpdate event, replaces livePrices)
+L3336: //Sanket v2.0 - Single source: metaApiPrices (per-tick event bus), fallback to selectedInstrument
+L3337: const live = metaApiPrices[selectedInstrument?.symbol] || {}
+L3343: //Sanket v2.0 - Priority fix: selectedInstrument.bid (per-tick) first, metaApiPrices fallback
+L3354: }, [metaApiPrices, selectedInstrument?.symbol, selectedInstrument?.bid, selectedInstrument?.ask])
+L3780: }, [accountSummary?.floatingPnl, openTrades.length, metaApiPrices])
+L3818: //Sanket v2.0 - Removed setLivePrices from throttled path; metaApiPrices is now single source
+L4062: if (Object.keys(metaApiPrices).length === 0 && instruments.every(i => !i.bid)) return
+L4065: Object.entries(metaApiPrices).forEach(([sym, p]) => {
+L4079: //Sanket v2.0 - Single source: metaApiPrices (per-tick), then instruments, then cache
+L4080: const livePrice = metaApiPrices[targetSym] ||
+L4081: metaApiPrices[targetSym.toUpperCase()] ||
+L4143: //Sanket v2.0 - Single source of truth: metaApiPrices+instruments (per-tick), livePrices removed
+L4144: }, [metaApiPrices, instruments, openTrades])
+L4284: const priceData = metaApiPrices[symbol] || instruments.find(i => i.symbol === symbol)
+L4493: //Sanket v2.0 - Removed setLivePrices; metaApiPrices is single source (per-tick)
+L4700: //Sanket v2.0 - Single source: metaApiPrices (per-tick), fallback to instruments
+L4701: const livePrice = metaApiPrices[trade.symbol] || instruments.find(i => i.symbol === trade.symbol)
+L4865: //Sanket v2.0 - Single source: metaApiPrices (per-tick), fallback to instruments
+L4866: const livePrice = metaApiPrices[trade.symbol] || instruments.find(i => i.symbol === trade.symbol)
+L5644: {metaApiPrices[selectedInstrument.symbol] && (
+L5773: //Sanket v2.0 - Single source: metaApiPrices (per-tick), then instruments, then cache
+L5774: const livePrice = metaApiPrices[targetSym] || metaApiPrices[baseSym] ||
+L6330: {metaApiPrices[selectedInstrument.symbol] && (
+L6344: {metaApiPrices[selectedInstrument.symbol] && (

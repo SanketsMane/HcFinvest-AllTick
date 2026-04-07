@@ -245,27 +245,131 @@ router.get('/history', async (req, res) => {
     return res.status(400).json({ success: false, message: 'symbol is required' });
   }
 
-  // 🎯 Map resolution to AllTick native timeframes
+  //Sanket v2.0 - Added 120/2h mapping for 2-hour timeframe support
   const resolutionMap = {
     '1': '1m', '1m': '1m', '5': '5m', '5m': '5m', '15': '15m', '15m': '15m',
-    '30': '30m', '30m': '30m', '60': '1h', '1h': '1h', '240': '4h', '4h': '4h',
+    '30': '30m', '30m': '30m', '60': '1h', '1h': '1h', '120': '2h', '2h': '2h', '240': '4h', '4h': '4h',
     'D': '1d', '1D': '1d', 'W': '1w', '1W': '1w', 'M': '1M', '1M': '1M'
   };
   
+  //Sanket v2.0 - Removed duplicate '1m' key that was at the end
   const resolutionToMinutes = {
     '1': 1, '1m': 1, '5': 5, '5m': 5, '15': 15, '15m': 15,
-    '30': 30, '30m': 30, '60': 60, '1h': 60, '120': 120, '240': 240, '4h': 240,
+    '30': 30, '30m': 30, '60': 60, '1h': 60, '120': 120, '2h': 120, '240': 240, '4h': 240,
     'D': 1440, '1D': 1440, '1d': 1440, 
     'W': 10080, '1W': 10080, '1w': 10080, 
-    'M': 43200, '1M': 43200, '1m': 1
+    'M': 43200, '1M': 43200
   };
 
-  // 🛡️ ELITE: Always normalize symbol to UPPERCASE for internal consistency
-  const cleanSymbol = String(symbol).toUpperCase();
+  //Sanket v2.0 - Strip .i suffix and uppercase for consistent symbol lookup
+  const cleanSymbol = String(symbol).toUpperCase().replace(/\.I$/i, '');
   const timeframe = resolutionMap[resolution] || '1m';
   const targetMinutes = resolutionToMinutes[resolution] || parseInt(resolution) || 1;
   const isPreferLive = preferLive === '1' || preferLive === 'true';
   const requestLimit = limit ? Math.min(parseInt(limit), 2000) : 1000;
+
+  const normalizeToBucketSeries = (candles, intervalMinutes) => {
+    if (!Array.isArray(candles) || candles.length === 0) return []
+    const intervalMs = intervalMinutes * 60 * 1000
+    const sorted = [...candles].sort((a, b) => Number(a.time) - Number(b.time))
+    const byBucket = new Map()
+
+    sorted.forEach((raw) => {
+      const rawTime = Number(raw.time)
+      if (!Number.isFinite(rawTime) || rawTime <= 0) return
+
+      const tMs = rawTime < 10000000000 ? rawTime * 1000 : rawTime
+      const bucket = Math.floor(tMs / intervalMs) * intervalMs
+
+      const open = Number(raw.open)
+      const high = Number(raw.high)
+      const low = Number(raw.low)
+      const close = Number(raw.close)
+      const volume = Number.isFinite(Number(raw.volume)) ? Number(raw.volume) : 0
+
+      if (![open, high, low, close].every(Number.isFinite)) return
+
+      const existing = byBucket.get(bucket)
+      if (!existing) {
+        byBucket.set(bucket, {
+          time: bucket,
+          open,
+          high,
+          low,
+          close,
+          volume
+        })
+        return
+      }
+
+      existing.high = Math.max(existing.high, high)
+      existing.low = Math.min(existing.low, low)
+      existing.close = close
+      existing.volume = (existing.volume || 0) + volume
+    })
+
+    return [...byBucket.values()].sort((a, b) => a.time - b.time)
+  }
+
+  const getHistoryJumpThresholdPct = (sym = '') => {
+    const upper = String(sym).toUpperCase()
+    if (upper.includes('BTC') || upper.includes('ETH') || upper.includes('BNB') || upper.includes('SOL') || upper.includes('XRP') || upper.includes('ADA') || upper.includes('DOGE') || upper.includes('LTC')) {
+      return 25
+    }
+    if (upper.includes('XAU') || upper.includes('XAG') || upper.includes('OIL') || upper.includes('NGAS') || upper.includes('COPPER') || upper.includes('US30') || upper.includes('US100') || upper.includes('US500') || upper.includes('UK100') || upper.includes('ES35')) {
+      return 8
+    }
+    return 3
+  }
+
+  const sanitizeHistoricalSeries = (candles, intervalMinutes, sym) => {
+    if (!Array.isArray(candles) || candles.length === 0) return []
+    const intervalMs = intervalMinutes * 60 * 1000
+    const maxJumpPct = getHistoryJumpThresholdPct(sym)
+    const sanitized = []
+
+    for (const raw of candles) {
+      const time = Number(raw?.time)
+      const open = Number(raw?.open)
+      const high = Number(raw?.high)
+      const low = Number(raw?.low)
+      const close = Number(raw?.close)
+      const volume = Number.isFinite(Number(raw?.volume)) ? Number(raw.volume) : 0
+
+      if (![time, open, high, low, close].every(Number.isFinite) || time <= 0) continue
+
+      const fixedHigh = Math.max(high, open, close, low)
+      const fixedLow = Math.min(low, open, close, high)
+      const normalized = { time, open, high: fixedHigh, low: fixedLow, close, volume }
+
+      const prev = sanitized[sanitized.length - 1]
+      if (!prev || !Number.isFinite(prev.close) || prev.close <= 0) {
+        sanitized.push(normalized)
+        continue
+      }
+
+      const elapsedMs = Math.max(0, time - prev.time)
+      const jumpPct = Math.abs((normalized.close - prev.close) / prev.close) * 100
+      const isLongGap = elapsedMs > Math.max(intervalMs * 6, 45 * 60 * 1000)
+
+      if (!isLongGap && jumpPct > maxJumpPct) {
+        sanitized.push({
+          time,
+          open: prev.close,
+          high: prev.close,
+          low: prev.close,
+          close: prev.close,
+          volume: 0,
+          isSanitized: true
+        })
+        continue
+      }
+
+      sanitized.push(normalized)
+    }
+
+    return sanitized
+  }
   
   // 🛡️ ELITE: Always use Server Time Authority for "current" requests
   const serverNow = Math.floor(Date.now() / 1000);
@@ -282,7 +386,7 @@ router.get('/history', async (req, res) => {
   // Always use 'latest' for the end if not specified, to match live tier-sync
   const cacheSuffix = isPreferLive ? 'live' : 'std';
   const effectiveEnd = (isPreferLive && !to) ? 'latest' : (endTime || 'latest');
-  const cacheKey = `hist:${cleanSymbol}:${timeframe}:start:${effectiveEnd}:1000:${cacheSuffix}`;
+  const cacheKey = `hist:${cleanSymbol}:${timeframe}:end:${effectiveEnd}:${requestLimit}:${cacheSuffix}:v3`;
   
   try {
     const cached = await redisClient.get(cacheKey);
@@ -303,19 +407,19 @@ router.get('/history', async (req, res) => {
       return res.json({ success: true, symbol, timeframe, candles: [], count: 0, provider: 'alltick' });
     }
 
-    let finalCandles = result.candles;
+    let finalCandles = normalizeToBucketSeries(result.candles, targetMinutes);
+    finalCandles = sanitizeHistoricalSeries(finalCandles, targetMinutes, cleanSymbol);
 
     // 🚀 ELITE PIPELINE: Clean -> Fill -> Validate
     
     // 1. Sort (Clean)
     finalCandles.sort((a, b) => a.time - b.time);
 
-    // 2. Fill Gaps (PRO Tier Continuity)
-    if (finalCandles.length > 5 && targetMinutes <= 1440) {
+    if (finalCandles.length > 0 && targetMinutes <= 1440) {
        const prevCount = finalCandles.length;
-       finalCandles = fillGaps(finalCandles, targetMinutes);
+       finalCandles = fillGaps(finalCandles, targetMinutes, endTime);
        if (finalCandles.length > prevCount) {
-         console.log(`[History] 🔗 Continuity Fix: Filled ${finalCandles.length - prevCount} gaps in ${timeframe} data`);
+         console.log(`[History] 🔗 Continuity Fix: Filled ${finalCandles.length - prevCount} gaps in ${timeframe} data (until=${endTime})`);
        }
     }
 
@@ -397,23 +501,145 @@ router.post('/batch', async (req, res) => {
       return res.status(400).json({ success: false, message: 'symbols array required' })
     }
     
-    const prices = {}
-    
-    // ✅ ELITE: Batch Await Price Lookups (Fix v7.77 "Smoking Gun")
-    // We must await each price lookup to avoid returning empty Promise objects.
-    await Promise.all(symbols.map(async (symbol) => {
-      if (alltickApiService.isSymbolSupported(symbol)) {
-        const price = await alltickApiService.getPrice(symbol) // AWAIT FIXED
-        const symbolInfo = alltickApiService.getSymbolInfo(symbol)
-        if (price && price.bid) {
-          prices[symbol] = {
-            bid: price.bid,
-            ask: price.ask,
-            spread: price.spread || 0,
-            time: price.time || new Date().toISOString(),
-            ...symbolInfo
+    const toEpochMs = (raw) => {
+      if (!raw) return 0
+      if (typeof raw === 'number') return raw > 100000000000 ? raw : raw * 1000
+      const parsed = Date.parse(raw)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+
+    const getQuoteFreshness = (timeMs) => {
+      const ageMs = Date.now() - timeMs
+      if (!Number.isFinite(ageMs) || ageMs < 0) return 'UNKNOWN'
+      if (ageMs <= 30_000) return 'LIVE'
+      if (ageMs <= 6 * 60 * 60 * 1000) return 'STALE'
+      return 'OLD'
+    }
+
+    const getFallbackFromCachedHistory = async (symbol) => {
+      const clean = String(symbol || '').toUpperCase().replace(/\.I$/i, '')
+
+      try {
+        const rolling = await storageService.getCandlesFromRedis(clean, '1m', null, null, 2)
+        const lastRolling = Array.isArray(rolling) && rolling.length > 0 ? rolling[rolling.length - 1] : null
+        if (lastRolling && Number(lastRolling.close) > 0) {
+          const close = Number(lastRolling.close)
+          const timeMs = toEpochMs(lastRolling.time)
+          return {
+            bid: close,
+            ask: close,
+            spread: 0,
+            time: timeMs ? new Date(timeMs).toISOString() : new Date().toISOString(),
+            marketState: 'CLOSED',
+            quoteFreshness: 'STALE',
+            source: 'redis_rolling_1m_close'
           }
         }
+      } catch {}
+
+      const histKeys = [
+        `hist:${clean}:1m:end:latest:1000:live`,
+        `hist:${clean}:1m:end:latest:1000:std`
+      ]
+
+      for (const key of histKeys) {
+        try {
+          const payload = await redisClient.get(key)
+          if (!payload) continue
+          const candles = JSON.parse(payload)
+          const last = Array.isArray(candles) && candles.length > 0 ? candles[candles.length - 1] : null
+          if (!last || Number(last.close) <= 0) continue
+          const close = Number(last.close)
+          const timeMs = toEpochMs(last.time)
+          return {
+            bid: close,
+            ask: close,
+            spread: 0,
+            time: timeMs ? new Date(timeMs).toISOString() : new Date().toISOString(),
+            marketState: 'CLOSED',
+            quoteFreshness: 'STALE',
+            source: `redis_history:${key}`
+          }
+        } catch {}
+      }
+
+      try {
+        const latestStored = await storageService.getLatestCloseQuote(clean, '1m')
+        if (latestStored && Number(latestStored.close) > 0) {
+          const close = Number(latestStored.close)
+          const timeMs = toEpochMs(latestStored.time)
+          return {
+            bid: close,
+            ask: close,
+            spread: 0,
+            time: timeMs ? new Date(timeMs).toISOString() : new Date().toISOString(),
+            marketState: 'CLOSED',
+            quoteFreshness: 'STALE',
+            source: latestStored.source || 'storage_latest_close'
+          }
+        }
+      } catch {}
+
+      return null
+    }
+
+    const prices = {}
+    
+    // Return every requested symbol with either live or fallback quote.
+    await Promise.all(symbols.map(async (symbol) => {
+      const symbolInfo = alltickApiService.getSymbolInfo(symbol)
+
+      if (!alltickApiService.isSymbolSupported(symbol)) {
+        prices[symbol] = {
+          bid: 0,
+          ask: 0,
+          spread: 0,
+          time: null,
+          marketState: 'CLOSED',
+          quoteFreshness: 'EMPTY',
+          source: 'unsupported',
+          ...symbolInfo
+        }
+        return
+      }
+
+      const live = await alltickApiService.getPrice(symbol)
+      const liveBid = Number(live?.bid)
+      const liveAsk = Number(live?.ask)
+
+      if (Number.isFinite(liveBid) && liveBid > 0 && Number.isFinite(liveAsk) && liveAsk > 0) {
+        const timeMs = toEpochMs(live?.receivedAt || live?.time)
+        prices[symbol] = {
+          bid: liveBid,
+          ask: liveAsk,
+          spread: Number(live?.spread) || Math.abs(liveAsk - liveBid),
+          time: live?.time || (timeMs ? new Date(timeMs).toISOString() : new Date().toISOString()),
+          marketState: 'OPEN',
+          quoteFreshness: getQuoteFreshness(timeMs || Date.now()),
+          source: 'live',
+          ...symbolInfo
+        }
+        return
+      }
+
+      const fallback = await getFallbackFromCachedHistory(symbol)
+      if (fallback) {
+        prices[symbol] = {
+          ...fallback,
+          ...symbolInfo
+        }
+        return
+      }
+
+      prices[symbol] = {
+        bid: 0,
+        ask: 0,
+        spread: 0,
+        time: null,
+        marketState: 'CLOSED',
+        quoteFreshness: 'EMPTY',
+        source: 'no_quote',
+        ...symbolInfo
       }
     }))
     

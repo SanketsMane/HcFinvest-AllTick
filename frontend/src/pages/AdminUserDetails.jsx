@@ -69,6 +69,14 @@ const AdminUserDetails = () => {
   idDateOfExpiry: ''
 })
 
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false)
+  const [addFundsLoading, setAddFundsLoading] = useState(false)
+  const [addFundsForm, setAddFundsForm] = useState({
+    amount: '',
+    cryptoCurrency: 'USDT',
+    adminNotes: ''
+  })
+
   useEffect(()=>{
     if(userId){
       fetchUserDetails()
@@ -389,6 +397,46 @@ if(data.user){
       console.error('Error fetching affiliate:', err)
       setAffiliate({ referralCode: null, commission: 0 })
     }
+  }
+
+  const handleManualDeposit = async () => {
+    if (!addFundsForm.amount || parseFloat(addFundsForm.amount) <= 0) {
+      alert('Please enter a valid amount')
+      return
+    }
+
+    setAddFundsLoading(true)
+    try {
+      const adminToken = localStorage.getItem('adminToken')
+      const res = await fetch(`${API_URL}/oxapay/admin/manual-deposit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({
+          userId,
+          amount: addFundsForm.amount,
+          adminNotes: addFundsForm.adminNotes,
+          cryptoCurrency: addFundsForm.cryptoCurrency
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Funds added successfully!' })
+        setShowAddFundsModal(false)
+        setAddFundsForm({ amount: '', cryptoCurrency: 'USDT', adminNotes: '' })
+        fetchWallets()
+        fetchTransactions()
+      } else {
+        alert(data.message || 'Failed to add funds')
+      }
+    } catch (error) {
+      console.error('Manual deposit error:', error)
+      alert('Error adding funds')
+    }
+    setAddFundsLoading(false)
   }
 
 
@@ -838,7 +886,16 @@ Update
 
         {activeTab === "wallets" && (
           <div className="rounded-lg p-6" style={{ backgroundColor: modeColors.bgCard }}>
-            <h3 className="text-lg font-semibold text-white mb-4">Wallets</h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-white">Wallets</h3>
+              <button
+                onClick={() => setShowAddFundsModal(true)}
+                className="px-4 py-2 bg-accent-green text-black font-bold rounded-lg text-sm hover:opacity-90 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-green-500/10"
+              >
+                <DollarSign size={16} />
+                Direct Deposit
+              </button>
+            </div>
             <div className="space-y-4">
               {wallets.length === 0 ? (
                 <div className="text-center py-8">
@@ -1119,6 +1176,87 @@ Update
 
       </div>
 
+      {/* Manual Deposit Modal */}
+      {showAddFundsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div 
+            style={{ backgroundColor: modeColors.bgCard, borderColor: modeColors.border }}
+            className="rounded-2xl w-full max-w-md border overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200"
+          >
+            <div style={{ borderBottomColor: modeColors.border }} className="flex items-center justify-between p-6 border-b">
+              <h3 className="font-bold text-xl text-white">Direct Deposit (Manual)</h3>
+              <button onClick={() => setShowAddFundsModal(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <div className="bg-green-500/10 p-4 rounded-xl border border-green-500/20 mb-2">
+                <div className="flex items-center gap-3">
+                  <Shield size={18} className="text-green-500" />
+                  <p className="text-green-500 text-xs font-bold leading-tight">
+                    This will instantly credit the user's wallet. A system transaction record will be created.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-xs mb-2 font-bold uppercase tracking-wider">Amount (USD)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={addFundsForm.amount}
+                    onChange={(e) => setAddFundsForm({ ...addFundsForm, amount: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl font-bold text-white focus:outline-none focus:ring-2 focus:ring-accent-green/20"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-xs mb-2 font-bold uppercase tracking-wider">Currency</label>
+                  <select
+                    value={addFundsForm.cryptoCurrency}
+                    onChange={(e) => setAddFundsForm({ ...addFundsForm, cryptoCurrency: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl font-bold text-white focus:outline-none focus:ring-2 focus:ring-accent-green/20"
+                  >
+                    <option value="USDT">USDT</option>
+                    <option value="BTC">BTC</option>
+                    <option value="ETH">ETH</option>
+                    <option value="LTC">LTC</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-xs mb-2 font-bold uppercase tracking-wider">Admin Notes</label>
+                <textarea
+                  value={addFundsForm.adminNotes}
+                  onChange={(e) => setAddFundsForm({ ...addFundsForm, adminNotes: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl font-medium text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent-green/20 h-24 resize-none"
+                  placeholder="Reason for manual credit..."
+                />
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <button
+                  onClick={() => setShowAddFundsModal(false)}
+                  className="flex-1 py-3 font-bold text-gray-400 rounded-xl hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleManualDeposit}
+                  disabled={addFundsLoading || !addFundsForm.amount}
+                  className="flex-[2] py-3 bg-accent-green text-black font-bold rounded-xl shadow-lg shadow-green-500/20 hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  {addFundsLoading ? <RefreshCw size={20} className="animate-spin" /> : <Check size={20} />}
+                  {addFundsLoading ? 'Processing...' : 'Authorize Deposit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
 
   )

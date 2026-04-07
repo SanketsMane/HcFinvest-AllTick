@@ -1597,7 +1597,12 @@ const defaultTemplates = [
 
                                                                                       <tr>
                                                                                         <td><strong>Payment Method :</strong></td>
-                                                                                        <td>{{payment_method}}</td>
+                                                                                        <td>{{method}}</td>
+                                                                                      </tr>
+
+                                                                                      <tr>
+                                                                                        <td><strong>Transaction ID :</strong></td>
+                                                                                        <td>{{txn_id}}</td>
                                                                                       </tr>
 
                                                                                       <tr>
@@ -2166,7 +2171,7 @@ const defaultTemplates = [
 
                                                                                       <tr>
                                                                                         <td><strong>Payment Method :</strong></td>
-                                                                                        <td>{{payment_method}}</td>
+                                                                                        <td>{{method}}</td>
                                                                                       </tr>
 
                                                                                       
@@ -2730,7 +2735,7 @@ const defaultTemplates = [
 
                                                                                       <tr>
                                                                                         <td><strong>Email :</strong></td>
-                                                                                        <td>{{email}}
+                                                                                        <td>{{email}}</td>
                                                                                       </tr>
 
                                                                                       <tr>
@@ -2740,12 +2745,12 @@ const defaultTemplates = [
 
                                                                                       <tr>
                                                                                         <td><strong>Payment Method :</strong></td>
-                                                                                        <td>{{payment_method}}</td>
+                                                                                        <td>{{method}}</td>
                                                                                       </tr>
 
                                                                                       <tr>
                                                                                         <td><strong>Transaction ID :</strong></td>
-                                                                                        <td>{{transaction_id}}</td>
+                                                                                        <td>{{txn_id}}</td>
                                                                                       </tr>
 
                                                                                       <tr>
@@ -3301,13 +3306,23 @@ const defaultTemplates = [
                                                                                       </tr>
 
                                                                                       <tr>
+                                                                                        <td><strong>Email :</strong></td>
+                                                                                        <td>{{email}}</td>
+                                                                                      </tr>
+
+                                                                                      <tr>
                                                                                         <td><strong>Amount :</strong></td>
                                                                                         <td>{{amount}}</td>
                                                                                       </tr>
 
                                                                                       <tr>
                                                                                         <td><strong>Payment Method :</strong></td>
-                                                                                        <td>{{transaction_id}}</td>
+                                                                                        <td>{{method}}</td>
+                                                                                      </tr>
+
+                                                                                      <tr>
+                                                                                        <td><strong>Transaction ID :</strong></td>
+                                                                                        <td>{{txn_id}}</td>
                                                                                       </tr>
 
                                                                                       <tr>
@@ -3865,7 +3880,12 @@ const defaultTemplates = [
 
                                                                                                 <tr>
                                                                                                   <td><strong>Document Type :</strong></td>
-                                                                                                  <td>{{documenttype}}</td>
+                                                                                                  <td>{{doc_type}}</td>
+                                                                                                </tr>
+
+                                                                                                <tr>
+                                                                                                  <td><strong>Document Number :</strong></td>
+                                                                                                  <td>{{doc_number}}</td>
                                                                                                 </tr>
 
                                                                                                 <tr>
@@ -4436,9 +4456,13 @@ const defaultTemplates = [
 
                                                                                                 <tr>
                                                                                                   <td><strong>Document Type :</strong></td>
-                                                                                                  <td>{{documenttype}}</td>
+                                                                                                  <td>{{doc_type}}</td>
                                                                                                 </tr>
 
+                                                                                                <tr>
+                                                                                                  <td><strong>Document Number :</strong></td>
+                                                                                                  <td>{{doc_number}}</td>
+                                                                                                </tr>
 
                                                                                                 <tr>
                                                                                                   <td><strong>Status :</strong></td>
@@ -5013,7 +5037,7 @@ const defaultTemplates = [
 
                                                                                               <tr>
                                                                                                 <td><strong>Competition Name :</strong></td>
-                                                                                                <td>{{competition_name}</td>
+                                                                                                <td>{{competition_name}}</td>
                                                                                               </tr>
 
                                                                                               <tr>
@@ -5344,6 +5368,8 @@ const defaultTemplates = [
 </html>`
   },
 
+
+
 ]
 
 async function seedTemplates() {
@@ -5355,7 +5381,8 @@ async function seedTemplates() {
     for (const template of defaultTemplates) {
       const existing = await EmailTemplate.findOne({ slug: template.slug })
       if (existing) {
-        console.log(`Template already exists: ${template.slug}`)
+        await EmailTemplate.updateOne({ slug: template.slug }, template)
+        console.log(`Updated template: ${template.slug}`)
         continue
       }
 
