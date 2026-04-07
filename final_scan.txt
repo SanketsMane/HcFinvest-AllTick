@@ -1,5 +1,0 @@
-  L3611: fetchLivePrices()
-  L3631: fetchLivePrices()
-  L3854: fetchLivePrices()
-  L4147: const fetchLivePrices = async () => {
-  L4256: setTimeout(() => fetchLivePrices(), 5000)

@@ -2931,10 +2931,7 @@ import Datafeed from '../services/datafeed';
 import { useTheme } from '../context/ThemeContext'
 import { normalizeSymbol, ensureISuffix } from '../utils/symbolUtils'
 import { useInterpolation } from '../hooks/useInterpolation'
-import TradingChart from '../components/TradingChart'
 import Advance_Trading_View_Chart from '../components/Advance_Trading_View_Chart'
-import All_Tick_Chart from '../components/All_Tick_Chart.jsx'
-import WebSocketTest from '../components/WebSocketTest.jsx'
 
 //Sanket v2.0 - Isolated child component — only this tiny element re-renders at 60 fps;
 // TradingPage itself is NOT triggered by the internal setDisplayPrice RAF calls.
