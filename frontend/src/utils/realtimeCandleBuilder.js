@@ -63,7 +63,7 @@ export const isAbnormalJump = ({ symbol, nextPrice, referencePrice, elapsedMs, t
   return jumpPct > maxJumpPct;
 };
 
-export const validateRealtimeTick = ({ symbol, bid, ask, time, state }) => {
+export const validateRealtimeTick = ({ symbol, bid, ask, time, state, strictJumpGuard = false }) => {
   const numericBid = Number(bid);
   const numericAsk = Number(ask);
   const hasBid = Number.isFinite(numericBid) && numericBid > 0;
@@ -97,6 +97,7 @@ export const validateRealtimeTick = ({ symbol, bid, ask, time, state }) => {
   }
 
   if (
+    strictJumpGuard &&
     Number.isFinite(previousMid) &&
     isAbnormalJump({
       symbol,

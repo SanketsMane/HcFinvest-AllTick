@@ -873,6 +873,16 @@ const Datafeed = {
       //Sanket v2.0 - Skip same-minute and stale backend candle updates; handlePriceUpdate owns live bar state
       if (validatedBar.bar.time <= lastBarTime) return;
 
+      //Sanket v2.0 - Never let backend candleUpdate leap across multiple buckets.
+      // If currentBar is 09:19 and the next backend candle arrives at 09:45, accepting it directly creates
+      // a visible gap on the chart because the intermediate buckets are never synthesized. The priceUpdate
+      // path already knows how to interpolate those missing bars, so only accept candleUpdate when it moves
+      // by at most one bucket.
+      if (currentBar && Number.isFinite(currentBar.time) && (validatedBar.bar.time - currentBar.time) > resolutionMs) {
+        console.warn(`[CANDLE-GAP-SKIP] ${symbolInfo.name} candleTime=${validatedBar.bar.time} currentBarTime=${currentBar.time} resolutionMs=${resolutionMs}`);
+        return;
+      }
+
       //Sanket v2.0 - Guard: reject candleUpdate that would advance currentBar into a FUTURE bucket.
       //Sanket v2.0 - If backend server clock ticks over before client, it emits the next-minute candle early.
       //Sanket v2.0 - Accepting it sets currentBar.time = nextMinute, causing ALL live ticks (still in current
