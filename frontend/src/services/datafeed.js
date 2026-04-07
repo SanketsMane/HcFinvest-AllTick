@@ -813,6 +813,17 @@ const Datafeed = {
       //Sanket v2.0 - Skip same-minute and stale backend candle updates; handlePriceUpdate owns live bar state
       if (validatedBar.bar.time <= lastBarTime) return;
 
+      //Sanket v2.0 - Guard: reject candleUpdate that would advance currentBar into a FUTURE bucket.
+      //Sanket v2.0 - If backend server clock ticks over before client, it emits the next-minute candle early.
+      //Sanket v2.0 - Accepting it sets currentBar.time = nextMinute, causing ALL live ticks (still in current
+      //Sanket v2.0 - minute) to hit out_of_order_bucket and be rejected until the client minute rolls over.
+      const _nowAlignedMs = Date.now() + (Datafeed._serverTimeOffsetMs || 0);
+      const _clientBucket = Math.floor(_nowAlignedMs / resolutionMs) * resolutionMs;
+      if (validatedBar.bar.time > _clientBucket) {
+        console.warn(`[CANDLE-FUTURE-SKIP] ${symbolInfo.name} candleTime=${validatedBar.bar.time} clientBucket=${_clientBucket} — skipping future bucket`);
+        return;
+      }
+
       const authoritativeBar = applyChartPriceModeToBar(validatedBar.bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
 
       currentBar = { ...authoritativeBar };
@@ -895,6 +906,14 @@ const Datafeed = {
       if (!result.accepted) {
         //Sanket v2.0 - Show actual rejection reason (was mislabeled as CHART-SPIKE-DROPPED for all rejections including out_of_order_bucket)
         console.warn(`[CHART-SKIP] ${symbol} reason=${result.reason} price=${price} currentBar.close=${currentBar?.close}`);
+        //Sanket v2.0 - Safety net: if candleUpdate still managed to advance currentBar exactly 1 bucket ahead,
+        //Sanket v2.0 - reset currentBar.time back so live ticks can resume without freezing the chart.
+        if (result.reason === 'out_of_order_bucket' && result.bucketTime &&
+            currentBar && (currentBar.time - result.bucketTime) === resolutionMs) {
+          console.warn(`[CHART-BUCKET-RESET] ${symbol} resetting currentBar.time ${currentBar.time} → ${result.bucketTime}`);
+          currentBar = { ...currentBar, time: result.bucketTime, volume: (Number(currentBar.volume) || 0) + 1 };
+          lastBarTime = result.bucketTime;
+        }
         return;
       }
 
