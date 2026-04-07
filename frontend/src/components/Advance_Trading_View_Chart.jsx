@@ -53,7 +53,7 @@ const Advance_Trading_View_Chart = ({
   const [isChartReady, setIsChartReady] = useState(false);
   const chartReadyRef = useRef(false);
   const [targetPrice, setTargetPrice] = useState(0);
-  const [feedStatus, setFeedStatus] = useState({ status: 'connecting' });
+  //   const [feedStatus, setFeedStatus] = useState({ status: 'connecting' });
 
   // ─── SMOOTH INTERPOLATION ──────────────────────────────────────────────────
   const displayPrice = useInterpolation(targetPrice, 0.2);
@@ -376,37 +376,37 @@ const Advance_Trading_View_Chart = ({
     };
   }, [symbol]);
 
-  useEffect(() => {
-    const priceEvents = getPriceEvents();
-    const handleFeedStatus = (e) => {
-      const detail = e.detail || {};
-      const detailSymbol = normalizeSymbol(detail.symbol || '');
-      if (!detailSymbol || detailSymbol !== normalizeSymbol(symbol)) return;
-      setFeedStatus(detail);
-    };
+  //   useEffect(() => {
+  //     const priceEvents = getPriceEvents();
+  //     const handleFeedStatus = (e) => {
+  //       const detail = e.detail || {};
+  //       const detailSymbol = normalizeSymbol(detail.symbol || '');
+  //       if (!detailSymbol || detailSymbol !== normalizeSymbol(symbol)) return;
+  //       setFeedStatus(detail);
+  //     };
+  //
+  //     priceEvents.addEventListener('chartFeedStatus', handleFeedStatus);
+  //     const initialStatus = Datafeed.getFeedStatus(symbol);
+  //     if (initialStatus) {
+  //       setFeedStatus(initialStatus);
+  //     } else {
+  //       setFeedStatus({ status: 'connecting', symbol: normalizeSymbol(symbol) });
+  //     }
+  //
+  //     return () => {
+  //       priceEvents.removeEventListener('chartFeedStatus', handleFeedStatus);
+  //     };
+  //   }, [symbol]);
 
-    priceEvents.addEventListener('chartFeedStatus', handleFeedStatus);
-    const initialStatus = Datafeed.getFeedStatus(symbol);
-    if (initialStatus) {
-      setFeedStatus(initialStatus);
-    } else {
-      setFeedStatus({ status: 'connecting', symbol: normalizeSymbol(symbol) });
-    }
-
-    return () => {
-      priceEvents.removeEventListener('chartFeedStatus', handleFeedStatus);
-    };
-  }, [symbol]);
-
-  const statusPalette = {
-    live: { label: 'Live feed', bg: 'rgba(16, 185, 129, 0.14)', color: '#10b981', border: 'rgba(16, 185, 129, 0.34)' },
-    stale: { label: 'Feed stale', bg: 'rgba(245, 158, 11, 0.14)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.34)' },
-    reconnecting: { label: 'Reconnecting', bg: 'rgba(59, 130, 246, 0.14)', color: '#60a5fa', border: 'rgba(96, 165, 250, 0.34)' },
-    degraded: { label: 'Feed degraded', bg: 'rgba(239, 68, 68, 0.14)', color: '#f87171', border: 'rgba(248, 113, 113, 0.34)' },
-    connecting: { label: 'Connecting', bg: 'rgba(148, 163, 184, 0.14)', color: '#cbd5e1', border: 'rgba(203, 213, 225, 0.28)' },
-    disconnected: { label: 'Disconnected', bg: 'rgba(148, 163, 184, 0.14)', color: '#cbd5e1', border: 'rgba(203, 213, 225, 0.28)' }
-  };
-  const feedBadge = statusPalette[feedStatus?.status] || statusPalette.connecting;
+  //   const statusPalette = {
+  // live: { label: 'Live feed', bg: 'rgba(16, 185, 129, 0.14)', color: '#10b981', border: 'rgba(16, 185, 129, 0.34)' },
+  // stale: { label: 'Feed stale', bg: 'rgba(245, 158, 11, 0.14)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.34)' },
+  // reconnecting: { label: 'Reconnecting', bg: 'rgba(59, 130, 246, 0.14)', color: '#60a5fa', border: 'rgba(96, 165, 250, 0.34)' },
+  // degraded: { label: 'Feed degraded', bg: 'rgba(239, 68, 68, 0.14)', color: '#f87171', border: 'rgba(248, 113, 113, 0.34)' },
+  // connecting: { label: 'Connecting', bg: 'rgba(148, 163, 184, 0.14)', color: '#cbd5e1', border: 'rgba(203, 213, 225, 0.28)' },
+  // disconnected: { label: 'Disconnected', bg: 'rgba(148, 163, 184, 0.14)', color: '#cbd5e1', border: 'rgba(203, 213, 225, 0.28)' }
+  // };
+  //   const feedBadge = statusPalette[feedStatus?.status] || statusPalette.connecting;
 
   return (
     <div
@@ -417,7 +417,8 @@ const Advance_Trading_View_Chart = ({
         backgroundColor: "#0d0d0d"
       }}
     >
-      <div
+
+      {/* <div
         style={{
           position: "absolute",
           top: 12,
@@ -435,7 +436,8 @@ const Advance_Trading_View_Chart = ({
         }}
       >
         {feedBadge.label}
-      </div>
+      </div> */}
+
       <div
         ref={containerRef}
         style={{
