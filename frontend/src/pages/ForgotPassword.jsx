@@ -146,7 +146,7 @@ const ForgotPassword = () => {
                 disabled={loading}
                 className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-gray-100 transition-colors mt-2 disabled:opacity-50"
               >
-                {loading ? 'Submitting...' : 'Submit Request'}
+                {loading ? 'Submitting...' : 'Submit'}
               </button>
             </form>
 

@@ -635,6 +635,50 @@ router.post('/reset-password', async (req, res) => {
   }
 })
 
+// GET /api/auth/verify-reset-token/:token - Verify reset token
+router.get('/verify-reset-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token is required'
+      })
+    }
+
+    // Hash token
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex')
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    })
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset link'
+      })
+    }
+
+    res.json({
+      success: true,
+      message: 'Token is valid'
+    })
+
+  } catch (error) {
+    console.error('Verify token error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error verifying token'
+    })
+  }
+})
+
 // POST /api/auth/change-password - Change user password
 router.post('/change-password', async (req, res) => {
   try {

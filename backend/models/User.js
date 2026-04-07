@@ -160,6 +160,16 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: {
     type: Date,
     default: null
+  },
+  
+  // Password reset fields
+  resetPasswordToken: {
+    type: String,
+    default: null
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null
   }
 })
 

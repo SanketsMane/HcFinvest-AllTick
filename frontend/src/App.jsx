@@ -37,6 +37,7 @@ import ChallengeDashboardPage from './pages/ChallengeDashboardPage'
 import AdminPropTrading from './pages/AdminPropTrading'
 import AdminEarnings from './pages/AdminEarnings'
 import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import AdminThemeSettings from './pages/AdminThemeSettings'
 import BrandedLogin from './pages/BrandedLogin'
 import BrandedSignup from './pages/BrandedSignup'
@@ -123,6 +124,7 @@ function App() {
         <Route path="/user/trial" element={<Trial />} />
         <Route path="/user/login" element={<Login />} />
         <Route path="/user/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         {/* <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="/dashboard" element={<New_Dashboard />} />
         <Route path="/competition" element={<Competitions />} />
