@@ -415,7 +415,7 @@ const sendCompetitionJoinEmail = async ({
       await deductEntryFee({ userId: clientId, amount: entryFee });
       // ✅ STEP 2: DEDUCT ENTRY FEE
       await joinCompetition(selectedCompetition);
-      // ✅ STEP 3: CREATE DEMO ACCOUNT
+      // ✅ STEP 3: INSERT DATA IN COMPETITION PARTICIPANTS
       await createParticipant({ competitionId: selectedCompetition, user, initialDeposit });
       // ✅ STEP 4: CREATE DEMO ACCOUNT
       const demoRes = await handleCreateCompetitionDemo();
@@ -426,7 +426,7 @@ const sendCompetitionJoinEmail = async ({
       setEnrollmentData({
         name: user.firstName,
         email: user.email,
-        accountNumber: demoRes?.data?.accountId,
+        accountNumber: demoRes?.account?.accountId,
         // username: demoRes?.data?.email,
         username: user.email,
         password: user.password || "******",
@@ -903,7 +903,7 @@ const sendCompetitionJoinEmail = async ({
 
                       {top3[2] && (
                         <p className="text-sm font-semibold text-slate-100">
-                          {top3[2].name}
+                          {top3[1].name}
                         </p>
                       )}
 
