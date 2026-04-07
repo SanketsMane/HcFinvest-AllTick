@@ -29,6 +29,29 @@ export const getRealtimeSpikeThresholdPercent = (symbol = '') => {
   return 3;
 };
 
+export const getRealtimeRecoveryConfig = (symbol = '') => {
+  const upper = String(symbol).toUpperCase();
+
+  if (upper.includes('BTC') || upper.includes('ETH') || upper.includes('BNB') || upper.includes('SOL') || upper.includes('XRP') || upper.includes('ADA') || upper.includes('DOGE') || upper.includes('LTC')) {
+    return { minRejects: 2, clusterPct: 1.5, windowMs: 12000 };
+  }
+
+  if (upper.includes('XAU') || upper.includes('XAG') || upper.includes('OIL') || upper.includes('NGAS') || upper.includes('COPPER') || upper.includes('US30') || upper.includes('US100') || upper.includes('US500') || upper.includes('UK100') || upper.includes('ES35')) {
+    return { minRejects: 3, clusterPct: 0.75, windowMs: 15000 };
+  }
+
+  return { minRejects: 3, clusterPct: 0.35, windowMs: 10000 };
+};
+
+export const isStableRecoveryCluster = ({ symbol, minPrice, maxPrice, referencePrice }) => {
+  if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice) || !Number.isFinite(referencePrice) || referencePrice <= 0) {
+    return false;
+  }
+
+  const spanPct = Math.abs(maxPrice - minPrice) / referencePrice * 100;
+  return spanPct <= getRealtimeRecoveryConfig(symbol).clusterPct;
+};
+
 export const isAbnormalJump = ({ symbol, nextPrice, referencePrice, elapsedMs, thresholdPct }) => {
   if (!Number.isFinite(nextPrice) || !Number.isFinite(referencePrice) || referencePrice <= 0) return false;
   if (Number.isFinite(elapsedMs) && elapsedMs > LONG_GAP_MS) return false;

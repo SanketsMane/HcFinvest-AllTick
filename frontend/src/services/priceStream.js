@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client'
 import { API_BASE_URL } from '../config/api'
 import { getPriceEvents } from './eventSystem'
-import { validateRealtimeTick } from '../utils/realtimeCandleBuilder'
+import { getRealtimeRecoveryConfig, isStableRecoveryCluster, validateRealtimeTick } from '../utils/realtimeCandleBuilder'
 
 const PRICE_STREAM_DEBUG = false
 const debugPriceStream = (...args) => {
@@ -50,9 +50,40 @@ class PriceStreamService {
     this._lastAcceptedMidBySymbol = new Map()
     this._lastAcceptedTimeBySymbol = new Map()
     this._barSubscriptionCounts = new Map()
-    //Sanket v2.0 - Track consecutive rejections per symbol to detect real market gaps vs spikes
-    this._consecutiveRejCount = new Map()
-    this._lastRejMidBySymbol = new Map()
+    //Sanket v2.0 - Stores rejected-tick clusters so stale references can be reset after a real repricing.
+    this._rejectionStateBySymbol = new Map()
+  }
+
+  _resetRejectedTickState(symbol) {
+    this._rejectionStateBySymbol.delete(symbol)
+  }
+
+  _recordRejectedTick(symbol, result, currentMid) {
+    const now = Date.now()
+    const config = getRealtimeRecoveryConfig(symbol)
+    const previous = this._rejectionStateBySymbol.get(symbol)
+    const shouldResetWindow = !previous || previous.reason !== result.reason || (now - previous.firstRejectedAt) > config.windowMs
+    const next = shouldResetWindow
+      ? {
+          reason: result.reason,
+          count: 1,
+          firstRejectedAt: now,
+          lastRejectedAt: now,
+          minMid: currentMid,
+          maxMid: currentMid,
+          lastTickTime: Number.isFinite(result.tickTime) ? result.tickTime : Date.now()
+        }
+      : {
+          ...previous,
+          count: previous.count + 1,
+          lastRejectedAt: now,
+          minMid: Math.min(previous.minMid, currentMid),
+          maxMid: Math.max(previous.maxMid, currentMid),
+          lastTickTime: Number.isFinite(result.tickTime) ? result.tickTime : previous.lastTickTime
+        }
+
+    this._rejectionStateBySymbol.set(symbol, next)
+    return next
   }
 
   _normalizePriceEnvelope(price = {}, defaults = {}) {
@@ -96,31 +127,30 @@ class PriceStreamService {
     })
 
     if (!result.accepted) {
-      //Sanket v2.0 - Consecutive rejection guard: detects real market gaps vs random spikes.
-      //Sanket v2.0 - If lastMid goes stale (e.g. gap down), ALL subsequent ticks get rejected forever.
-      //Sanket v2.0 - After 5 consecutive rejections at a consistent price cluster (range < 0.5%),
-      //Sanket v2.0 - force-reset lastMid to the actual market price so the chart resumes immediately.
-      const currentMid = Number.isFinite(result.mid) ? result.mid : ((Number(bid) + Number(ask)) / 2);
-      const rejCount = (this._consecutiveRejCount.get(symbol) || 0) + 1;
-      this._consecutiveRejCount.set(symbol, rejCount);
-      const lastRejMid = this._lastRejMidBySymbol.get(symbol);
-      const consistent = !Number.isFinite(lastRejMid) || (Math.abs(currentMid - lastRejMid) / lastRejMid) < 0.005;
-      this._lastRejMidBySymbol.set(symbol, currentMid);
-      if (rejCount >= 5 && consistent && Number.isFinite(currentMid) && currentMid > 0) {
-        console.warn(`[TICK-FORCE-ACCEPT] ${symbol} consecutive rejections=${rejCount} — resetting lastMid ${this._lastAcceptedMidBySymbol.get(symbol)} → ${currentMid} (real market move)`);
-        const acceptedTime = Number.isFinite(result.tickTime) ? result.tickTime : Date.now();
-        this._lastAcceptedMidBySymbol.set(symbol, currentMid);
-        this._lastAcceptedTimeBySymbol.set(symbol, acceptedTime);
-        this._consecutiveRejCount.delete(symbol);
-        this._lastRejMidBySymbol.delete(symbol);
-        return { accepted: true, bid: Number(bid), ask: Number(ask), mid: currentMid, tickTime: acceptedTime };
+      //Sanket v2.0 - Persistent repricing recovery: if a symbol rejects several ticks clustered around
+      //Sanket v2.0 - the same new price, the old reference is stale and must be replaced to unlock the stream.
+      const currentMid = Number.isFinite(result.mid) ? result.mid : ((Number(bid) + Number(ask)) / 2)
+      const rejectionState = this._recordRejectedTick(symbol, result, currentMid)
+      const recoveryConfig = getRealtimeRecoveryConfig(symbol)
+      const stableCluster = isStableRecoveryCluster({
+        symbol,
+        minPrice: rejectionState.minMid,
+        maxPrice: rejectionState.maxMid,
+        referencePrice: currentMid
+      })
+      if (result.reason === 'abnormal_jump' && rejectionState.count >= recoveryConfig.minRejects && stableCluster) {
+        const acceptedTime = Number.isFinite(result.tickTime) ? result.tickTime : Date.now()
+        console.warn(`[TICK-RECOVERY] ${symbol} reason=${result.reason} count=${rejectionState.count} lastMid=${this._lastAcceptedMidBySymbol.get(symbol)} -> ${currentMid}`)
+        this._lastAcceptedMidBySymbol.set(symbol, currentMid)
+        this._lastAcceptedTimeBySymbol.set(symbol, acceptedTime)
+        this._resetRejectedTickState(symbol)
+        return { accepted: true, bid: Number(bid), ask: Number(ask), mid: currentMid, tickTime: acceptedTime, recovered: true }
       }
-      return result;
+      return { ...result, rejectionCount: rejectionState.count }
     }
 
-    //Sanket v2.0 - Successful tick — reset rejection tracking so counter starts fresh next time
-    this._consecutiveRejCount.delete(symbol);
-    this._lastRejMidBySymbol.delete(symbol);
+    //Sanket v2.0 - Successful tick — stale recovery state is no longer needed.
+    this._resetRejectedTickState(symbol)
     this._lastAcceptedMidBySymbol.set(symbol, result.mid)
     this._lastAcceptedTimeBySymbol.set(symbol, result.tickTime)
     return result
@@ -386,7 +416,7 @@ class PriceStreamService {
 
       const acceptedTick = this._acceptRealtimeTick(symbol, bid, ask, time)
       if (!acceptedTick.accepted) {
-        console.warn(`[TICK-REJECTED] ${symbol} bid=${bid} — rejected by _acceptRealtimeTick`)
+        console.warn(`[TICK-REJECTED] ${symbol} bid=${bid} reason=${acceptedTick.reason || 'unknown'} count=${acceptedTick.rejectionCount || 1} — rejected by _acceptRealtimeTick`)
         return
       }
 

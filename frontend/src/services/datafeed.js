@@ -2,7 +2,7 @@ import { API_URL } from "../config/api";
 import { normalizeSymbol } from "../utils/symbolUtils";
 import priceStreamService from "./priceStream";
 import { getPriceEvents } from "./eventSystem";
-import { buildCandleFromTick, validateRealtimeBar } from "../utils/realtimeCandleBuilder";
+import { buildCandleFromTick, getRealtimeRecoveryConfig, isStableRecoveryCluster, validateRealtimeBar } from "../utils/realtimeCandleBuilder";
 import { sanitizeBatch, validateRealtimeUpdate, getSpikeThreshold } from "../utils/chartSanitizer";
 
 const DATAFEED_DEBUG = false;
@@ -620,6 +620,7 @@ const Datafeed = {
     let _priceWindow = [];
     let _consecutiveSpikes = 0;
     const MAX_CONSECUTIVE_SPIKES = 5;
+    let _rejectedTickState = null;
 
     const _getChartSpikeThresholdPct = (sym) => {
       const u = String(sym).toUpperCase();
@@ -635,6 +636,59 @@ const Datafeed = {
       const median = sorted[Math.floor(sorted.length / 2)];
       const devPct = Math.abs((price - median) / median) * 100;
       return devPct > _getChartSpikeThresholdPct(sym);
+    };
+
+    const _resetRejectedTickState = () => {
+      _rejectedTickState = null;
+    };
+
+    const _seedRecoveredBar = (barTime, price, reason, count) => {
+      if (!Number.isFinite(barTime) || !Number.isFinite(price) || price <= 0) return false;
+
+      currentBar = {
+        time: barTime,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: 1
+      };
+      lastBarTime = barTime;
+      Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
+      Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
+      _priceWindow = Array(5).fill(price);
+      _consecutiveSpikes = 0;
+      _resetRejectedTickState();
+      console.warn(`[CHART-RECOVERY] ${symbolInfo.name} reason=${reason} count=${count} seeded barTime=${barTime} price=${price}`);
+      pushBar(currentBar);
+      return true;
+    };
+
+    const _registerRejectedTick = (reason, price, bucketTime) => {
+      const now = Date.now();
+      const recoveryConfig = getRealtimeRecoveryConfig(symbolInfo.name);
+      const shouldResetWindow = !_rejectedTickState || _rejectedTickState.reason !== reason || (now - _rejectedTickState.firstRejectedAt) > recoveryConfig.windowMs;
+
+      _rejectedTickState = shouldResetWindow
+        ? {
+            reason,
+            count: 1,
+            firstRejectedAt: now,
+            lastRejectedAt: now,
+            minPrice: price,
+            maxPrice: price,
+            bucketTime
+          }
+        : {
+            ..._rejectedTickState,
+            count: _rejectedTickState.count + 1,
+            lastRejectedAt: now,
+            minPrice: Math.min(_rejectedTickState.minPrice, price),
+            maxPrice: Math.max(_rejectedTickState.maxPrice, price),
+            bucketTime
+          };
+
+      return _rejectedTickState;
     };
 
     const seededBar = Datafeed._lastHistoryBars?.[historyKey];
@@ -825,6 +879,7 @@ const Datafeed = {
       }
 
       const authoritativeBar = applyChartPriceModeToBar(validatedBar.bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
+      _resetRejectedTickState();
 
       currentBar = { ...authoritativeBar };
       lastBarTime = validatedBar.bar.time;
@@ -906,6 +961,14 @@ const Datafeed = {
       if (!result.accepted) {
         //Sanket v2.0 - Show actual rejection reason (was mislabeled as CHART-SPIKE-DROPPED for all rejections including out_of_order_bucket)
         console.warn(`[CHART-SKIP] ${symbol} reason=${result.reason} price=${price} currentBar.close=${currentBar?.close}`);
+        const recoveryState = _registerRejectedTick(result.reason, price, result.bucketTime);
+        const recoveryConfig = getRealtimeRecoveryConfig(symbolInfo.name);
+        const stableCluster = isStableRecoveryCluster({
+          symbol: symbolInfo.name,
+          minPrice: recoveryState.minPrice,
+          maxPrice: recoveryState.maxPrice,
+          referencePrice: price
+        });
         //Sanket v2.0 - Safety net: if candleUpdate still managed to advance currentBar exactly 1 bucket ahead,
         //Sanket v2.0 - reset currentBar.time back so live ticks can resume without freezing the chart.
         if (result.reason === 'out_of_order_bucket' && result.bucketTime &&
@@ -913,9 +976,22 @@ const Datafeed = {
           console.warn(`[CHART-BUCKET-RESET] ${symbol} resetting currentBar.time ${currentBar.time} → ${result.bucketTime}`);
           currentBar = { ...currentBar, time: result.bucketTime, volume: (Number(currentBar.volume) || 0) + 1 };
           lastBarTime = result.bucketTime;
+          if (recoveryState.count >= 2) {
+            _seedRecoveredBar(result.bucketTime, price, result.reason, recoveryState.count);
+          }
+          return;
+        }
+        //Sanket v2.0 - If the live bar reference is stale after a real repricing, rebuild the bar from the
+        //Sanket v2.0 - new price cluster instead of rejecting indefinitely against an old close.
+        if (result.reason === 'abnormal_tick_jump' && result.bucketTime && stableCluster && recoveryState.count >= recoveryConfig.minRejects) {
+          if (_seedRecoveredBar(result.bucketTime, price, result.reason, recoveryState.count)) {
+            return;
+          }
         }
         return;
       }
+
+      _resetRejectedTickState();
 
       //Sanket v2.0 - Update rolling window with accepted price so median stays current
       _priceWindow.push(price);

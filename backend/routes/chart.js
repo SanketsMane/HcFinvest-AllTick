@@ -15,6 +15,13 @@ const resolveTargetSymbol = (rawSymbol) => {
 };
 
 const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+const SOURCE_TYPE_BLOCKLIST = [
+  /horzline/i,
+  /priceline/i,
+  /position/i,
+  /execution/i,
+  /order/i
+];
 
 const getLayoutSizeBytes = (layoutJson) => {
   try {
@@ -36,6 +43,53 @@ const validateLayoutPayload = (layoutJson) => {
   return null;
 };
 
+const sanitizeLayoutNode = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeLayoutNode).filter((item) => item !== undefined);
+  }
+
+  if (!isPlainObject(value)) {
+    return value;
+  }
+
+  const next = {};
+  Object.entries(value).forEach(([key, rawChild]) => {
+    if (key === 'sources' && Array.isArray(rawChild)) {
+      next[key] = rawChild
+        .map(sanitizeLayoutNode)
+        .filter((source) => {
+          if (!isPlainObject(source)) return false;
+          const type = String(source.type || source.source_type || '').trim();
+          if (!type) return true;
+          if (type.toLowerCase() === 'unknown') return false;
+          return !SOURCE_TYPE_BLOCKLIST.some((pattern) => pattern.test(type));
+        });
+      return;
+    }
+
+    const child = sanitizeLayoutNode(rawChild);
+    if (child !== undefined) {
+      next[key] = child;
+    }
+  });
+
+  return next;
+};
+
+const sanitizeLayoutPayload = (layoutJson) => {
+  if (!isPlainObject(layoutJson)) return null;
+
+  let cloned = null;
+  try {
+    cloned = JSON.parse(JSON.stringify(layoutJson));
+  } catch {
+    return null;
+  }
+
+  if (!isPlainObject(cloned)) return null;
+  return sanitizeLayoutNode(cloned);
+};
+
 router.use(authMiddleware);
 
 router.post('/save', async (req, res) => {
@@ -47,7 +101,8 @@ router.post('/save', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authenticated user is required' });
     }
 
-    const validationError = validateLayoutPayload(layoutJson);
+    const sanitizedLayoutJson = sanitizeLayoutPayload(layoutJson);
+    const validationError = validateLayoutPayload(sanitizedLayoutJson);
     if (validationError) {
       return res.status(400).json({ success: false, message: validationError });
     }
@@ -56,7 +111,7 @@ router.post('/save', async (req, res) => {
     const layout = await ChartLayout.findOneAndUpdate(
       { userId, symbol: targetSymbol },
       {
-        layoutJson,
+        layoutJson: sanitizedLayoutJson,
         layoutVersion: CURRENT_LAYOUT_VERSION,
         symbol: targetSymbol,
         timestamp: Date.now()
@@ -106,9 +161,15 @@ const loadLayout = async (req, res) => {
       return res.status(404).json({ success: false, message: 'No saved layout found', symbol: targetSymbol, userScoped: true });
     }
 
+    const sanitizedLayoutJson = sanitizeLayoutPayload(layout.layoutJson);
+    if (sanitizedLayoutJson && JSON.stringify(sanitizedLayoutJson) !== JSON.stringify(layout.layoutJson)) {
+      layout.layoutJson = sanitizedLayoutJson;
+      await layout.save();
+    }
+
     return res.json({
       success: true,
-      layoutJson: layout.layoutJson,
+      layoutJson: sanitizedLayoutJson || layout.layoutJson,
       layoutVersion: layout.layoutVersion || 1,
       timestamp: layout.timestamp,
       symbol: targetSymbol,
