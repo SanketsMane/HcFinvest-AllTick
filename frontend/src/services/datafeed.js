@@ -457,6 +457,17 @@ const Datafeed = {
       } catch {}
     };
 
+    //Sanket v2.0 - Immediately push the seeded bar via onRealtimeCallback so TradingView activates
+    //Sanket v2.0 - it as the current live candle before the first tick arrives.
+    //Sanket v2.0 - Without this TV treats the injected getBars candle as "static history" and waits
+    //Sanket v2.0 - for the first tick to define the candle body — causing the tiny/late-start visual bug.
+    //Sanket v2.0 - setTimeout(0): deferred so TV's subscribeBars handler finishes registering first.
+    if (currentBar) {
+      setTimeout(() => {
+        if (isActive && currentBar) pushBar(currentBar);
+      }, 0);
+    }
+
     //Sanket v2.0 - Rewritten: Phase 1 fetches CURRENT RUNNING bar directly from backend live state
     //Sanket v2.0 - This is the REAL FIX: on mid-candle joins the chart now continues the active candle
     //Sanket v2.0 - instead of creating a new empty one. Phase 2 falls back to preferLive history.
