@@ -50,6 +50,9 @@ class PriceStreamService {
     this._lastAcceptedMidBySymbol = new Map()
     this._lastAcceptedTimeBySymbol = new Map()
     this._barSubscriptionCounts = new Map()
+    //Sanket v2.0 - Track consecutive rejections per symbol to detect real market gaps vs spikes
+    this._consecutiveRejCount = new Map()
+    this._lastRejMidBySymbol = new Map()
   }
 
   _normalizePriceEnvelope(price = {}, defaults = {}) {
@@ -92,8 +95,32 @@ class PriceStreamService {
       }
     })
 
-    if (!result.accepted) return result
+    if (!result.accepted) {
+      //Sanket v2.0 - Consecutive rejection guard: detects real market gaps vs random spikes.
+      //Sanket v2.0 - If lastMid goes stale (e.g. gap down), ALL subsequent ticks get rejected forever.
+      //Sanket v2.0 - After 5 consecutive rejections at a consistent price cluster (range < 0.5%),
+      //Sanket v2.0 - force-reset lastMid to the actual market price so the chart resumes immediately.
+      const currentMid = Number.isFinite(result.mid) ? result.mid : ((Number(bid) + Number(ask)) / 2);
+      const rejCount = (this._consecutiveRejCount.get(symbol) || 0) + 1;
+      this._consecutiveRejCount.set(symbol, rejCount);
+      const lastRejMid = this._lastRejMidBySymbol.get(symbol);
+      const consistent = !Number.isFinite(lastRejMid) || (Math.abs(currentMid - lastRejMid) / lastRejMid) < 0.005;
+      this._lastRejMidBySymbol.set(symbol, currentMid);
+      if (rejCount >= 5 && consistent && Number.isFinite(currentMid) && currentMid > 0) {
+        console.warn(`[TICK-FORCE-ACCEPT] ${symbol} consecutive rejections=${rejCount} — resetting lastMid ${this._lastAcceptedMidBySymbol.get(symbol)} → ${currentMid} (real market move)`);
+        const acceptedTime = Number.isFinite(result.tickTime) ? result.tickTime : Date.now();
+        this._lastAcceptedMidBySymbol.set(symbol, currentMid);
+        this._lastAcceptedTimeBySymbol.set(symbol, acceptedTime);
+        this._consecutiveRejCount.delete(symbol);
+        this._lastRejMidBySymbol.delete(symbol);
+        return { accepted: true, bid: Number(bid), ask: Number(ask), mid: currentMid, tickTime: acceptedTime };
+      }
+      return result;
+    }
 
+    //Sanket v2.0 - Successful tick — reset rejection tracking so counter starts fresh next time
+    this._consecutiveRejCount.delete(symbol);
+    this._lastRejMidBySymbol.delete(symbol);
     this._lastAcceptedMidBySymbol.set(symbol, result.mid)
     this._lastAcceptedTimeBySymbol.set(symbol, result.tickTime)
     return result
