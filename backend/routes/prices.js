@@ -59,10 +59,11 @@ router.get('/time', (req, res) => {
 })
 
 //Sanket v2.0 - Returns the currently running (in-progress) candle from backend live state
-//Sanket v2.0 - Frontend bootstrapLiveBar calls this to get exact OHLC of the active candle
-//Sanket v2.0 - Without this, chart creates a brand-new empty candle on load instead of continuing the real one
+//Sanket v2.0 - Also returns recent CLOSED candles from Redis ZSET rolling buffer (last 30 min)
+//Sanket v2.0 - recentClosed fills the gap between stale AllTick history and the current bar
+//Sanket v2.0 - Without recentClosed the frontend gap-fill uses flat placeholder bars → blank visual gap
 // GET /api/prices/current-candle?symbol=XAUUSD&resolution=1m
-router.get('/current-candle', (req, res) => {
+router.get('/current-candle', async (req, res) => {
   try {
     const { symbol, resolution } = req.query;
     if (!symbol || !resolution) {
@@ -70,33 +71,43 @@ router.get('/current-candle', (req, res) => {
     }
 
     const cleanSymbol = canonicalizeSymbol(symbol);
+    const serverNow = Date.now();
+    const timeframeMs = storageService.timeframeToSeconds(resolution) * 1000;
+    const currentBucketStart = Math.floor(serverNow / timeframeMs) * timeframeMs;
+
+    // ── Current open bar from in-memory liveBars ──
     const barKey = `${cleanSymbol}|${resolution}`;
     const liveBar = storageService.liveBars.get(barKey);
-
-    if (!liveBar || !liveBar.timeMs) {
-      return res.json({ success: true, candle: null });
-    }
-
-    //Sanket v2.0 - Reject stale live bars (older than 2x the timeframe interval = clearly a past candle)
-    const timeframeMs = storageService.timeframeToSeconds(resolution) * 1000;
-    const serverNow = Date.now();
-    const bucketStart = Math.floor(serverNow / timeframeMs) * timeframeMs;
-    if (liveBar.timeMs < bucketStart) {
-      // Bar is from previoius bucket — don't return it as "current"
-      return res.json({ success: true, candle: null });
-    }
-
-    return res.json({
-      success: true,
-      candle: {
-        time: liveBar.timeMs,    // milliseconds (TradingView format)
+    let currentCandle = null;
+    if (liveBar && liveBar.timeMs >= currentBucketStart) {
+      currentCandle = {
+        time: liveBar.timeMs,
         open: liveBar.open,
         high: liveBar.high,
         low: liveBar.low,
         close: liveBar.close,
         volume: liveBar.volume || 0,
         isClosed: false
-      }
+      };
+    }
+
+    //Sanket v2.0 - Fetch recent CLOSED candles from Redis ZSET (last 30 min, up to current bucket)
+    //Sanket v2.0 - These are tick-accurate bars built by storageService.ingestTick → pushToRedisRolling
+    //Sanket v2.0 - They are missing from AllTick history due to 5-minute Redis response cache lag
+    const fromSec = Math.floor((serverNow - 30 * 60 * 1000) / 1000);
+    const toSec = Math.floor((currentBucketStart - 1) / 1000);
+    const rawRecent = await storageService.getCandlesFromRedis(cleanSymbol, resolution, fromSec, toSec, 60);
+    const recentClosed = rawRecent
+      .map(b => {
+        const t = b.time instanceof Date ? b.time.getTime() : Number(b.time);
+        return { time: t, open: Number(b.open), high: Number(b.high), low: Number(b.low), close: Number(b.close), volume: Number(b.volume) || 0 };
+      })
+      .filter(b => Number.isFinite(b.time) && b.time > 0 && Number.isFinite(b.close) && b.close > 0);
+
+    return res.json({
+      success: true,
+      candle: currentCandle,
+      recentClosed
     });
   } catch (error) {
     console.error('[current-candle] error:', error.message);

@@ -313,8 +313,8 @@ const Datafeed = {
           //Sanket v2.0 - CRITICAL: Inject current running candle into history array on first request
           //Sanket v2.0 - TradingView sets lastBarsCache from the LAST bar in onHistoryCallback
           //Sanket v2.0 - If the live candle is NOT in this array, TV creates a new empty bar on first tick
-          //Sanket v2.0 - Also gap-fill any intermediate closed buckets between history end and live candle
-          //Sanket v2.0 - Without gap-fill: history ends at 06:04, live jumps to 06:08 → blank visual gap
+          //Sanket v2.0 - Also use recentClosed (Redis ZSET candles) to fill the gap left by stale history cache
+          //Sanket v2.0 - Without this: history ends at 06:14 (5-min cache lag), live bar at 06:27 → 13-min blank gap
           if (useLiveCache) {
             try {
               const liveRes = await fetch(
@@ -322,39 +322,59 @@ const Datafeed = {
               );
               if (liveRes.ok) {
                 const liveJson = await liveRes.json();
-                if (liveJson?.success && liveJson.candle && Number.isFinite(liveJson.candle.time) && liveJson.candle.time > 0) {
-                  const rawLive = {
-                    time: liveJson.candle.time,
-                    open: Number(liveJson.candle.open),
-                    high: Number(liveJson.candle.high),
-                    low: Number(liveJson.candle.low),
-                    close: Number(liveJson.candle.close),
-                    volume: Number(liveJson.candle.volume) || 0
-                  };
-                  const liveBar = applyChartPriceModeToBar(rawLive, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
-                  const lastHistoryBar = bars[bars.length - 1];
-                  if (liveBar.time === lastHistoryBar.time) {
-                    //Sanket v2.0 - Same bucket: replace history bar with tick-accurate live OHLC
-                    bars[bars.length - 1] = liveBar;
-                    console.log(`[DATAFEED] ✅ Live candle merged (replaced) for ${symbolInfo.name} t=${liveBar.time}`);
-                  } else if (liveBar.time > lastHistoryBar.time) {
-                    //Sanket v2.0 - Newer bucket: first fill any gap between history end and live candle
-                    //Sanket v2.0 - This prevents blank empty space on the chart when cache is a few minutes stale
-                    const _tfMsMap = { '1m':60000,'5m':300000,'15m':900000,'30m':1800000,'1h':3600000,'2h':7200000,'4h':14400000,'1d':86400000,'1w':604800000,'1M':2592000000 };
-                    const _resMs = _tfMsMap[timeframe] || 60000;
-                    const _gapMs = liveBar.time - lastHistoryBar.time;
-                    if (_gapMs > _resMs && _gapMs < 2 * 60 * 60 * 1000) {
-                      //Sanket v2.0 - Gap is more than 1 bucket but less than 2 hours — fill with flat bars
-                      const _prevClose = lastHistoryBar.close;
-                      let _fillTime = lastHistoryBar.time + _resMs;
-                      while (_fillTime < liveBar.time) {
-                        bars.push({ time: _fillTime, open: _prevClose, high: _prevClose, low: _prevClose, close: _prevClose, volume: 0.0001 });
-                        _fillTime += _resMs;
+                if (liveJson?.success) {
+                  const recentClosed = Array.isArray(liveJson.recentClosed) ? liveJson.recentClosed : [];
+                  const liveCandle = liveJson.candle;
+
+                  // ── Step 1: Merge recentClosed Redis candles to fill the history gap ──
+                  //Sanket v2.0 - recentClosed has tick-accurate bars from the last 30 min from Redis ZSET
+                  //Sanket v2.0 - We use them to replace/append candles that AllTick history is missing
+                  if (recentClosed.length > 0) {
+                    const lastHistTime = bars[bars.length - 1].time;
+                    for (const rc of recentClosed) {
+                      if (!Number.isFinite(rc.time) || rc.time <= 0) continue;
+                      if (rc.time <= lastHistTime) {
+                        //Sanket v2.0 - Bar already exists in history: replace it with fresher Redis data
+                        const idx = bars.findIndex(b => b.time === rc.time);
+                        if (idx !== -1) bars[idx] = applyChartPriceModeToBar(rc, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
+                      } else {
+                        //Sanket v2.0 - Bar is newer than history: append to fill the gap
+                        bars.push(applyChartPriceModeToBar(rc, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide));
                       }
-                      console.log(`[DATAFEED] ✅ Gap-filled ${Math.round(_gapMs / _resMs) - 1} candles for ${symbolInfo.name}`);
                     }
-                    bars.push(liveBar);
-                    console.log(`[DATAFEED] ✅ Live candle appended for ${symbolInfo.name} t=${liveBar.time}`);
+                    // Re-sort after merging (recentClosed may arrive out-of-order)
+                    bars.sort((a, b) => a.time - b.time);
+                    console.log(`[DATAFEED] ✅ Merged ${recentClosed.length} Redis candles for ${symbolInfo.name}`);
+                  }
+
+                  // ── Step 2: Append current open bar (or flat-fill any remaining tiny gap) ──
+                  if (liveCandle && Number.isFinite(liveCandle.time) && liveCandle.time > 0) {
+                    const rawLive = {
+                      time: liveCandle.time,
+                      open: Number(liveCandle.open),
+                      high: Number(liveCandle.high),
+                      low: Number(liveCandle.low),
+                      close: Number(liveCandle.close),
+                      volume: Number(liveCandle.volume) || 0
+                    };
+                    const liveBar = applyChartPriceModeToBar(rawLive, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
+                    const lastHistoryBar = bars[bars.length - 1];
+                    if (liveBar.time === lastHistoryBar.time) {
+                      //Sanket v2.0 - Same bucket: replace with live OHLC (more ticks than Redis has)
+                      bars[bars.length - 1] = liveBar;
+                      console.log(`[DATAFEED] ✅ Live candle merged for ${symbolInfo.name} t=${liveBar.time}`);
+                    } else if (liveBar.time > lastHistoryBar.time) {
+                      //Sanket v2.0 - Still a small gap? flat-fill any remaining buckets (should be at most 1-2)
+                      const _tfMsMap = {'1m':60000,'5m':300000,'15m':900000,'30m':1800000,'1h':3600000,'2h':7200000,'4h':14400000,'1d':86400000,'1w':604800000,'1M':2592000000};
+                      const _resMs = _tfMsMap[timeframe] || 60000;
+                      let _fill = lastHistoryBar.time + _resMs;
+                      while (_fill < liveBar.time) {
+                        bars.push({ time: _fill, open: lastHistoryBar.close, high: lastHistoryBar.close, low: lastHistoryBar.close, close: lastHistoryBar.close, volume: 0.0001 });
+                        _fill += _resMs;
+                      }
+                      bars.push(liveBar);
+                      console.log(`[DATAFEED] ✅ Live candle appended for ${symbolInfo.name} t=${liveBar.time}`);
+                    }
                   }
                 }
               }
