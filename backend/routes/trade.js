@@ -891,8 +891,6 @@ router.post('/check-sltp', async (req, res) => {
     closedTrades: []
   })
 })
-  }
-})
 
 // POST /api/trade/check-pending - Check and execute pending orders when price is reached
 //Sanket v2.0 - Always use server-side Redis prices, never trust client-side prices.
