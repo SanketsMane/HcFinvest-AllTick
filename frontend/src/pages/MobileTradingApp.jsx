@@ -11,6 +11,17 @@ import {
 import priceStreamService from '../services/priceStream'
 import marketDataApiService from '../services/marketDataApi'
 
+//Sanket v2.0 - Module-level contract size lookup to prevent 100000 forex fallback on metals/crypto
+const _CONTRACT_SIZE_MAP = {
+  XAUUSD: 100, XAGUSD: 5000, XPTUSD: 100, XPDUSD: 100,
+  BTCUSD: 1, ETHUSD: 1, LTCUSD: 1, XRPUSD: 1, BCHUSD: 1, BNBUSD: 1,
+  SOLUSD: 1, ADAUSD: 1, DOGEUSD: 1, DOTUSD: 1, MATICUSD: 1, AVAXUSD: 1, LINKUSD: 1
+};
+const getContractSizeBySymbol = (symbol) => {
+  const s = String(symbol || '').toUpperCase().replace(/\.I$/i, '');
+  return _CONTRACT_SIZE_MAP[s] || 100000;
+};
+
 const MobileTradingApp = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -704,9 +715,11 @@ const MobileTradingApp = () => {
     const cacheKey = trade._id || trade.id || trade.tradeId;
     // Return cached PnL if no valid price (prevent flickering)
     if (!currentPrice || currentPrice <= 0) return cacheKey ? (_mobilePnlCacheRef.current[cacheKey] || 0) : 0
+    //Sanket v2.0 - Use symbol-aware fallback instead of hardcoded 100000 to prevent 1000x PnL flash on metals/crypto
+    const cs = Number(trade.contractSize) > 0 ? Number(trade.contractSize) : getContractSizeBySymbol(trade.symbol);
     const pnl = trade.side === 'BUY'
-      ? (currentPrice - trade.openPrice) * trade.quantity * (trade.contractSize || 100000)
-      : (trade.openPrice - currentPrice) * trade.quantity * (trade.contractSize || 100000)
+      ? (currentPrice - trade.openPrice) * trade.quantity * cs
+      : (trade.openPrice - currentPrice) * trade.quantity * cs
     const net = pnl - (trade.commission || 0) - (trade.swap || 0)
     if (cacheKey) _mobilePnlCacheRef.current[cacheKey] = net;
     return net

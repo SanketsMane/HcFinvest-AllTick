@@ -1,4 +1,4 @@
-// New_Dashboard.jsx
+﻿// New_Dashboard.jsx
 
 import { getSafeJSON } from '../utils/safeLocalStorage';
 import {
@@ -15,6 +15,10 @@ import { useEffect, useState } from "react";
 import { Internal_Transfer } from "./Internal_Transfer";
 import NavbarClient from "../components/NavbarClient";
 import { useSidebar } from "../context/SidebarContext.jsx";
+
+//Sanket v2.0 - Symbol-aware contract size lookup for PnL calculation
+const _CS_MAP = { XAUUSD: 100, XAGUSD: 5000, XPTUSD: 100, XPDUSD: 100, BTCUSD: 1, ETHUSD: 1, LTCUSD: 1, XRPUSD: 1, BCHUSD: 1, BNBUSD: 1, SOLUSD: 1, ADAUSD: 1, DOGEUSD: 1, DOTUSD: 1, MATICUSD: 1, AVAXUSD: 1, LINKUSD: 1 };
+const _getContractSizeBySymbol = (symbol) => _CS_MAP[String(symbol || '').toUpperCase().replace(/\\.I$/i, '')] || 100000;
 
 const New_Dashboard = () => {
   const [banners, setBanners] = useState([]);
@@ -101,7 +105,7 @@ const defaultBanner = [
     if (user._id) fetchUserAccounts();
   }, []);
 
-  // 👉 Auto Slide
+  // ðŸ‘‰ Auto Slide
   useEffect(() => {
     if (banners.length <= 1) return;
 
@@ -112,7 +116,7 @@ const defaultBanner = [
     return () => clearInterval(interval);
   }, [banners.length]);
 
-  // 👉 Manual Controls
+  // ðŸ‘‰ Manual Controls
   const nextSlide = () => {
     if (banners.length === 0) return;
     setCurrent((prev) => (prev + 1) % banners.length);
@@ -149,7 +153,7 @@ const defaultBanner = [
   };
 
   useEffect(() => {
-    console.log("Banners:", banners.length);
+    // console.log("Banners:", banners.length);
   }, [banners]);
 
   useEffect(() => {
@@ -157,7 +161,7 @@ const defaultBanner = [
   }, [banners]);
 
   useEffect(() => {
-    console.log("Current Slide:", current);
+    // console.log("Current Slide:", current);
   }, [current]);
 
   useEffect(() => {
@@ -203,7 +207,7 @@ const defaultBanner = [
 
     if (!currentPrice) return 0;
 
-    const contractSize = trade.contractSize || 100000;
+    const contractSize = Number(trade.contractSize) > 0 ? trade.contractSize : _getContractSizeBySymbol(trade.symbol);
 
     const pnl =
       trade.side === "BUY"
@@ -228,7 +232,7 @@ const defaultBanner = [
     0,
   );
 
-  const colors = ["🟢", "🔵", "🟠", "🟣", "🟡"];
+  const colors = ["ðŸŸ¢", "ðŸ”µ", "ðŸŸ ", "ðŸŸ£", "ðŸŸ¡"];
 
   const getDistribution = () => {
     const map = {};
@@ -315,7 +319,7 @@ const defaultBanner = [
         setBanners(data.data);
       }
     } catch (err) {
-      console.log(err);
+      // console.log(err);
     } finally {
       setLoading(false);
     }
@@ -424,7 +428,7 @@ const defaultBanner = [
         onClick={() => navigate("/account")}
         className="mt-4 bg-white text-black px-5 py-2 rounded-lg font-medium hover:bg-gray-200"
       >
-        Get Started →
+        Get Started â†’
       </button>
     </div>
 
@@ -492,7 +496,7 @@ const defaultBanner = [
                   onClick={() => navigate("/wallet?action=deposit")}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-green-100 text-green-600">
-                    ↓
+                    â†“
                   </div>
                   <p className="text-sm font-bold text-slate-800">Deposit</p>
                   <p className="text-xs text-slate-500 font-medium">Add funds instantly</p>
@@ -504,7 +508,7 @@ const defaultBanner = [
                   onClick={() => navigate("/wallet?action=withdraw")}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-blue-100 text-blue-600">
-                    ↑
+                    â†‘
                   </div>
                   <p className="text-sm font-bold text-slate-800">Withdraw</p>
                   <p className="text-xs text-slate-500 font-medium">Cash out your profits</p>
@@ -516,7 +520,7 @@ const defaultBanner = [
                   onClick={() => setShowTransferModal(true)}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-orange-100 text-orange-600">
-                    ⇄
+                    â‡„
                   </div>
                   <p className="text-sm font-bold text-slate-800">Transfer</p>
                   <p className="text-xs text-slate-500 font-medium">Between accounts</p>
@@ -533,7 +537,7 @@ const defaultBanner = [
                   onClick={() => navigate("/account")}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-purple-100 text-purple-600">
-                    👤
+                    ðŸ‘¤
                   </div>
                   <p className="text-sm font-bold text-slate-800">Account</p>
                   <p className="text-xs text-slate-500 font-medium">Manage your accounts</p>
@@ -553,7 +557,7 @@ const defaultBanner = [
                     onClick={() => navigate("/account")}
                     className="text-blue-500 text-sm hover:underline"
                   >
-                    See All →
+                    See All â†’
                   </button>
                 </div>
 
@@ -583,7 +587,7 @@ const defaultBanner = [
                     onClick={() => navigate("/account")}
                     className="text-blue-500 text-sm hover:underline"
                   >
-                    See All →
+                    See All â†’
                   </button>
                 </div>
 
@@ -616,7 +620,7 @@ const defaultBanner = [
                     onClick={() => navigate("/orders")}
                     className="text-blue-500 text-sm cursor-pointer"
                   >
-                    View All →
+                    View All â†’
                   </span>
                 </div>
 
@@ -706,7 +710,7 @@ const defaultBanner = [
                 onClick={() => navigate("/orders")}
                 className="text-blue-500 text-sm cursor-pointer"
               >
-                View All →
+                View All â†’
               </span>
             </div>
 

@@ -1,4 +1,4 @@
-// NavbarClient.jsx
+﻿// NavbarClient.jsx
 
 import { User, LogOut, Bell, Megaphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -15,7 +15,7 @@ const NavbarClient = ({ title, subtitle }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [hasNew, setHasNew] = useState(false);
-  const [newIds, setNewIds] = useState([]); // 🔵 track new announcements
+  const [newIds, setNewIds] = useState([]); // ðŸ”µ track new announcements
 
   const user = getSafeJSON("user", {});
 
@@ -34,7 +34,7 @@ const NavbarClient = ({ title, subtitle }) => {
     navigate("/user/login");
   };
 
-  // ✅ Fetch announcements + detect new
+  // âœ… Fetch announcements + detect new
   const fetchAnnouncements = async () => {
     try {
       const res = await axios.get(
@@ -62,7 +62,7 @@ const NavbarClient = ({ title, subtitle }) => {
         }
       }
     } catch (error) {
-      console.log("Error fetching announcements", error);
+      // console.log("Error fetching announcements", error);
     }
   };
 
@@ -70,7 +70,7 @@ const NavbarClient = ({ title, subtitle }) => {
     fetchAnnouncements();
   }, []);
 
-  // ✅ Close dropdowns on outside click
+  // âœ… Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = () => {
       setOpen(false);
@@ -93,14 +93,14 @@ const NavbarClient = ({ title, subtitle }) => {
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-4 relative">
 
-        {/* 🔔 ANNOUNCEMENT BELL */}
+        {/* ðŸ”” ANNOUNCEMENT BELL */}
         <div className="relative">
           <div
             onClick={(e) => {
               e.stopPropagation();
               setNotifOpen(!notifOpen);
 
-              // ✅ Mark as seen (BUT DO NOT CLEAR newIds)
+              // âœ… Mark as seen (BUT DO NOT CLEAR newIds)
               if (announcements.length > 0) {
                 const latest = new Date(
                   announcements[0].createdAt
@@ -113,7 +113,7 @@ const NavbarClient = ({ title, subtitle }) => {
 
                 setHasNew(false);
 
-                // ❌ IMPORTANT: removed setNewIds([])
+                // âŒ IMPORTANT: removed setNewIds([])
               }
             }}
             className="p-2 rounded-full bg-green-200 hover:bg-gray-200 transition cursor-pointer"
@@ -121,21 +121,21 @@ const NavbarClient = ({ title, subtitle }) => {
             <Megaphone size={20} className="text-gray-700" />
           </div>
 
-          {/* 🔴 SHOW ONLY 1 */}
+          {/* ðŸ”´ SHOW ONLY 1 */}
           {hasNew && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
               1
             </span>
           )}
 
-          {/* 🔽 ANNOUNCEMENT DROPDOWN */}
+          {/* ðŸ”½ ANNOUNCEMENT DROPDOWN */}
           {notifOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
               className="absolute right-0 mt-3 w-80 bg-white shadow-xl rounded-xl border z-50 overflow-hidden"
             >
               <div className="p-3 border-b font-semibold text-gray-700 bg-gray-50">
-                📢 Announcements
+                ðŸ“¢ Announcements
               </div>
 
               <div className="max-h-72 overflow-y-auto">
@@ -157,7 +157,7 @@ const NavbarClient = ({ title, subtitle }) => {
                       <p className="font-semibold text-sm text-gray-800 flex items-center">
                         {item.title}
 
-                        {/* 🆕 NEW BADGE */}
+                        {/* ðŸ†• NEW BADGE */}
                         {newIds.includes(item._id) && (
                           <span className="ml-2 text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded">
                             NEW
@@ -180,7 +180,7 @@ const NavbarClient = ({ title, subtitle }) => {
           )}
         </div>
 
-        {/* 👤 PROFILE */}
+        {/* ðŸ‘¤ PROFILE */}
         <div className="relative">
           <div
             onClick={(e) => {

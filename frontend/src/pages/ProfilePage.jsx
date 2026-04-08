@@ -1,4 +1,4 @@
-// New_Profile.jsx
+﻿// New_Profile.jsx
 
 import { API_URL } from "../config/api";
 import { useState, useEffect } from "react";
@@ -427,17 +427,17 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
     setLoading(true);
 
     try {
-      // ✅ Split fullName into firstName & lastName
+      // âœ… Split fullName into firstName & lastName
       const firstName = profile.fullName.trim(); // store full name here
 
-      console.log("Sending:", {
-        userId: currentUser._id,
-        firstName,
-        phone: profile.phone,
-        city: profile.city,
-        bankDetails: profile.bankDetails,
-        upiId: profile.upiId,
-      });
+      // console.log("Sending:", {
+      //   userId: currentUser._id,
+      //   firstName,
+      //   phone: profile.phone,
+      //   city: profile.city,
+      //   bankDetails: profile.bankDetails,
+      //   upiId: profile.upiId,
+      // });
 
       const res = await fetch(`${API_URL}/auth/update-profile`, {
         method: "PUT",
@@ -462,16 +462,16 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
       }
 
       const data = await res.json();
-      console.log("Final Data:", data);
+      // console.log("Final Data:", data);
 
       if (data.user) {
-        // ✅ Update localStorage
+        // âœ… Update localStorage
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        // ✅ Update state immediately
+        // âœ… Update state immediately
         setCurrentUser(data.user);
 
-        // ✅ Update profile UI
+        // âœ… Update profile UI
         setProfile({
           fullName:
             `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim(),
@@ -1013,7 +1013,7 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
                         <p
                           className={`text-sm ${isDarkMode ? "text-yellow-500" : "text-yellow-700"}`}
                         >
-                          ⚠️ Please add your bank details or UPI ID to receive
+                          âš ï¸ Please add your bank details or UPI ID to receive
                           withdrawals. Click "Edit Profile" to add.
                         </p>
                       </div>
@@ -1680,7 +1680,7 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
 
                   <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                     <p className="text-yellow-500 text-xs">
-                      ⚠️ Your account will be reviewed by admin before it can be
+                      âš ï¸ Your account will be reviewed by admin before it can be
                       used for withdrawals.
                     </p>
                   </div>
@@ -1890,7 +1890,7 @@ const scaleIn = "animate-[scaleIn_0.3s_ease-out_forwards]";
                         <p
                           className={`text-xs mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
                         >
-                          {item.ip || "Unknown IP"} •{" "}
+                          {item.ip || "Unknown IP"} â€¢{" "}
                           {item.location || "Unknown Location"}
                         </p>
                       </div>

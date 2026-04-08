@@ -1,4 +1,4 @@
-import { io } from 'socket.io-client'
+﻿import { io } from 'socket.io-client'
 import { API_BASE_URL } from '../config/api'
 import { getPriceEvents } from './eventSystem'
 import { validateRealtimeTick } from '../utils/realtimeCandleBuilder'
@@ -201,7 +201,7 @@ class PriceStreamService {
         });
         this.prices = _newPrices;
         
-        // ✅ BROADCAST to chart datafeed (only for symbols without recent live ticks)
+        // âœ… BROADCAST to chart datafeed (only for symbols without recent live ticks)
         const priceEventTarget = getPriceEvents()
         Object.entries(prices).forEach(([rawSymbol, p]) => {
           const symbol = normalizeSym(rawSymbol);
@@ -234,7 +234,7 @@ class PriceStreamService {
       })
     })
 
-    // ✅ NEW: Handle real-time tick updates for candle aggregation AND UI (P/L tables)
+    // âœ… NEW: Handle real-time tick updates for candle aggregation AND UI (P/L tables)
     this.socket.on('tickUpdate', (tickData) => {
       if (!tickData) return
       this.lastTickAt = Date.now()
@@ -245,13 +245,13 @@ class PriceStreamService {
 
       //Sanket v2.0 - Drop ticks with invalid/zero bid to prevent PnL flicker to $0
       if (!symbol || !bid || bid <= 0) {
-        console.warn(`[TICK-DROP-ZERO] ${symbol} bid=${bid} ask=${ask} — dropped (zero/null bid)`)
+        // console.warn(`[TICK-DROP-ZERO] ${symbol} bid=${bid} ask=${ask} â€” dropped (zero/null bid)`)
         return
       }
 
       const acceptedTick = this._acceptRealtimeTick(symbol, bid, ask, time)
       if (!acceptedTick.accepted) {
-        console.warn(`[TICK-REJECTED] ${symbol} bid=${bid} — rejected by _acceptRealtimeTick`)
+        // console.warn(`[TICK-REJECTED] ${symbol} bid=${bid} â€” rejected by _acceptRealtimeTick`)
         return
       }
 
@@ -264,7 +264,7 @@ class PriceStreamService {
       this._lastTickKeyBySymbol.set(symbol, tickKey)
       this._lastTickTsBySymbol.set(symbol, now)
       
-      // ✅ BROADCAST to all price subscribers (P/L table, etc.)
+      // âœ… BROADCAST to all price subscribers (P/L table, etc.)
       const priceObj = { 
         bid: acceptedTick.bid,
         ask: acceptedTick.ask,
@@ -279,7 +279,7 @@ class PriceStreamService {
         try { callback(this.prices, { [symbol]: this.prices[symbol] }, this.lastTickAt) } catch {}
       })
 
-      // ✅ Dispatch priceUpdate event for the chart datafeed
+      // âœ… Dispatch priceUpdate event for the chart datafeed
       try {
         const priceEventTarget = getPriceEvents()
         priceEventTarget.dispatchEvent(new CustomEvent('priceUpdate', {
@@ -299,7 +299,7 @@ class PriceStreamService {
       this._emitStatus('reconnecting')
     })
 
-    // ✅ NEW: Listen to live trade updates pushes from backend
+    // âœ… NEW: Listen to live trade updates pushes from backend
     this.socket.on('tradeUpdated', (trade) => {
       // v7.51 Silent
       this.tradeSubscribers.forEach((callback) => {
@@ -314,7 +314,7 @@ class PriceStreamService {
       })
     })
 
-    // ✅ Backend Candle Authority: Handle authoritative candle updates
+    // âœ… Backend Candle Authority: Handle authoritative candle updates
     this.socket.on('candleUpdate', (data) => {
       if (!data) return
       
@@ -421,7 +421,7 @@ class PriceStreamService {
     }
   }
 
-  // ✅ Account-room subscription (v7.69)
+  // âœ… Account-room subscription (v7.69)
   subscribeToAccount(accountId) {
     if (this.socket?.connected) {
       this.socket.emit('subscribe', { tradingAccountId: accountId })
@@ -430,7 +430,7 @@ class PriceStreamService {
     }
   }
 
-  // ✅ Trade synchronization subscriptions
+  // âœ… Trade synchronization subscriptions
   subscribeToTrades(id, callback) {
     this.tradeSubscribers.set(id, callback)
     if (this._disconnectTimer) {
@@ -475,7 +475,7 @@ class PriceStreamService {
     }
   }
 
-  // ✅ Backend Candle Authority: Trigger room-based subscription
+  // âœ… Backend Candle Authority: Trigger room-based subscription
   subscribeBars(symbol) {
     if (this.socket?.connected) {
       this.socket.emit('subscribeBars', { symbol })

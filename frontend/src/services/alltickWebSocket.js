@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+﻿import { v4 as uuidv4 } from 'uuid'
 
 class AllTickWebSocket {
   constructor() {
@@ -20,12 +20,12 @@ class AllTickWebSocket {
     }
 
     try {
-      console.log('[AllTickWebSocket] Attempting WebSocket connection...')
+      // console.log('[AllTickWebSocket] Attempting WebSocket connection...')
       // AllTick WebSocket endpoint
       this.ws = new WebSocket('wss://quote.alltick.io/quote-b-ws-api?token=1620b8aba97f46dec78ec599d611b958-c-app')
 
       this.ws.onopen = () => {
-        console.log('[AllTickWebSocket] Connected to AllTick WebSocket')
+        // console.log('[AllTickWebSocket] Connected to AllTick WebSocket')
         this.isConnected = true
         this.reconnectAttempts = 0
         
@@ -39,7 +39,7 @@ class AllTickWebSocket {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          console.log('[AllTickWebSocket] Received message:', data)
+          // console.log('[AllTickWebSocket] Received message:', data)
           this.handleMessage(data)
         } catch (error) {
           console.error('[AllTickWebSocket] Error parsing message:', error, 'Raw data:', event.data)
@@ -47,13 +47,13 @@ class AllTickWebSocket {
       }
 
       this.ws.onclose = (event) => {
-        console.log('[AllTickWebSocket] Connection closed:', event.code, event.reason)
+        // console.log('[AllTickWebSocket] Connection closed:', event.code, event.reason)
         this.isConnected = false
         this.stopHeartbeat()
         
         // If connection closed abnormally or never connected, switch to polling immediately
         if (event.code === 1006 || this.reconnectAttempts === 0) {
-          console.log('[AllTickWebSocket] Connection failed, switching to HTTP polling immediately')
+          // console.log('[AllTickWebSocket] Connection failed, switching to HTTP polling immediately')
           this.switchToPolling()
           return
         }
@@ -71,7 +71,7 @@ class AllTickWebSocket {
         this.isConnected = false
         
         // Switch to polling immediately on error
-        console.log('[AllTickWebSocket] WebSocket error detected, switching to HTTP polling')
+        // console.log('[AllTickWebSocket] WebSocket error detected, switching to HTTP polling')
         setTimeout(() => this.switchToPolling(), 100)
       }
 
@@ -83,36 +83,36 @@ class AllTickWebSocket {
   }
 
   handleMessage(data) {
-    console.log('[AllTickWebSocket] Processing message:', data)
+    // console.log('[AllTickWebSocket] Processing message:', data)
     
     // Handle different message types from AllTick
     if (data.cmd_id && data.data) {
       switch (data.cmd_id) {
         case 22002: // Subscribe response
-          console.log('[AllTickWebSocket] Subscription confirmed:', data.data)
+          // console.log('[AllTickWebSocket] Subscription confirmed:', data.data)
           break
         case 22003: // Unsubscribe response
-          console.log('[AllTickWebSocket] Unsubscription confirmed:', data.data)
+          // console.log('[AllTickWebSocket] Unsubscription confirmed:', data.data)
           break
         case 22004: // Real-time data
         case 22005: // Tick data
-          console.log('[AllTickWebSocket] Real-time data received:', data.data)
+          // console.log('[AllTickWebSocket] Real-time data received:', data.data)
           this.handleRealtimeData(data.data)
           break
         default:
-          console.log('[AllTickWebSocket] Unknown message type:', data.cmd_id, data.data)
+          // console.log('[AllTickWebSocket] Unknown message type:', data.cmd_id, data.data)
       }
     } else if (data.event && data.data) {
       // Handle event-based messages
-      console.log('[AllTickWebSocket] Event message:', data.event, data.data)
+      // console.log('[AllTickWebSocket] Event message:', data.event, data.data)
       this.handleRealtimeData(data.data)
     } else {
-      console.log('[AllTickWebSocket] Unhandled message format:', data)
+      // console.log('[AllTickWebSocket] Unhandled message format:', data)
     }
   }
 
   handleRealtimeData(data) {
-    console.log('[AllTickWebSocket] Processing real-time data:', data)
+    // console.log('[AllTickWebSocket] Processing real-time data:', data)
     
     // Process real-time price data - handle different formats
     let symbolDataArray = []
@@ -125,14 +125,14 @@ class AllTickWebSocket {
     } else if (Array.isArray(data)) {
       symbolDataArray = data
     } else {
-      console.log('[AllTickWebSocket] Unknown data format:', data)
+      // console.log('[AllTickWebSocket] Unknown data format:', data)
       return
     }
 
     symbolDataArray.forEach(symbolData => {
       let symbol = symbolData.code || symbolData.symbol
       if (!symbol) {
-        console.log('[AllTickWebSocket] No symbol found in data:', symbolData)
+        // console.log('[AllTickWebSocket] No symbol found in data:', symbolData)
         return
       }
 
@@ -152,7 +152,7 @@ class AllTickWebSocket {
         close: symbolData.last_price || symbolData.price || symbolData.close
       }
 
-      console.log('[AllTickWebSocket] Price data for', symbol, ':', priceData)
+      // console.log('[AllTickWebSocket] Price data for', symbol, ':', priceData)
 
       // Notify all subscribers for this symbol
       const symbolSubscribers = this.subscribers.get(symbol)
@@ -194,7 +194,7 @@ class AllTickWebSocket {
 
     // If already using polling, start polling immediately
     if (this.usePolling) {
-      console.log('[AllTickWebSocket] Already in polling mode, starting data fetch')
+      // console.log('[AllTickWebSocket] Already in polling mode, starting data fetch')
       if (!this.pollingInterval) {
         this.pollingInterval = setInterval(() => {
           this.pollForData()
@@ -264,9 +264,9 @@ class AllTickWebSocket {
       }
     }
     
-    console.log('[AllTickWebSocket] Sending subscription:', message)
+    // console.log('[AllTickWebSocket] Sending subscription:', message)
     this.ws.send(JSON.stringify(message))
-    console.log(`[AllTickWebSocket] Subscribed to ${symbol}`)
+    // console.log(`[AllTickWebSocket] Subscribed to ${symbol}`)
   }
 
   sendUnsubscription(symbol) {
@@ -283,7 +283,7 @@ class AllTickWebSocket {
       }
     }
     this.ws.send(JSON.stringify(message))
-    console.log(`[AllTickWebSocket] Unsubscribed from ${symbol}`)
+    // console.log(`[AllTickWebSocket] Unsubscribed from ${symbol}`)
   }
 
   resubscribeAll() {
@@ -313,10 +313,10 @@ class AllTickWebSocket {
 
   reconnect() {
     this.reconnectAttempts++
-    console.log(`[AllTickWebSocket] Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`)
+    // console.log(`[AllTickWebSocket] Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`)
     
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('[AllTickWebSocket] Max reconnection attempts reached, switching to HTTP polling')
+      // console.log('[AllTickWebSocket] Max reconnection attempts reached, switching to HTTP polling')
       this.switchToPolling()
       return
     }
@@ -329,7 +329,7 @@ class AllTickWebSocket {
   switchToPolling() {
     this.usePolling = true
     this.isConnected = false
-    console.log('[AllTickWebSocket] Switched to HTTP polling mode')
+    // console.log('[AllTickWebSocket] Switched to HTTP polling mode')
     
     // Start polling for all subscribers
     if (!this.pollingInterval) {
@@ -374,7 +374,7 @@ class AllTickWebSocket {
         const data = await response.json()
         const raw = data?.data?.kline_list
 
-        console.log('[AllTickWebSocket] 📊 Polling data for', symbol, ':', raw)
+        // console.log('[AllTickWebSocket] ðŸ“Š Polling data for', symbol, ':', raw)
 
         if (raw && raw.length > 0) {
           // Use the most recent candle (last in array)
@@ -392,7 +392,7 @@ class AllTickWebSocket {
             close: Number(candle.close_price)
           }
 
-          console.log('[AllTickWebSocket] 📈 Processed price data:', priceData)
+          // console.log('[AllTickWebSocket] ðŸ“ˆ Processed price data:', priceData)
 
           // Notify subscribers
           const symbolSubscribers = this.pollingSubscribers.get(symbol)
@@ -406,7 +406,7 @@ class AllTickWebSocket {
             })
           }
         } else {
-          console.log('[AllTickWebSocket] ⚠️ No data received for', symbol)
+          // console.log('[AllTickWebSocket] âš ï¸ No data received for', symbol)
         }
       } catch (error) {
         console.error('[AllTickWebSocket] Error polling data for', symbol, ':', error)
@@ -430,7 +430,7 @@ class AllTickWebSocket {
     
     this.subscribers.clear()
     this.pollingSubscribers.clear()
-    console.log('[AllTickWebSocket] Disconnected')
+    // console.log('[AllTickWebSocket] Disconnected')
   }
 
   getConnectionStatus() {

@@ -1,4 +1,4 @@
-// ib.jsx
+﻿// ib.jsx
 
 import { API_URL } from "../config/api";
 import { useState, useEffect } from "react";
@@ -83,7 +83,7 @@ const IBPage = () => {
       const data = await res.json();
       if (data.ibUser) {
         // Merge ibUser, wallet, and stats into one profile object
-        console.log(data.data);
+        // console.log(data.data);
         setIbProfile({
           ...data.ibUser,
           ibWalletBalance: data.wallet?.balance || 0,
@@ -169,7 +169,7 @@ const IBPage = () => {
 
       setWithdrawAmount("");
 
-      // 🔥 Refresh IB + Wallet
+      // ðŸ”¥ Refresh IB + Wallet
       fetchIBProfile();
     } else {
       alert(data.message || "Transfer failed");
@@ -276,7 +276,7 @@ const IBPage = () => {
             <span
               className={`px-2 py-1 rounded text-xs ${node.isIB ? "bg-accent-green/20 text-accent-green" : "bg-gray-700 text-gray-400"}`}
             >
-              {node.isIB ? "IB" : "User"} • Level {(node.level || 0) + 1}
+              {node.isIB ? "IB" : "User"} â€¢ Level {(node.level || 0) + 1}
             </span>
           </div>
         </div>
@@ -783,7 +783,7 @@ const IBPage = () => {
                           </div>
                           <div className="flex justify-between items-center">
                             <p className="text-gray-400 text-xs">
-                              Level {comm.level} •{" "}
+                              Level {comm.level} â€¢{" "}
                               {comm.tradeLotSize?.toFixed(2)} lots
                             </p>
                             <span

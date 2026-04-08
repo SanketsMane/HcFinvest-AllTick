@@ -1,4 +1,4 @@
-import { API_URL } from '../config/api'
+﻿import { API_URL } from '../config/api'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
@@ -158,7 +158,7 @@ const CopyTradePage = () => {
       }
     } catch (error) {
       // User is not a master - that's okay
-      console.log('No master profile found')
+      // console.log('No master profile found')
     }
   }
 
@@ -522,7 +522,7 @@ const CopyTradePage = () => {
                         myMasterProfile.status === 'ACTIVE' ? 'text-green-500' :
                         myMasterProfile.status === 'PENDING' ? 'text-yellow-500' : 'text-red-500'
                       }>{myMasterProfile.status}</span>
-                      {myMasterProfile.status === 'ACTIVE' && ` • ${myMasterProfile.stats?.activeFollowers || 0} followers`}
+                      {myMasterProfile.status === 'ACTIVE' && ` â€¢ ${myMasterProfile.stats?.activeFollowers || 0} followers`}
                     </p>
                   </div>
                 </div>
@@ -712,7 +712,7 @@ const CopyTradePage = () => {
                 onClick={() => setActiveTab('subscriptions')}
                 className="w-full bg-green-100 text-green-600 py-2 rounded-lg font-medium border border-green-200 hover:bg-green-200"
               >
-                ✓ Following
+                âœ“ Following
               </button>
             ) : (
               <button
@@ -741,7 +741,7 @@ const CopyTradePage = () => {
                   <Users size={48} className="mx-auto text-gray-600 mb-4" />
                   <p className="text-gray-500">You're not following any masters yet</p>
                   <button onClick={() => setActiveTab('discover')} className="mt-4 text-accent-green hover:underline">
-                    Discover Masters →
+                    Discover Masters â†’
                   </button>
                 </div>
               ) : (
@@ -998,9 +998,9 @@ const CopyTradePage = () => {
 
         <p className="text-gray-500 text-xs mt-1">
           {copyMode === 'FIXED_LOT' && 'Use a fixed lot size for every copied trade'}
-          {copyMode === 'BALANCE_BASED' && 'Lot = Master Lot × (Your Balance / Master Balance)'}
-          {copyMode === 'EQUITY_BASED' && 'Lot = Master Lot × (Your Equity / Master Equity)'}
-          {copyMode === 'MULTIPLIER' && 'Lot = Master Lot × Your Multiplier'}
+          {copyMode === 'BALANCE_BASED' && 'Lot = Master Lot Ã— (Your Balance / Master Balance)'}
+          {copyMode === 'EQUITY_BASED' && 'Lot = Master Lot Ã— (Your Equity / Master Equity)'}
+          {copyMode === 'MULTIPLIER' && 'Lot = Master Lot Ã— Your Multiplier'}
         </p>
       </div>
 
@@ -1025,8 +1025,8 @@ const CopyTradePage = () => {
 
         <p className="text-gray-500 text-xs mt-1">
           {copyMode === 'FIXED_LOT' && 'Each copied trade will use this fixed lot size'}
-          {copyMode === 'BALANCE_BASED' && 'Maximum lot size limit (e.g., Master $1000 trades 1 lot, you have $500 → you get 0.5 lot)'}
-          {copyMode === 'EQUITY_BASED' && 'Maximum lot size limit (e.g., Master $1000 equity trades 1 lot, you have $1500 → you get 1.5 lot)'}
+          {copyMode === 'BALANCE_BASED' && 'Maximum lot size limit (e.g., Master $1000 trades 1 lot, you have $500 â†’ you get 0.5 lot)'}
+          {copyMode === 'EQUITY_BASED' && 'Maximum lot size limit (e.g., Master $1000 equity trades 1 lot, you have $1500 â†’ you get 1.5 lot)'}
           {copyMode === 'MULTIPLIER' && 'Multiply master lot by this value (e.g., 2 = double the lot size)'}
         </p>
       </div>
@@ -1161,9 +1161,9 @@ const CopyTradePage = () => {
       <div className="bg-gray-100 rounded-lg p-4 space-y-2 border border-gray-200">
         <p className="text-gray-900 text-sm font-medium">Requirements:</p>
         <ul className="text-gray-600 text-xs space-y-1">
-          <li>• Minimum account balance may be required</li>
-          <li>• Trading history will be reviewed</li>
-          <li>• Admin approval is required</li>
+          <li>â€¢ Minimum account balance may be required</li>
+          <li>â€¢ Trading history will be reviewed</li>
+          <li>â€¢ Admin approval is required</li>
         </ul>
       </div>
     </div>
@@ -1230,9 +1230,9 @@ const CopyTradePage = () => {
                 </select>
                 <p className="text-gray-500 text-xs mt-1">
                   {editCopyMode === 'FIXED_LOT' && 'Use a fixed lot size for every copied trade'}
-                  {editCopyMode === 'BALANCE_BASED' && 'Lot = Master Lot × (Your Balance / Master Balance)'}
-                  {editCopyMode === 'EQUITY_BASED' && 'Lot = Master Lot × (Your Equity / Master Equity)'}
-                  {editCopyMode === 'MULTIPLIER' && 'Lot = Master Lot × Your Multiplier'}
+                  {editCopyMode === 'BALANCE_BASED' && 'Lot = Master Lot Ã— (Your Balance / Master Balance)'}
+                  {editCopyMode === 'EQUITY_BASED' && 'Lot = Master Lot Ã— (Your Equity / Master Equity)'}
+                  {editCopyMode === 'MULTIPLIER' && 'Lot = Master Lot Ã— Your Multiplier'}
                 </p>
               </div>
 

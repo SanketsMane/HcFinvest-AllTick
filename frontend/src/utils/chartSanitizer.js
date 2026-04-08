@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CHART SANITIZER (Production-Grade)
  * Refined logic for high-accuracy candlestick charts (TradingView/Exness style)
  * 
@@ -79,7 +79,7 @@ export const sanitizeBatch = (bars = [], symbol = '', threshold = null) => {
     // 2. Anti-Spike Filter
     if (lastValidClose !== null) {
       if (isSpike(bar.close, lastValidClose, limit)) {
-        console.warn(`[Sanitizer] Rejected Spike on ${symbol}: ${lastValidClose} -> ${bar.close} (> ${limit}%)`);
+        // console.warn(`[Sanitizer] Rejected Spike on ${symbol}: ${lastValidClose} -> ${bar.close} (> ${limit}%)`);
         return; // Ignore this candle
       }
     }
@@ -121,7 +121,7 @@ export const validateRealtimeUpdate = ({ currentBar, nextPrice, symbol, threshol
   
   // 1. Consistency Check: Price must not jump too far from the current bar's close
   if (isSpike(nextPrice, currentBar.close, limit)) {
-    console.warn(`[Sanitizer] Rejected Realtime Spike on ${symbol}: ${currentBar.close} -> ${nextPrice}`);
+    // console.warn(`[Sanitizer] Rejected Realtime Spike on ${symbol}: ${currentBar.close} -> ${nextPrice}`);
     return { accepted: false, reason: 'spike_detected' };
   }
 

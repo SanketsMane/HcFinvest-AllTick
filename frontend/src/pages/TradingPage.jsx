@@ -2951,7 +2951,7 @@ const AnimatedPNL = ({ value }) => {
   const pnl = useInterpolation(value ?? 0, 0.15);
   const isPositive = pnl >= 0;
   return (
-    <span style={TABULAR_NUMS_STYLE} className={isPositive ? 'text-green-500 font-medium' : 'text-red-500 font-medium'}>
+    <span style={TABULAR_NUMS_STYLE} className={isPositive ? 'text-blue-500 font-medium' : 'text-red-500 font-medium'}>
       {isPositive ? '+' : ''}${pnl.toFixed(2)}
     </span>
   );
@@ -2960,6 +2960,19 @@ const AnimatedPNL = ({ value }) => {
 const AnimatedValue = ({ value, decimals = 2 }) => {
   const val = useInterpolation(value ?? 0, 0.15);
   return <span style={TABULAR_NUMS_STYLE}>{val.toFixed(decimals)}</span>;
+};
+
+//Sanket v2.0 - Module-level contract size lookup so AnimatedTradeRow can resolve the correct
+// multiplier even if trade.contractSize is momentarily missing during state transitions.
+// Prevents the 100000 forex fallback from inflating XAUUSD PnL by 1000x.
+const _CONTRACT_SIZE_MAP = {
+  XAUUSD: 100, XAGUSD: 5000, XPTUSD: 100, XPDUSD: 100,
+  BTCUSD: 1, ETHUSD: 1, LTCUSD: 1, XRPUSD: 1, BCHUSD: 1, BNBUSD: 1,
+  SOLUSD: 1, ADAUSD: 1, DOGEUSD: 1, DOTUSD: 1, MATICUSD: 1, AVAXUSD: 1, LINKUSD: 1
+};
+const getContractSizeBySymbol = (symbol) => {
+  const s = String(symbol || '').toUpperCase().replace(/\.I$/i, '');
+  return _CONTRACT_SIZE_MAP[s] || 100000;
 };
 
 //Sanket v2.0 - Animated positions table row. The whole <tr> re-renders at 60fps driven by
@@ -2980,7 +2993,8 @@ const AnimatedTradeRow = memo(({ trade, rawBid, rawAsk, fallbackPnl, priceDecima
   const resolvedAsk = sa > 0 ? sa : (sb > 0 ? sb : 0);
   const smoothPrice = side === 'BUY' ? resolvedBid : resolvedAsk;
   const validPrice = smoothPrice > 0 ? smoothPrice : null;
-  const contractSize = Number(trade.contractSize) > 0 ? Number(trade.contractSize) : 100000;
+  //Sanket v2.0 - Use symbol-aware fallback instead of hardcoded 100000 to prevent 1000x PnL flash on metals/crypto
+  const contractSize = Number(trade.contractSize) > 0 ? Number(trade.contractSize) : getContractSizeBySymbol(trade.symbol);
   const pnl = validPrice !== null
     ? (side === 'BUY'
         ? (validPrice - trade.openPrice) * trade.quantity * contractSize
@@ -3008,7 +3022,7 @@ const AnimatedTradeRow = memo(({ trade, rawBid, rawAsk, fallbackPnl, priceDecima
       <td className={numCls()} style={TABULAR_NUMS_STYLE}>{trade.takeProfit ? fmt(trade.takeProfit) : '-'}</td>
       <td className={numCls()} style={TABULAR_NUMS_STYLE}>${trade.commission?.toFixed(2) || '0.00'}</td>
       <td className={numCls()} style={TABULAR_NUMS_STYLE}>${trade.swap?.toFixed(2) || '0.00'}</td>
-      <td className={`py-2 px-3 text-xs font-medium ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`} style={TABULAR_NUMS_STYLE}>${pnl.toFixed(2)}</td>
+      <td className={`py-2 px-3 text-xs font-medium ${pnl >= 0 ? 'text-blue-500' : 'text-red-600'}`} style={TABULAR_NUMS_STYLE}>${pnl.toFixed(2)}</td>
       <td className="py-2 px-3">
         <div className="flex items-center gap-1">
           <button onClick={() => onModify(trade)} className="p-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors" title="Modify SL/TP"><Pencil size={12} /></button>
@@ -3127,7 +3141,7 @@ const TradingPage = () => {
   const [activeCategory, setActiveCategory] = useState('All')
   const [activePositionTab, setActivePositionTab] = useState('Positions')
   const [isBottomPanelMinimized, setIsBottomPanelMinimized] = useState(false)
-  const [oneClickTrading, setOneClickTrading] = useState(false)
+  const [oneClickTrading, setOneClickTrading] = useState(true)
   const [partialQuantity, setPartialQuantity] = useState('')
   const [selectedSide, setSelectedSide] = useState('BUY') // BUY or SELL
   const [openTabs, setOpenTabs] = useState(() => {
@@ -4270,7 +4284,6 @@ const TradingPage = () => {
         }
       } else {
         // ✅ ELITE Recovery: Retry if prices are empty (v7.77)
-        console.warn('[TradingPage] No live prices received, retrying in 5s...')
         setTimeout(() => fetchLivePrices(), 5000)
       }
     } catch (e) {
@@ -4333,12 +4346,29 @@ const TradingPage = () => {
   }
 
   // Fetch open trades
+  //Sanket v2.0 - fetchOpenTrades preserves optimistic trades until they appear in the DB response
   const fetchOpenTrades = async () => {
     try {
       const res = await fetch(`${API_URL}/trade/open/${accountId}`)
       const data = await res.json()
       if (data.success) {
-        setOpenTrades(data.trades || [])
+        const serverTrades = data.trades || []
+        setOpenTrades(prev => {
+          // Keep any optimistic trades that haven't appeared in the server response yet
+          const optimistic = prev.filter(t => t.isOptimistic)
+          if (optimistic.length === 0) return serverTrades
+          // Check if the server response already contains the real version of each optimistic trade
+          const kept = optimistic.filter(opt => {
+            // If server has a trade for the same symbol+side+quantity opened very recently, the optimistic is fulfilled
+            const match = serverTrades.find(st =>
+              st.symbol === opt.symbol && st.side === opt.side &&
+              Math.abs(st.quantity - opt.quantity) < 0.001
+            )
+            return !match // Keep optimistic only if no match found in server data
+          })
+          if (kept.length === 0) return serverTrades
+          return [...kept, ...serverTrades]
+        })
       }
     } catch (error) {
       console.error('Error fetching open trades:', error)
@@ -4541,9 +4571,7 @@ const TradingPage = () => {
     // INSTANT: Show success immediately before any async operation
     const executionPrice = side === 'BUY' ? ask : bid
     const tradeId = `temp_${Date.now()}`
-    //Sanket v2.0 - Optimistic trade must include contractSize to prevent PnL flash
-    // (AnimatedTradeRow defaults missing contractSize to 100000 forex default,
-    //  which is 1000x too large for XAUUSD contractSize=100)
+    //Sanket v2.0 - Optimistic trade must include contractSize to prevent PnL flash\n    // (AnimatedTradeRow now falls back to getContractSizeBySymbol but we still set it explicitly)
     const optimisticContractSize = getMarginContractSize(selectedInstrument.symbol)
     const optimisticTrade = {
       _id: tradeId,
@@ -4587,7 +4615,8 @@ const TradingPage = () => {
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        // Replace optimistic trade with real data
+        //Sanket v2.0 - Clear optimistic flag before fetching so fetchOpenTrades replaces it with real data
+        setOpenTrades(prev => prev.filter(t => t._id !== tradeId))
         fetchOpenTrades()
         fetchAccountSummary()
         setStopLoss('')
@@ -4714,7 +4743,6 @@ const TradingPage = () => {
   const closeTrade = async (tradeId, quantity = null) => {
     // Prevent double-click - check if already closing this trade
     if (closingTradeIds.has(tradeId)) {
-      console.log(`Trade ${tradeId} already being closed, ignoring duplicate request`)
       return
     }
     
@@ -4897,8 +4925,8 @@ const TradingPage = () => {
         ? (trade.side === 'BUY' ? livePrice.bid : livePrice.ask)
         : (trade.side === 'BUY' ? inst.bid : inst.ask)
       const pnl = trade.side === 'BUY' 
-        ? (currentPrice - trade.openPrice) * trade.quantity * trade.contractSize
-        : (trade.openPrice - currentPrice) * trade.quantity * trade.contractSize
+        ? (currentPrice - trade.openPrice) * trade.quantity * (Number(trade.contractSize) > 0 ? trade.contractSize : getContractSizeBySymbol(trade.symbol))
+        : (trade.openPrice - currentPrice) * trade.quantity * (Number(trade.contractSize) > 0 ? trade.contractSize : getContractSizeBySymbol(trade.symbol))
 
       if (closeAllType === 'profit') return pnl > 0
       if (closeAllType === 'loss') return pnl < 0
@@ -6024,7 +6052,7 @@ const TradingPage = () => {
                         </div>
                         <div className="text-xs">
                           <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>P/L: </span>
-                          <span className={`font-semibold ${totalPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          <span className={`font-semibold ${totalPnl >= 0 ? 'text-blue-500' : 'text-red-500'}`}>
                             {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
                           </span>
                         </div>
@@ -6123,7 +6151,7 @@ const TradingPage = () => {
                               <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{formatPrice(trade.closePrice)}</td>
                               <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.commission?.toFixed(2) || '0.00'}</td>
                               <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.swap?.toFixed(2) || '0.00'}</td>
-                              <td className={`py-2 px-3 text-xs font-medium ${trade.realizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              <td className={`py-2 px-3 text-xs font-medium ${trade.realizedPnl >= 0 ? 'text-blue-500' : 'text-red-600'}`}>
                                 ${trade.realizedPnl?.toFixed(2) || '0.00'}
                               </td>
                               <td className={`py-2 px-3 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{trade.closedBy || 'USER'}</td>
@@ -6742,7 +6770,7 @@ const TradingPage = () => {
           {!isMobile && (
             <>
               <span className="text-gray-500 ml-4 shrink-0">Credit: <span className="text-purple-400">$<AnimatedValue value={accountSummary.credit} /></span></span>
-              <span className="text-gray-500 ml-4 shrink-0">Eq: <span className={displayFloatingPnl >= 0 ? 'text-green-500' : 'text-red-500'}>$<AnimatedValue value={accountSummary.equity} /></span></span>
+              <span className="text-gray-500 ml-4 shrink-0">Eq: <span className={displayFloatingPnl >= 0 ? 'text-blue-500' : 'text-red-500'}>$<AnimatedValue value={accountSummary.equity} /></span></span>
               <span className="text-gray-500 ml-4 shrink-0">Margin: <span className="text-yellow-500">$<AnimatedValue value={accountSummary.usedMargin} /></span></span>
               <span className="text-gray-500 ml-4 shrink-0">Free: <span className={accountSummary.freeMargin >= 0 ? 'text-blue-400' : 'text-red-500'}>$<AnimatedValue value={accountSummary.freeMargin} /></span></span>
             </>
@@ -6812,7 +6840,6 @@ const TradingPage = () => {
                 onClick={async (e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('Save Changes clicked, trade:', selectedTradeForModify?._id)
                   await handleModifyTrade()
                 }}
                 className="w-full py-4 text-blue-500 font-semibold text-lg hover:bg-[#2c2c2e] transition-colors cursor-pointer active:bg-[#3c3c3e]"
@@ -6911,7 +6938,7 @@ const TradingPage = () => {
               <button
                 onClick={confirmCloseAll}
                 className={`w-full py-4 font-semibold text-lg hover:bg-[#2c2c2e] transition-colors ${
-                  closeAllType === 'profit' ? 'text-green-500' : closeAllType === 'loss' ? 'text-red-500' : 'text-orange-500'
+                  closeAllType === 'profit' ? 'text-blue-500' : closeAllType === 'loss' ? 'text-red-500' : 'text-orange-500'
                 }`}
               >
                 {closeAllType === 'all' && 'Close All'}

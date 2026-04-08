@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -54,7 +54,7 @@ import New_Dashboard from './pages/New_Dashboard.jsx'
 import Admin_Announcement from './pages/Admin_Announcement.jsx'
 
 
-// 🛡️ Guard to restrict admin access to admin.hcfinvest.com
+// ðŸ›¡ï¸ Guard to restrict admin access to admin.hcfinvest.com
 const AdminHostGuard = ({ children }) => {
   const hostname = window.location.hostname;
   const isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1';
@@ -68,7 +68,7 @@ const AdminHostGuard = ({ children }) => {
   return children;
 };
 
-// 🕒 Monitor to automatically logout users after 4 hours (JWT expiration)
+// ðŸ•’ Monitor to automatically logout users after 4 hours (JWT expiration)
 const SessionMonitor = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,7 +87,7 @@ const SessionMonitor = () => {
         
         // If token is expired, clear session and redirect
         if (payload.exp && payload.exp < now) {
-          console.log('[Security] Session expired (4h limit reached). Logging out...');
+          // console.log('[Security] Session expired (4h limit reached). Logging out...');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           navigate('/user/login', { 
@@ -137,7 +137,7 @@ function App() {
         <Route path="/support" element={<SupportPage />} />
         <Route path="/instructions" element={<InstructionsPage />} />
 
-        {/* 🛡️ All /admin routes are guarded — only accessible from admin.hcfinvest.com */}
+        {/* ðŸ›¡ï¸ All /admin routes are guarded â€” only accessible from admin.hcfinvest.com */}
         <Route path="/admin" element={<AdminHostGuard><AdminLogin /></AdminHostGuard>} />
         <Route path="/admin/login" element={<AdminHostGuard><AdminLogin /></AdminHostGuard>} />
         <Route path="/admin/dashboard" element={<AdminHostGuard><AdminOverview /></AdminHostGuard>} />

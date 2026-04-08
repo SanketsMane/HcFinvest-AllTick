@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import AdminLayout from "../components/AdminLayout";
 import axios from "axios";
 import { API_URL } from "../config/api";
@@ -19,7 +19,7 @@ const AdminBannerManagement = () => {
       const res = await axios.get(`${API_URL}/banners/getall`);
       setBanners(res.data.data);
     } catch (err) {
-      console.log(err);
+      // console.log(err);
     }
   };
 
@@ -40,7 +40,7 @@ const AdminBannerManagement = () => {
       fetchBanners();
 
     } catch (err) {
-      console.log(err);
+      // console.log(err);
     }
   };
 
@@ -80,7 +80,7 @@ const AdminBannerManagement = () => {
             borderRadius: "20px",
             fontSize: "12px"
           }}>
-            ● Admin Mode
+            â— Admin Mode
           </div>
 
         </div>
@@ -134,7 +134,7 @@ const AdminBannerManagement = () => {
               opacity: 0.6
             }}>
 
-              <div style={{ fontSize: "50px", marginBottom: "10px" }}>🖼</div>
+              <div style={{ fontSize: "50px", marginBottom: "10px" }}>ðŸ–¼</div>
 
               <p>No banners created yet</p>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { API_URL } from "../config/api";
 
@@ -22,7 +22,7 @@ const ClientDashboardBannerSlider = () => {
       const res = await axios.get(`${API_URL}/banners/getall`);
       setBanners(res.data.data || []);
     } catch (error) {
-      console.log(error);
+      // console.log(error);
     }
   };
 

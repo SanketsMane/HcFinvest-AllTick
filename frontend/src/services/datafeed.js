@@ -1,4 +1,4 @@
-import { API_URL } from "../config/api";
+﻿import { API_URL } from "../config/api";
 import { normalizeSymbol } from "../utils/symbolUtils";
 import priceStreamService from "./priceStream";
 import { getPriceEvents } from "./eventSystem";
@@ -167,7 +167,7 @@ const Datafeed = {
 
   setAdminSpreads: (spreads) => {
     Datafeed._adminSpreads = spreads || {};
-    console.log('[DATAFEED] Admin spreads updated', Object.keys(Datafeed._adminSpreads).length);
+    // console.log('[DATAFEED] Admin spreads updated', Object.keys(Datafeed._adminSpreads).length);
   },
 
   setChartPriceSide: (side) => {
@@ -203,7 +203,7 @@ const Datafeed = {
       });
   },
 
-  // Required by TradingView — powers the built-in symbol search dialog
+  // Required by TradingView â€” powers the built-in symbol search dialog
   searchSymbols: (userInput, _exchange, _symbolType, onResult) => {
     const query = (userInput || '').toUpperCase();
     const results = ALL_SYMBOLS
@@ -236,7 +236,7 @@ const Datafeed = {
         ticker: symbolName,
         description: symbolItem ? symbolItem.description : symbolName,
         type: symbolItem ? symbolItem.type : 'forex',
-        session: session, // ✅ THE FIX: Native session support
+        session: session, // âœ… THE FIX: Native session support
         timezone: 'Etc/UTC',
         exchange: 'AllTick',
         minmov: 1,
@@ -249,7 +249,7 @@ const Datafeed = {
         volume_precision: 2,
         data_status: 'streaming'
       };
-      console.log(`[v7.77] resolveSymbol: ${symbolName} using session ${session} and pricescale ${pricescale}`);
+      // console.log(`[v7.77] resolveSymbol: ${symbolName} using session ${session} and pricescale ${pricescale}`);
       setTimeout(() => onSymbolResolvedCallback(symbolInfo), 0);
     } catch (err) {
       console.error(`[DATAFEED] resolveSymbol failed for ${symbolName}:`, err.message);
@@ -280,14 +280,14 @@ const Datafeed = {
       if (Number.isFinite(to)) params.set('to', String(to));
       params.set('limit', String(limit));
       if (useLiveCache) params.set('preferLive', '1');
-      params.set('v', '3'); // 🔥 THE FIX: Bust Browser HTTP Cache so TradingView pulls the newly pruned payload
+      params.set('v', '3'); // ðŸ”¥ THE FIX: Bust Browser HTTP Cache so TradingView pulls the newly pruned payload
       const url = `${API_URL}/prices/history?${params.toString()}`;
       
-      console.log(`[DATAFEED] getBars: ${symbolInfo.name} (${resolution}→${timeframe}) from=${from} to=${to} limit=${limit}`);
+      // console.log(`[DATAFEED] getBars: ${symbolInfo.name} (${resolution}â†’${timeframe}) from=${from} to=${to} limit=${limit}`);
       
       const res = await fetch(url);
       if (!res.ok) {
-        console.error(`[DATAFEED] ❌ getBars HTTP ${res.status} for ${symbolInfo.name}`);
+        console.error(`[DATAFEED] âŒ getBars HTTP ${res.status} for ${symbolInfo.name}`);
         // CRITICAL: Call onError instead of onHistory([], {noData: true})
         // This prevents TradingView from permanently marking this timeframe as "EMPTY"
         // if we are just experiencing a temporary 429 rate limit.
@@ -297,7 +297,7 @@ const Datafeed = {
 
       const result = await res.json();
       const candleCount = result.candles?.length || 0;
-      console.log(`[DATAFEED] ✓ getBars received ${candleCount} candles for ${symbolInfo.name}`);
+      // console.log(`[DATAFEED] âœ“ getBars received ${candleCount} candles for ${symbolInfo.name}`);
 
       let bars = [];
       if (result.success && result.candles && result.candles.length > 0) {
@@ -330,14 +330,14 @@ const Datafeed = {
       }
 
       if (bars.length === 0) {
-          console.log(`[DATAFEED] ⚠️ No valid bars for ${symbolInfo.name}. Returning noData.`);
+          // console.log(`[DATAFEED] âš ï¸ No valid bars for ${symbolInfo.name}. Returning noData.`);
           onHistoryCallback([], { noData: true });
       } else {
           //Sanket v2.0 - Inject ONLY recentClosed (completed bars from Redis ZSET) to fill the gap between
           //Sanket v2.0 - stale AllTick history cache and the current time. Do NOT inject the live running candle.
           //Sanket v2.0 - TV CL v30 treats bars from onHistoryCallback as finalized history and won't accept
           //Sanket v2.0 - realtime updates for them via onRealtimeCallback. The current candle is handled
-          //Sanket v2.0 - entirely by subscribeBars/bootstrapLiveBar — TV sees it as a genuinely NEW bar.
+          //Sanket v2.0 - entirely by subscribeBars/bootstrapLiveBar â€” TV sees it as a genuinely NEW bar.
           if (useLiveCache) {
             try {
               const liveRes = await fetch(
@@ -361,7 +361,7 @@ const Datafeed = {
                       }
                     }
                     bars.sort((a, b) => a.time - b.time);
-                    console.log(`[DATAFEED] ✅ Merged ${recentClosed.length} Redis closed candles for ${symbolInfo.name}`);
+                    // console.log(`[DATAFEED] âœ… Merged ${recentClosed.length} Redis closed candles for ${symbolInfo.name}`);
                   }
                 }
               }
@@ -387,12 +387,12 @@ const Datafeed = {
               _stripped++;
             }
             if (_stripped > 0) {
-              console.log(`[DATAFEED] 🔒 Stripped ${_stripped} current-bucket bar(s) (bucket=${_currentBucket}) — live candle handled by subscribeBars`);
+              // console.log(`[DATAFEED] ðŸ”’ Stripped ${_stripped} current-bucket bar(s) (bucket=${_currentBucket}) â€” live candle handled by subscribeBars`);
             }
           }
 
           if (bars.length === 0) {
-            console.log(`[DATAFEED] ⚠️ All bars were current-bucket — returning noData`);
+            // console.log(`[DATAFEED] âš ï¸ All bars were current-bucket â€” returning noData`);
             onHistoryCallback([], { noData: true });
           } else {
             Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
@@ -405,12 +405,12 @@ const Datafeed = {
             if (!Datafeed._lastHistoryBars[historyKey] || candidateBar.time > Datafeed._lastHistoryBars[historyKey].time) {
               Datafeed._lastHistoryBars[historyKey] = { ...candidateBar };
             }
-            console.log(`[DATAFEED] ✅ Returning ${bars.length} bars, lastBar.time=${candidateBar.time}`);
+            // console.log(`[DATAFEED] âœ… Returning ${bars.length} bars, lastBar.time=${candidateBar.time}`);
             onHistoryCallback(bars, { noData: false });
           }
       }
     } catch (err) {
-      console.error("[DATAFEED] ❌ getBars Exception:", err.message);
+      console.error("[DATAFEED] âŒ getBars Exception:", err.message);
       onErrorCallback(err);
     }
   },
@@ -448,7 +448,7 @@ const Datafeed = {
     let lastTickTime = 0;
     let isActive = true;
     //Sanket v2.0 - Removed 50ms render throttle: every tick now updates OHLC (high/low accuracy)
-    //Sanket v2.0 - RAF loop already drives rendering at 60fps — no separate throttle needed
+    //Sanket v2.0 - RAF loop already drives rendering at 60fps â€” no separate throttle needed
 
     //Sanket v2.0 - 60fps RAF smooth interpolation: mirrors useInterpolation so candle close glides like BUY/SELL buttons
     let displayClose = null;  // what TradingView currently sees (lerped)
@@ -460,7 +460,7 @@ const Datafeed = {
 
     //Sanket v2.0 - Rolling median spike guard: tracks last N accepted chart prices to detect outlier ticks
     //Sanket v2.0 - AllTick sends stale/cached quotes (e.g. session open price) that create spike wicks on chart
-    //Sanket v2.0 - These are only 0.35-0.40% from real price so they pass the 3% threshold — need tighter local check
+    //Sanket v2.0 - These are only 0.35-0.40% from real price so they pass the 3% threshold â€” need tighter local check
     const SPIKE_WINDOW_SIZE = 10;
     let _priceWindow = [];
     let _consecutiveSpikes = 0;
@@ -523,7 +523,7 @@ const Datafeed = {
     //Sanket v2.0 - Only create a new candle when the first tick arrives for a genuinely new bucket.
     const bootstrapLiveBar = async (attempt = 1) => {
       try {
-        // ── Phase 1: Fetch exactly the current in-progress bar from backend live state ──
+        // â”€â”€ Phase 1: Fetch exactly the current in-progress bar from backend live state â”€â”€
         const currentCandleRes = await fetch(
           `${API_URL}/prices/current-candle?symbol=${encodeURIComponent(symbolInfo.name)}&resolution=${encodeURIComponent(timeframe)}`
         );
@@ -534,7 +534,7 @@ const Datafeed = {
           if (!isActive) return;
 
           if (json?.success && json.candle && Number.isFinite(json.candle.time) && json.candle.time > 0) {
-            //Sanket v2.0 - Server returned the currently running candle — use it directly
+            //Sanket v2.0 - Server returned the currently running candle â€” use it directly
             //Sanket v2.0 - This bar already has correct open/high/low/close from all ticks so far this minute
             const liveCandle = {
               time: json.candle.time,
@@ -556,11 +556,11 @@ const Datafeed = {
             displayClose = currentBar.close;
             targetClose  = currentBar.close;
             pushBar(currentBar);
-            return; // Done — live bar fully seeded
+            return; // Done â€” live bar fully seeded
           }
         }
 
-        // ── Phase 2: Fallback — preferLive history fetch ──
+        // â”€â”€ Phase 2: Fallback â€” preferLive history fetch â”€â”€
         //Sanket v2.0 - Used when backend live bar is not yet available (e.g. no ticks this minute yet)
         const params = new URLSearchParams();
         params.set('symbol', symbolInfo.name);
@@ -594,7 +594,7 @@ const Datafeed = {
           return;
         }
 
-        // Most-recent historical bar is NOT the current bucket — use it to anchor currentBar
+        // Most-recent historical bar is NOT the current bucket â€” use it to anchor currentBar
         // The first incoming tick will trigger buildCandleFromTick to open the correct new bucket
         if (lastBarTime === null) {
           currentBar = applyChartPriceModeToBar(latest, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
@@ -614,7 +614,7 @@ const Datafeed = {
 
     bootstrapLiveBar();
 
-    //Sanket v2.0 - RAF smooth interpolation loop: lerps displayClose → targetClose at 60fps.
+    //Sanket v2.0 - RAF smooth interpolation loop: lerps displayClose â†’ targetClose at 60fps.
     //Sanket v2.0 - Feeds TradingView onRealtimeCallback every frame so the candle body glides
     //Sanket v2.0 - instead of snapping, matching the smoothness of the BUY/SELL price buttons.
     const rafLoop = (time) => {
@@ -655,19 +655,19 @@ const Datafeed = {
       priceStreamService.setPrioritySymbols([...existingPriority, normalizedSym]);
     }
 
-    // ✅ Monitor for data gaps + auto-recover
+    // âœ… Monitor for data gaps + auto-recover
     const dataGapMonitor = setInterval(() => {
       const now = Date.now();
       if (lastTickTime > 0) {
         const timeSinceLastTick = now - lastTickTime;
         if (timeSinceLastTick > 30000 && timeSinceLastTick < 300000) {
-          //Sanket v2.0 - Auto-recover candle state after connection gap — same as Bloomberg bar-resync on WS reconnect
+          //Sanket v2.0 - Auto-recover candle state after connection gap â€” same as Bloomberg bar-resync on WS reconnect
           //Sanket v2.0 - Re-fetch current candle from backend so chart doesn't show a frozen/stale body
-          console.warn(`[DATAFEED] ⚠️ DATA GAP ${symbolInfo.name} ${(timeSinceLastTick/1000).toFixed(0)}s — re-bootstrapping live bar`);
+          // console.warn(`[DATAFEED] âš ï¸ DATA GAP ${symbolInfo.name} ${(timeSinceLastTick/1000).toFixed(0)}s â€” re-bootstrapping live bar`);
           lastTickTime = now; // Reset so we don't spam bootstrap every 10s until next tick arrives
           bootstrapLiveBar();
         } else if (timeSinceLastTick > 15000) {
-          console.warn(`[DATAFEED] ⚠️ DATA GAP for ${symbolInfo.name} for ${(timeSinceLastTick/1000).toFixed(1)}s`);
+          // console.warn(`[DATAFEED] âš ï¸ DATA GAP for ${symbolInfo.name} for ${(timeSinceLastTick/1000).toFixed(1)}s`);
         }
       }
     }, 10000);
@@ -716,7 +716,7 @@ const Datafeed = {
       tickCount++;
       if (!isActive) return;
       //Sanket v2.0 - No 50ms throttle: every tick updates OHLC so high/low wicks are always tick-accurate
-      //Sanket v2.0 - RAF loop already drives rendering at 60fps — no separate throttle needed
+      //Sanket v2.0 - RAF loop already drives rendering at 60fps â€” no separate throttle needed
       const { symbol, bid, ask } = e.detail;
       lastTickTime = Date.now();
       
@@ -724,7 +724,7 @@ const Datafeed = {
 
       const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
       if (!isFinite(price) || price <= 0) {
-        console.warn(`[CHART-INVALID-PRICE] ${symbol} price=${price} from bid=${bid} ask=${ask}`);
+        // console.warn(`[CHART-INVALID-PRICE] ${symbol} price=${price} from bid=${bid} ask=${ask}`);
         return;
       }
 
@@ -733,20 +733,20 @@ const Datafeed = {
       if (_isChartSpike(price, symbolInfo.name)) {
         if (_consecutiveSpikes < MAX_CONSECUTIVE_SPIKES) {
           _consecutiveSpikes++;
-          console.warn(`[CHART-SPIKE-GUARD] ${symbol} price=${price} rejected (consecutive=${_consecutiveSpikes}) vs window median`);
+          // console.warn(`[CHART-SPIKE-GUARD] ${symbol} price=${price} rejected (consecutive=${_consecutiveSpikes}) vs window median`);
           return;
         }
-        // Too many consecutive rejections → real market move, accept and reset
-        console.warn(`[CHART-SPIKE-GUARD] ${symbol} price=${price} force-accepted after ${_consecutiveSpikes} consecutive rejections`);
+        // Too many consecutive rejections â†’ real market move, accept and reset
+        // console.warn(`[CHART-SPIKE-GUARD] ${symbol} price=${price} force-accepted after ${_consecutiveSpikes} consecutive rejections`);
         _priceWindow = []; // reset window to new price level
       }
       _consecutiveSpikes = 0;
 
       //Sanket v2.0 - buildCandleFromTick handles same-bucket updates, new-minute bar creation, and gap interpolation
       //Sanket v2.0 - replaces validateRealtimeUpdate which could not create new bars nor interpolate gaps
-      //Sanket v2.0 - Use authoritative local time (adjusted for server offset) for bucket assignment — NOT AllTick's
+      //Sanket v2.0 - Use authoritative local time (adjusted for server offset) for bucket assignment â€” NOT AllTick's
       //Sanket v2.0 - tick timestamp. AllTick's clock can be up to ~1s behind a minute boundary, causing the tick's
-      //Sanket v2.0 - bucketTime to fall in the PREVIOUS minute → out_of_order_bucket rejection for entire minute.
+      //Sanket v2.0 - bucketTime to fall in the PREVIOUS minute â†’ out_of_order_bucket rejection for entire minute.
       const tickTimeMs = Date.now() + (Datafeed._serverTimeOffsetMs || 0);
       const result = buildCandleFromTick({
         currentBar,
@@ -785,7 +785,7 @@ const Datafeed = {
       currentBar = result.bars[result.bars.length - 1];
       lastBarTime = currentBar.time;
 
-      //Sanket v2.0 - Push current bar to TV on every accepted tick — ensures TV treats it as live
+      //Sanket v2.0 - Push current bar to TV on every accepted tick â€” ensures TV treats it as live
       //Sanket v2.0 - Since the current candle is NEVER in getBars history, TV fully accepts these updates
       if (currentBar) {
         const _liveClose = displayClose ?? currentBar.close;

@@ -1,10 +1,10 @@
-import { API_URL } from '../config/api';
+﻿import { API_URL } from '../config/api';
 import { getInstrumentInfo, roundPrice } from './precision';
 import { canonicalSymbol } from './symbolUtils';
 
 /**
  * ============================================================
- * TradeLineManager v7.28 ΓÇö Phase 66: THE PERFECTIONIST
+ * TradeLineManager v7.28 Î“Ã‡Ã¶ Phase 66: THE PERFECTIONIST
  * ============================================================
  * v7.28 Perfectionist:
  * - Sync Lock (2.5s guard after commit to prevent flicker)
@@ -13,9 +13,9 @@ import { canonicalSymbol } from './symbolUtils';
  * - State-Preserving Commits (Merge SL/TP)
  * ============================================================
  */
-// ΓöÇΓöÇΓöÇ Auth ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ Auth Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 window.TRADE_ENGINE_VERSION = '7.53-ACTIVE';
-console.log("%c [TradeManager] v7.53 SL/TP ENGINE ACTIVE ", "background: #1a1a1a; color: #00ff00; font-weight: bold; padding: 4px; border-radius: 4px;");
+// console.log("%c [TradeManager] v7.53 SL/TP ENGINE ACTIVE ", "background: #1a1a1a; color: #00ff00; font-weight: bold; padding: 4px; border-radius: 4px;");
 
 const normalizeToken = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
@@ -33,19 +33,19 @@ const getAuthToken = () => {
   } catch { return ''; }
 };
 
-// ΓöÇΓöÇΓöÇ Price formatting ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ Price formatting Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 const fmt = (price) => {
   if (!Number.isFinite(price)) return '0.00';
   return price > 100 ? price.toFixed(2) : price.toFixed(5);
 };
 
-// ΓöÇΓöÇΓöÇ Debounce ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ Debounce Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 const debounce = (fn, ms) => {
   let timer;
   return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
 };
 
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 export class TradeLineManager {
   constructor(chartRef, onTradeModify) {
     this.chartRef = chartRef;
@@ -68,12 +68,19 @@ export class TradeLineManager {
     this._adminSpreads = spreads || {};
   }
 
+  //Sanket v2.0 - Symbol-aware contract size lookup for PnL calculation
+  _getContractSizeBySymbol(symbol) {
+    const s = String(symbol || '').toUpperCase().replace(/\\.I$/i, '');
+    const map = { XAUUSD: 100, XAGUSD: 5000, XPTUSD: 100, XPDUSD: 100, BTCUSD: 1, ETHUSD: 1, LTCUSD: 1, XRPUSD: 1, BCHUSD: 1, BNBUSD: 1, SOLUSD: 1, ADAUSD: 1, DOGEUSD: 1, DOTUSD: 1, MATICUSD: 1, AVAXUSD: 1, LINKUSD: 1 };
+    return map[s] || 100000;
+  }
+
   initialize(widget) {
     this.widget = widget;
     this._attachEvents(widget);
     
     // v7.80 Fossil Cleanup: Purge baked-in lines from chart save state on refresh.
-    // CRITICAL: skip any shape that is already tracked in tvIdMap — those are LIVE managed lines
+    // CRITICAL: skip any shape that is already tracked in tvIdMap â€” those are LIVE managed lines
     // created by syncTrades. Deleting them leaves set.tp/sl with a dead tvId (since _destroyShape
     // is not called), causing _updateShape to silently fail and the line to vanish permanently.
     //Sanket v2.0 - Only remove shapes that are NOT in tvIdMap (true fossils, not managed lines)
@@ -82,7 +89,7 @@ export class TradeLineManager {
             const chart = widget.chart();
             const shapes = chart.getAllShapes();
             shapes.forEach(shape => {
-                if (this.tvIdMap[shape.id]) return; // Skip managed shapes — never delete live lines
+                if (this.tvIdMap[shape.id]) return; // Skip managed shapes â€” never delete live lines
                 const entity = chart.getShapeById(shape.id);
                 const props = entity?.getProperties?.();
                 if (props && props.text) {
@@ -103,7 +110,7 @@ export class TradeLineManager {
     this.clearAllManagedDrawings();
   }
 
-  // ΓöÇΓöÇΓöÇ Events ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ Events Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
   _attachEvents(widget) {
     this.commitTimers = {};
@@ -138,14 +145,14 @@ export class TradeLineManager {
           setTimeout(() => this.syncTrades(this.trades, sym), 100);
       }
 
-      // ≡ƒ¢í∩╕Å v7.32 Track BOTH move and points_changed to guarantee we never miss a final drag endpoint!
+      // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.32 Track BOTH move and points_changed to guarantee we never miss a final drag endpoint!
       if (action === 'points_changed' || action === 'move') {
           if (meta.type === 'entry') this._onNativeMove(tvId, meta); // spawn ghost
 
           if (this.commitTimers[tvId]) clearTimeout(this.commitTimers[tvId]);
           this.commitTimers[tvId] = setTimeout(() => {
               this._onNativeStop(tvId, meta);
-          }, 250); // ≡ƒ¢í∩╕Å v7.47 Stabilized interaction lock
+          }, 250); // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.47 Stabilized interaction lock
       }
     };
     widget.subscribe('drawing_event', this._handler);
@@ -160,7 +167,7 @@ export class TradeLineManager {
     const price = shape?.getPoints?.()?.[0]?.price;
     if (!price || !Number.isFinite(price) || this.isUpdatingGhost) return;
 
-    // ΓöÇΓöÇΓöÇ MT5 Ghosting (Spawn Logic) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ MT5 Ghosting (Spawn Logic) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
     if (meta.type === 'entry') {
         const trade = this.getTradeById(meta.tradeId);
         if (!trade) return;
@@ -314,7 +321,7 @@ export class TradeLineManager {
   async syncTrades(trades, symbol = null) {
     if (this.activeDragId) return; // Locked during interaction
     
-    // ≡ƒ¢í∩╕Å v7.46 Instant Cleanup Bypass
+    // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.46 Instant Cleanup Bypass
     // If trade count decreased, someone closed a trade. We MUST bypass the 2.5s sync-lock
     // to remove the lines immediately, otherwise they linger until the timer expires.
     const hasClosures = (trades || []).length < this.trades.length;
@@ -338,7 +345,7 @@ export class TradeLineManager {
     const chart = this.widget.chart();
     const now = Date.now();
 
-    // ΓöÇΓöÇΓöÇ Deep Cleanup (Safeguard) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ Deep Cleanup (Safeguard) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
     // Scan all shapes the manager knows about. 
     // If a drawing belongs to a trade that no longer exists in the account, delete it.
     Object.keys(this.tvIdMap).forEach(tvId => {
@@ -349,7 +356,7 @@ export class TradeLineManager {
         }
     });
 
-    // ΓöÇΓöÇΓöÇ Orphan Cleanup (Current Symbol) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ Orphan Cleanup (Current Symbol) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
     Object.keys(this.lines).forEach(tid => {
         if (!visibleIds.has(tid)) {
             this.removeTradeLines(tid);
@@ -397,7 +404,7 @@ export class TradeLineManager {
         style: 1, 
         width: 2, 
         text: labelText,
-        selectable: false // ≡ƒ¢í∩╕Å v7.46 Stationary Anchor: Entry lines cannot be selected/deleted.
+        selectable: false // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.46 Stationary Anchor: Entry lines cannot be selected/deleted.
       });
     } else {
       //Sanket v2.0 - Dead-reference guard for entry line. Same pattern as SL/TP below.
@@ -433,7 +440,7 @@ export class TradeLineManager {
       } else {
         //Sanket v2.0 - Verify the TV shape still exists before updating. If the shape was removed
         // externally (fossil cleanup, chart clear, widget re-init) _updateShape silently fails and
-        // set.sl stays non-null forever — the line never re-appears AND a second orphan can form
+        // set.sl stays non-null forever â€” the line never re-appears AND a second orphan can form
         // if set.sl is later nulled while the ghost shape persists on the chart.
         let slExists = false;
         try { slExists = !!this.widget.chart().getShapeById(set.sl.tvId); } catch(e) {}
@@ -461,7 +468,7 @@ export class TradeLineManager {
         //Sanket v2.0 - Same dead-reference guard as SL above. Without this, a TP moved by drag
         // then externally destroyed leaves set.tp pointing to a dead tvId. _updateShape silently
         // returns, the TP never redraws, AND the orphaned ghost shape at the old price stays on
-        // screen — causing the "two TP lines" symptom (old ghost + newly created managed line).
+        // screen â€” causing the "two TP lines" symptom (old ghost + newly created managed line).
         let tpExists = false;
         try { tpExists = !!this.widget.chart().getShapeById(set.tp.tvId); } catch(e) {}
         if (!tpExists) {
@@ -483,7 +490,7 @@ export class TradeLineManager {
             {
                 shape: 'horizontal_line',
                 lock: false,
-                disableSelection: cfg.selectable === false, // ≡ƒ¢í∩╕Å v7.46 UI Guard
+                disableSelection: cfg.selectable === false, // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.46 UI Guard
                 disableSave: true,
                 disableUndo: true,
                 overrides: {
@@ -534,9 +541,9 @@ export class TradeLineManager {
     setTimeout(() => this._ownRemovals?.delete(tvId), 500);
     //Sanket v2.0 - Removed the 100ms double-tap deletion. The double-tap called removeEntity on an
     // ID that TV had already deleted from the first call. TV fires "Can't find a source with id"
-    // for every double-tap → each error triggered the drawing_event 'remove' handler → handler
-    // called syncTrades → syncTrades ran removeTradeLines → _destroyShape on freshly created
-    // SL/TP shapes → those fresh shapes also got double-tapped → cascade wipe of all lines.
+    // for every double-tap â†’ each error triggered the drawing_event 'remove' handler â†’ handler
+    // called syncTrades â†’ syncTrades ran removeTradeLines â†’ _destroyShape on freshly created
+    // SL/TP shapes â†’ those fresh shapes also got double-tapped â†’ cascade wipe of all lines.
     // Single removeEntity is sufficient; TV processes it synchronously within the same frame.
     try {
         this.widget?.chart()?.removeEntity(tvId);
@@ -598,12 +605,12 @@ export class TradeLineManager {
     const trade = this.getTradeById(tid);
     if (!trade) return;
 
-    // ≡ƒ¢í∩╕Å v7.28 Precision Discovery
+    // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.28 Precision Discovery
     // Use shared utility to get correct rounding decimals for the instrument
     const symbol = this.widget.symbolInterval().symbol;
     const { decimals } = getInstrumentInfo(symbol);
 
-    // ≡ƒ¢í∩╕Å v7.36 Ultimate State Integrity
+    // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.36 Ultimate State Integrity
     // Use physical TV shapes as the primary fallback to prevent asynchronous Redux lag from overwriting new lines with zeros!
     let fallbackSL = trade.stopLoss || trade.sl || 0;
     if (this.lines[tid]?.sl?.tvId) {
@@ -631,7 +638,7 @@ export class TradeLineManager {
     const currentSL = type === 'sl' ? roundedPrice : parseFloat(Number(fallbackSL).toFixed(decimals));
     const currentTP = type === 'tp' ? roundedPrice : parseFloat(Number(fallbackTP).toFixed(decimals));
 
-    // ≡ƒ¢í∩╕Å v7.48 Payload Guard: Never send invalid or infinite values to the backend
+    // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.48 Payload Guard: Never send invalid or infinite values to the backend
     // v7.51 Silent Payload Preparation
 
     const payload = { 
@@ -643,7 +650,7 @@ export class TradeLineManager {
     const token = getAuthToken();
     if (!token) return;
 
-    // ≡ƒ¢í∩╕Å v7.28 Engage Sync Lock
+    // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.28 Engage Sync Lock
     this.syncLockUntil = Date.now() + 2500; 
 
     try {
@@ -656,10 +663,10 @@ export class TradeLineManager {
       const data = await res.json();
 
       if (data.success && this.onTradeModify) {
-        console.log(`[TradeManager] SUCCESS: Trade ${tid} modified (${type} -> ${roundedPrice})`);
+        // console.log(`[TradeManager] SUCCESS: Trade ${tid} modified (${type} -> ${roundedPrice})`);
         this.onTradeModify({ tradeId: tid, sl: currentSL, tp: currentTP });
       } else {
-        console.warn(`[TradeManager] FAILED: ${data.message || 'Unknown backend error'}`);
+        // console.warn(`[TradeManager] FAILED: ${data.message || 'Unknown backend error'}`);
       }
     } catch (e) {
       console.error(`[TradeManager] ERROR: Network or parse failure during commit`, e);
@@ -695,7 +702,8 @@ export class TradeLineManager {
       const entryAsk = trade.entryAsk || trade.openPrice || trade.price || 0;
       const entryBid = trade.entryBid || trade.openPrice || trade.price || 0;
       const quantity = trade.quantity || trade.size || trade.lots || 0;
-      const contractSize = trade.contractSize || 100000;
+      //Sanket v2.0 - Symbol-aware fallback prevents 1000x PnL error on metals/crypto
+      const contractSize = Number(trade.contractSize) > 0 ? trade.contractSize : this._getContractSizeBySymbol(trade.symbol);
       
       let pnl = 0;
       if (isBuy) {
@@ -713,13 +721,13 @@ export class TradeLineManager {
       const labelText = `${isBuy ? 'BUY' : 'SELL'} ${quantity} | ${pnlText}`;
 
       //Sanket v2.0 - CRITICAL: Do NOT call _updateShape here. _updateShape calls setPoints() which
-      // triggers TV's drawing_event 'points_changed' echo → _handler sets isCommitBlocked=true for
+      // triggers TV's drawing_event 'points_changed' echo â†’ _handler sets isCommitBlocked=true for
       // 50ms. useInterpolation runs at 60fps (~16ms per frame), so _updateShape is called every 16ms.
       // Since 16ms < 50ms reset timer, each frame re-sets isCommitBlocked=true before the previous
-      // timer clears it → isCommitBlocked is PERMANENTLY TRUE during live tick flow → every user
-      // drag event (started/move/points_changed) is silently swallowed → SL/TP never responds.
+      // timer clears it â†’ isCommitBlocked is PERMANENTLY TRUE during live tick flow â†’ every user
+      // drag event (started/move/points_changed) is silently swallowed â†’ SL/TP never responds.
       // The entry price (trade.openPrice) never changes anyway, so setPoints is a no-op price-wise.
-      // Only the label text changes → use setProperties text-only, which does NOT trigger any echo.
+      // Only the label text changes â†’ use setProperties text-only, which does NOT trigger any echo.
       this._updateShapeLabel(set.entry.tvId, labelText);
     });
   }

@@ -1,4 +1,4 @@
-// New_Compition.jsx
+﻿// New_Compition.jsx
 import {
   Trophy,
   Users,
@@ -126,7 +126,7 @@ const [insufficientDialogOpen, setInsufficientDialogOpen] = useState(false);
 
             if (!clientId || competitions.length === 0) return;
 
-            // ✅ Get joined competitions
+            // âœ… Get joined competitions
             const joined = competitions.filter(
               (comp) =>
                 comp.participants &&
@@ -156,7 +156,7 @@ const [insufficientDialogOpen, setInsufficientDialogOpen] = useState(false);
               }
             }
 
-            // ✅ Find best rank (minimum)
+            // âœ… Find best rank (minimum)
             if (ranks.length > 0) {
               setBestRank(Math.min(...ranks));
             }
@@ -179,7 +179,7 @@ const [insufficientDialogOpen, setInsufficientDialogOpen] = useState(false);
 
       if (!clientId || competitions.length === 0) return;
 
-      // ✅ Get joined competitions
+      // âœ… Get joined competitions
       const joined = competitions.filter(
         (comp) =>
           comp.participants &&
@@ -248,7 +248,7 @@ const [insufficientDialogOpen, setInsufficientDialogOpen] = useState(false);
 
     fetchLeaderboard();
 
-    // 🔥 auto refresh every 5 sec
+    // ðŸ”¥ auto refresh every 5 sec
     const interval = setInterval(fetchLeaderboard, 5000);
 
     return () => clearInterval(interval);
@@ -363,18 +363,18 @@ const sendCompetitionJoinEmail = async ({
       }
     );
 
-    // ✅ optional success log
+    // âœ… optional success log
     if (res.data?.success) {
-      console.log("📧 Email sent successfully");
+      // console.log("ðŸ“§ Email sent successfully");
     }
 
   } catch (error) {
     console.error(
-      "❌ Email sending failed:",
+      "âŒ Email sending failed:",
       error.response?.data?.message || error.message
     );
 
-    // ❗ DO NOT throw → don't break main flow
+    // â— DO NOT throw â†’ don't break main flow
   }
 };
 
@@ -402,7 +402,7 @@ const sendCompetitionJoinEmail = async ({
       const entryFee = selectedComp.entryFee;
       const initialDeposit = selectedComp?.initialDeposit ?? 10000;
 
-      // 💰 Wallet Check
+      // ðŸ’° Wallet Check
       const walletRes = await axios.get(`${API_URL}/wallet/${clientId}`);
       const balance = walletRes.data?.wallet?.balance;
 
@@ -411,16 +411,16 @@ const sendCompetitionJoinEmail = async ({
         setOpenRules(false);
         return;
       }
-      // ✅ STEP 1: JOIN COMPETITION
+      // âœ… STEP 1: JOIN COMPETITION
       await deductEntryFee({ userId: clientId, amount: entryFee });
-      // ✅ STEP 2: DEDUCT ENTRY FEE
+      // âœ… STEP 2: DEDUCT ENTRY FEE
       await joinCompetition(selectedCompetition);
-      // ✅ STEP 3: CREATE DEMO ACCOUNT
+      // âœ… STEP 3: CREATE DEMO ACCOUNT
       await createParticipant({ competitionId: selectedCompetition, user, initialDeposit });
-      // ✅ STEP 4: CREATE DEMO ACCOUNT
+      // âœ… STEP 4: CREATE DEMO ACCOUNT
       const demoRes = await handleCreateCompetitionDemo();
-      console.log("Demo Account Created:", demoRes);
-      // 🔥 STORE DATA FOR DIALOG
+      // console.log("Demo Account Created:", demoRes);
+      // ðŸ”¥ STORE DATA FOR DIALOG
 
 
       setEnrollmentData({
@@ -454,7 +454,7 @@ const sendCompetitionJoinEmail = async ({
   };
 
     const createParticipant = async ({ competitionId, user, initialDeposit }) => {
-      console.log("All Data for User"+ user.data);
+      // console.log("All Data for User"+ user.data);
     const clientId = user?._id;
 
     return await axios.post(`${API_URL}/competitions/createParticipant`, {
@@ -522,8 +522,8 @@ const sendCompetitionJoinEmail = async ({
   
       const createData = await createRes.json();
       if (createRes.ok) {
-        console.log("Created Competition Account:", createData.account);
-        return createData; // ✅ IMPORTANT
+        // console.log("Created Competition Account:", createData.account);
+        return createData; // âœ… IMPORTANT
       } else {
         throw new Error(createData.message || "Failed to create account");
       }
@@ -601,19 +601,19 @@ const sendCompetitionJoinEmail = async ({
 
       <div className="flex items-center gap-4 mt-4 text-sm flex-wrap">
 
-        {/* 💰 Prize */}
+        {/* ðŸ’° Prize */}
         <div className="flex items-center gap-1">
           <Trophy size={16} className="text-yellow-400" />
           ${selectedBannerComp?.totalPrizePool || 0}
         </div>
 
-        {/* 👥 Participants */}
+        {/* ðŸ‘¥ Participants */}
         <div className="flex items-center gap-1">
           <Users size={16} />
           {selectedBannerComp?.participants?.length || 0}
         </div>
 
-        {/* ⏳ Countdown */}
+        {/* â³ Countdown */}
         <div className="flex items-center gap-1 text-red-400">
           <Clock size={16} />
           {selectedBannerComp
@@ -632,7 +632,7 @@ const sendCompetitionJoinEmail = async ({
 
     {/* <button
       onClick={() => {
-        console.log("Know More clicked");
+        // console.log("Know More clicked");
       }}
       className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition"
     >
@@ -703,7 +703,7 @@ const sendCompetitionJoinEmail = async ({
           </div>
         </div>
 
-        {/* 🔥 TABS (UPDATED - RADIX STYLE LOOK) */}
+        {/* ðŸ”¥ TABS (UPDATED - RADIX STYLE LOOK) */}
         <div className="mt-10 flex justify-center">
           <div
             role="tablist"
@@ -750,12 +750,12 @@ const sendCompetitionJoinEmail = async ({
           </div>
         </div>
 
-        {/* 🔥 TAB CONTENT */}
+        {/* ðŸ”¥ TAB CONTENT */}
 
         {/* ACTIVE */}
         {tab === "active" && (
           <div className="mt-6 space-y-6">
-            {/* 🔥 COMPETITION LIST */}
+            {/* ðŸ”¥ COMPETITION LIST */}
             <div className="space-y-4">
               {/* CARD 1 */}
               <div className="space-y-4">
@@ -773,12 +773,12 @@ const sendCompetitionJoinEmail = async ({
                         {/* LEFT */}
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            {/* ✅ Competition Name */}
+                            {/* âœ… Competition Name */}
                             <h3 className="font-semibold text-gray-800">
                               {comp.competitionName}
                             </h3>
 
-                            {/* ✅ Joined Badge */}
+                            {/* âœ… Joined Badge */}
                             {joinedCompetitions.includes(comp._id) && (
                               <span className="inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-400">
                                 Joined
@@ -786,14 +786,14 @@ const sendCompetitionJoinEmail = async ({
                             )}
                           </div>
 
-                          {/* ✅ Description */}
+                          {/* âœ… Description */}
                           <p className="text-sm text-gray-400">
                             {comp.description || "Trading competition"}
                           </p>
 
                           {/* DETAILS */}
                           <div className="flex items-center gap-4 pt-1">
-                            {/* 🏆 1st Prize */}
+                            {/* ðŸ† 1st Prize */}
                             <div className="flex items-center gap-1 text-sm">
                               <Trophy className="h-4 w-4 text-yellow-400" />
                               <span>
@@ -809,7 +809,7 @@ const sendCompetitionJoinEmail = async ({
                               </span>
                             </div>
 
-                            {/* 👥 Participants */}
+                            {/* ðŸ‘¥ Participants */}
                             <div className="flex items-center gap-1 text-sm">
                               <Users className="h-4 w-4 text-gray-400" />
                               <span className="text-gray-400">
@@ -818,7 +818,7 @@ const sendCompetitionJoinEmail = async ({
                             </div>
 
 
-                            {/* 📅 Start Date */}
+                            {/* ðŸ“… Start Date */}
                             <div className="flex items-center gap-1 text-sm">
                               <Clock className="h-4 w-4 text-gray-400" />
                               <span className="text-gray-400">
@@ -858,7 +858,7 @@ const sendCompetitionJoinEmail = async ({
               </div>
             </div>
 
-            {/* 🔥 LEADERBOARD HEADER */}
+            {/* ðŸ”¥ LEADERBOARD HEADER */}
             {/* <div className="border border-gray-200 shadow-sm  rounded-2xl p-5 bg-white">
               <div className="flex justify-between items-center flex-wrap gap-3">
                 <div>
@@ -887,12 +887,12 @@ const sendCompetitionJoinEmail = async ({
               </div>
             </div> */}
 
-            {/* 🔥 PODIUM */}
+            {/* ðŸ”¥ PODIUM */}
             <div className="border  shadow-sm  rounded-2xl p-5 bg-white border-gray-200">
               <p className="text-xs text-gray-400 mb-4">ELITE PODIUM</p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                {/* 🥈 2nd Winner - ADVANCED UI */}
+                {/* ðŸ¥ˆ 2nd Winner - ADVANCED UI */}
                 <div className="group relative min-h-[300px] overflow-hidden rounded-2xl border px-4 pb-6 pt-5 text-center transition-all duration-500 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] border border-green-200 border-[#29466c]">
                   {/* BOTTOM CARD */}
                   <div className="absolute bottom-8 left-1/2 h-[106px] w-[88%] -translate-x-1/2 rounded-t-xl border border-[#2f4c70] bg-[linear-gradient(180deg,rgba(24,52,92,0.7),rgba(10,23,44,0.95))]">
@@ -909,7 +909,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          💰 5k season reward
+                          ðŸ’° 5k season reward
                         </span>
                       </div>
                     </div>
@@ -949,7 +949,7 @@ const sendCompetitionJoinEmail = async ({
                   </div>
                 </div>
 
-                {/* 🥇 1st Winner Premium */}
+                {/* ðŸ¥‡ 1st Winner Premium */}
                 <div className="group relative min-h-[300px] overflow-hidden rounded-2xl border px-4 pb-6 pt-5 text-center transition-all duration-500 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] border border-green-200 border-cyan-300/70 md:scale-105 shadow-[0_0_36px_rgba(34,211,238,0.18)]">
                   {/* BOTTOM CARD */}
                   <div className="absolute bottom-8 left-1/2 h-[106px] w-[88%] -translate-x-1/2 rounded-t-xl border border-[#2f4c70] bg-[linear-gradient(180deg,rgba(24,52,92,0.7),rgba(10,23,44,0.95))]">
@@ -965,7 +965,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          💰 10k season reward
+                          ðŸ’° 10k season reward
                         </span>
                       </div>
                     </div>
@@ -999,7 +999,7 @@ const sendCompetitionJoinEmail = async ({
                   </div>
                 </div>
 
-                {/* 🔥 3rd (Advanced Podium Card) */}
+                {/* ðŸ”¥ 3rd (Advanced Podium Card) */}
                 <div className="group relative min-h-[300px] overflow-hidden rounded-2xl border px-4 pb-6 pt-5 text-center transition-all duration-500 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] border border-green-200 border-[#29466c]">
                   {/* BOTTOM INFO BOX */}
                   <div className="absolute bottom-8 left-1/2 h-[106px] w-[88%] -translate-x-1/2 rounded-t-xl border border-[#2f4c70] bg-[linear-gradient(180deg,rgba(24,52,92,0.7),rgba(10,23,44,0.95))]">
@@ -1015,7 +1015,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          🪙 2.5k season reward
+                          ðŸª™ 2.5k season reward
                         </span>
                       </div>
                     </div>
@@ -1059,8 +1059,8 @@ const sendCompetitionJoinEmail = async ({
               </div>
             </div>
 
-            {/* 🔥 TOP USERS TABLE */}
-            {/* 🔥 PREMIUM TOP USERS TABLE */}
+            {/* ðŸ”¥ TOP USERS TABLE */}
+            {/* ðŸ”¥ PREMIUM TOP USERS TABLE */}
             <div className="rounded-xl border border-gray-200 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] border border-green-200 p-3">
               {/* HEADER */}
               <div className="mb-3 flex items-center justify-between">
@@ -1228,7 +1228,7 @@ const sendCompetitionJoinEmail = async ({
         {/* UPCOMING */}
         {tab === "upcoming" && (
           <div className="mt-6 space-y-6">
-            {/* 🔥 COMPETITION LIST */}
+            {/* ðŸ”¥ COMPETITION LIST */}
             <div className="space-y-4">
               {/* CARD 1 */}
               <div className="space-y-4">
@@ -1243,20 +1243,20 @@ const sendCompetitionJoinEmail = async ({
 
           {/* LEFT */}
           <div className="space-y-1">
-            {/* 🔥 NAME */}
+            {/* ðŸ”¥ NAME */}
             <h3 className="font-semibold text-gray-800">
               {comp.competitionName}
             </h3>
 
-            {/* 🔥 DESCRIPTION */}
+            {/* ðŸ”¥ DESCRIPTION */}
             <p className="text-sm text-gray-400">
               {comp.description || "Trading competition"}
             </p>
 
-            {/* 🔥 DETAILS */}
+            {/* ðŸ”¥ DETAILS */}
             <div className="flex items-center gap-4 pt-1">
 
-              {/* 💰 PRIZE */}
+              {/* ðŸ’° PRIZE */}
               <div className="flex items-center gap-1 text-sm">
                 <Trophy className="h-4 w-4 text-yellow-500" />
                 <span className="text-black">
@@ -1271,7 +1271,7 @@ const sendCompetitionJoinEmail = async ({
                               </span>
                             </div>
 
-              {/* 📅 START DATE */}
+              {/* ðŸ“… START DATE */}
               <div className="flex items-center gap-1 text-sm">
                 <Clock className="h-4 w-4 text-gray-400" />
                 <span className="text-gray-400">
@@ -1325,14 +1325,14 @@ const sendCompetitionJoinEmail = async ({
               <div className="bg-white p-6 rounded-xl shadow-lg text-center w-[380px]">
                 
                 <h2 className="text-xl font-bold text-green-600 mb-4">
-                  🎉 Congratulations!
+                  ðŸŽ‰ Congratulations!
                 </h2>
 
                 <p className="text-gray-700 mb-4">
                   You have successfully joined the competition.
                 </p>
 
-                {/* 🔥 USER DETAILS */}
+                {/* ðŸ”¥ USER DETAILS */}
                 <div className="text-left text-sm space-y-2 bg-gray-50 p-4 rounded-lg">
                   
                   <p><strong>Name:</strong> {enrollmentData.name}</p>
@@ -1366,7 +1366,7 @@ const sendCompetitionJoinEmail = async ({
     <div className="bg-white p-6 rounded-xl shadow-lg text-center w-[360px]">
       
       <h2 className="text-xl font-bold text-red-600 mb-4">
-        ❌ Insufficient Balance
+        âŒ Insufficient Balance
       </h2>
 
       <p className="text-gray-700 mb-4">
@@ -1391,7 +1391,7 @@ const sendCompetitionJoinEmail = async ({
         <button
           onClick={() => {
             setInsufficientDialogOpen(false);
-            navigate("/wallet"); // 🔥 change route if needed
+            navigate("/wallet"); // ðŸ”¥ change route if needed
           }}
           className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
@@ -1405,7 +1405,7 @@ const sendCompetitionJoinEmail = async ({
 )}
           
 
-            {/* 🔥 LEADERBOARD HEADER */}
+            {/* ðŸ”¥ LEADERBOARD HEADER */}
             {/* <div className="border border-gray-200 shadow-sm rounded-2xl p-5 bg-white">
               <div className="flex justify-between items-center flex-wrap gap-3">
                 <div>
@@ -1434,7 +1434,7 @@ const sendCompetitionJoinEmail = async ({
               </div>
             </div> */}
 
-            {/* 🔥 PODIUM */}
+            {/* ðŸ”¥ PODIUM */}
             {/* <div className="border border-gray-200 shadow-sm rounded-2xl p-5 bg-white">
               <p className="text-xs text-gray-400 mb-4">ELITE PODIUM</p>
 
@@ -1450,7 +1450,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          💰 5k season reward
+                          ðŸ’° 5k season reward
                         </span>
                       </div>
                     </div>
@@ -1500,7 +1500,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          💰 10k season reward
+                          ðŸ’° 10k season reward
                         </span>
                       </div>
                     </div>
@@ -1545,7 +1545,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          🪙 2.5k season reward
+                          ðŸª™ 2.5k season reward
                         </span>
                       </div>
                     </div>
@@ -1725,14 +1725,14 @@ const sendCompetitionJoinEmail = async ({
         
         {tab === "past" && (
           <div className="mt-6 space-y-6">
-            {/* 🔥 COMPETITION LIST */}
+            {/* ðŸ”¥ COMPETITION LIST */}
             {/* <div className="space-y-4">
               
 
               
             </div> */}
 
-            {/* 🔥 LEADERBOARD HEADER */}
+            {/* ðŸ”¥ LEADERBOARD HEADER */}
             {/* <div className="border border-gray-200 shadow-sm  rounded-2xl p-5 bg-white">
               <div className="flex justify-between items-center flex-wrap gap-3">
                 <div>
@@ -1761,7 +1761,7 @@ const sendCompetitionJoinEmail = async ({
               </div>
             </div> */}
 
-            {/* 🔥 PODIUM */}
+            {/* ðŸ”¥ PODIUM */}
             {/* <div className="border  shadow-sm  rounded-2xl p-5 bg-white border-gray-200">
               <p className="text-xs text-gray-400 mb-4">ELITE PODIUM</p>
 
@@ -1777,7 +1777,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          💰 5k season reward
+                          ðŸ’° 5k season reward
                         </span>
                       </div>
                     </div>
@@ -1828,7 +1828,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          💰 10k season reward
+                          ðŸ’° 10k season reward
                         </span>
                       </div>
                     </div>
@@ -1873,7 +1873,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          🪙 2.5k season reward
+                          ðŸª™ 2.5k season reward
                         </span>
                       </div>
                     </div>
@@ -1917,8 +1917,8 @@ const sendCompetitionJoinEmail = async ({
               </div>
             </div> */}
 
-            {/* 🔥 TOP USERS TABLE */}
-            {/* 🔥 PREMIUM TOP USERS TABLE */}
+            {/* ðŸ”¥ TOP USERS TABLE */}
+            {/* ðŸ”¥ PREMIUM TOP USERS TABLE */}
             {/* <div className="rounded-xl border border-gray-200 bg-[linear-gradient(135deg,#ecfdf5,#ffffff,#d1fae5)] p-3">
 
               <div className="mb-3 flex items-center justify-between">
@@ -2052,7 +2052,7 @@ const sendCompetitionJoinEmail = async ({
         )}
       </div>
 
-{/* 🔥 RULES DIALOG */}
+{/* ðŸ”¥ RULES DIALOG */}
 {openRules && (
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
     
@@ -2084,7 +2084,7 @@ const sendCompetitionJoinEmail = async ({
               "KYC required for winners",
               "Organizer may update rules anytime"
             ].map((rule, i) => (
-              <li key={i}>• {rule}</li>
+              <li key={i}>â€¢ {rule}</li>
             ))}
           </ul>
         </div>
@@ -2104,7 +2104,7 @@ const sendCompetitionJoinEmail = async ({
               "Bug exploitation = disqualification",
               "Suspicious activity may remove user"
             ].map((rule, i) => (
-              <li key={i}>• {rule}</li>
+              <li key={i}>â€¢ {rule}</li>
             ))}
           </ul>
         </div>

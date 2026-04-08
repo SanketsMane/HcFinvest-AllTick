@@ -446,7 +446,8 @@ class CopyTradingEngine {
 
         // Calculate close price and PnL
         const closePrice = masterClosePrice
-        const contractSize = followerTrade.contractSize || 100000
+        //Sanket v2.0 - Use tradeEngine for correct symbol-specific contract size fallback
+        const contractSize = followerTrade.contractSize || tradeEngine.getContractSize(followerTrade.symbol)
         const rawPnl = followerTrade.side === 'BUY' 
           ? (closePrice - followerTrade.openPrice) * followerTrade.quantity * contractSize
           : (followerTrade.openPrice - closePrice) * followerTrade.quantity * contractSize
