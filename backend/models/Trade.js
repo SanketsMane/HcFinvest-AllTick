@@ -209,17 +209,9 @@ tradeSchema.methods.calculatePnl = function(currentBid, currentAsk) {
 tradeSchema.methods.checkSlTp = function(currentBid, currentAsk) {
   if (this.status !== 'OPEN') return null
   
-  //Sanket v2.0 - NUCLEAR spike guard: reject bad tick prices at the lowest level.
-  // No matter which code path calls checkSlTp, a bad tick cannot trigger SL/TP.
-  if (this.openPrice) {
-    const sym = (this.symbol || '').toUpperCase();
-    const checkPrice = this.side === 'BUY' ? currentBid : currentAsk;
-    if (checkPrice && checkPrice > 0) {
-      const devPct = Math.abs((checkPrice - this.openPrice) / this.openPrice) * 100;
-      const maxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
-      if (devPct > maxDev) return null;
-    }
-  }
+  //Sanket v2.0 - Spike protection is handled by AllTick quarantine (5 confirmations, ±0.25% band)
+  // and by using server-side Redis prices only. No openPrice-based guard needed here —
+  // it blocked legitimate SL/TP when market moved >1.5% from entry.
   
   // MT5 Logic:
   // BUY positions close at BID price. SL/TP must trigger on BID.

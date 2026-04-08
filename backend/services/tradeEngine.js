@@ -352,17 +352,8 @@ class TradeEngine {
     const askToUse = rawAsk !== null ? rawAsk : currentAsk
     const closePrice = trade.side === 'BUY' ? bidToUse : askToUse
 
-    //Sanket v2.0 - Bulletproof price guard inside closeTrade: reject automated closes at bad prices.
-    // This is the LAST safety net — catches bad ticks no matter which code path triggers the close.
-    if (closedBy === 'SL' || closedBy === 'TP' || closedBy === 'STOP_OUT') {
-      const sym = trade.symbol.toUpperCase().replace(/\.I$/i, '');
-      const devPct = trade.openPrice ? Math.abs((closePrice - trade.openPrice) / trade.openPrice) * 100 : 0;
-      const maxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
-      if (devPct > maxDev) {
-        console.warn(`[TradeEngine] CLOSE GUARD: Blocking ${closedBy} close for ${trade.tradeId} — closePrice ${closePrice} deviates ${devPct.toFixed(1)}% from open ${trade.openPrice}`);
-        return { trade, realizedPnl: 0, blocked: true };
-      }
-    }
+    //Sanket v2.0 - Spike protection handled by AllTick quarantine + server-side Redis prices.
+    // Removed openPrice-based close guard — it blocked legitimate SL/TP/STOP_OUT when market moved significantly.
     
     // Determine the actual quantity to close
     const totalQuantity = trade.quantity;
@@ -652,17 +643,8 @@ class TradeEngine {
       
       if (!prices) continue
 
-      //Sanket v2.0 - Spike guard: reject execution price that deviates too far from trade openPrice.
-      // A bad tick (e.g. 4672 vs real 4818) can pass the quarantine and trigger a false SL/TP close.
-      const execPrice = trade.side === 'BUY' ? prices.bid : prices.ask;
-      if (execPrice && trade.openPrice) {
-        const deviationPct = Math.abs((execPrice - trade.openPrice) / trade.openPrice) * 100;
-        const maxDeviation = targetSym.includes('BTC') || targetSym.includes('ETH') ? 15 : targetSym.includes('XAU') || targetSym.includes('XAG') ? 1.5 : 2;
-        if (deviationPct > maxDeviation) {
-          console.warn(`[TradeEngine] SPIKE GUARD: Skipping SL/TP for ${trade.tradeId} — price ${execPrice} deviates ${deviationPct.toFixed(1)}% from open ${trade.openPrice}`);
-          continue;
-        }
-      }
+      //Sanket v2.0 - Spike protection handled by AllTick quarantine (5-confirm, ±0.25% band) + server-side Redis prices only.
+      // Removed openPrice-based guard — it blocked legitimate SL/TP when market moved >1.5% from entry.
 
       const trigger = trade.checkSlTp(prices.bid, prices.ask)
       if (trigger) {

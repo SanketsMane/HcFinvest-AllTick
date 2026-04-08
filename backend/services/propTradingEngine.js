@@ -737,17 +737,8 @@ class PropTradingEngine {
       const bid = priceData.rawBid !== undefined ? priceData.rawBid : priceData.bid
       const ask = priceData.rawAsk !== undefined ? priceData.rawAsk : priceData.ask
 
-      //Sanket v2.0 - Spike guard: reject execution price that deviates too far from trade openPrice.
-      // A bad tick can pass quarantine and trigger a false SL/TP close.
-      const checkPrice = trade.side === 'BUY' ? bid : ask;
-      if (checkPrice && trade.openPrice) {
-        const deviationPct = Math.abs((checkPrice - trade.openPrice) / trade.openPrice) * 100;
-        const maxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
-        if (deviationPct > maxDev) {
-          console.warn(`[PropEngine] SPIKE GUARD: Skipping SL/TP for ${trade.tradeId} — price ${checkPrice} deviates ${deviationPct.toFixed(1)}% from open ${trade.openPrice}`);
-          continue;
-        }
-      }
+      //Sanket v2.0 - Spike protection handled by AllTick quarantine (5-confirm, ±0.25% band) + server-side Redis prices only.
+      // Removed openPrice-based guard — it blocked legitimate SL/TP when market moved >1.5% from entry.
 
       const sl = trade.sl || trade.stopLoss
       const tp = trade.tp || trade.takeProfit
@@ -781,14 +772,8 @@ class PropTradingEngine {
       }
 
       if (shouldClose) {
-        //Sanket v2.0 - Close guard: validate closePrice vs openPrice before saving.
-        // Prevents any bad tick from reaching the database.
-        const closeDev = trade.openPrice ? Math.abs((closePrice - trade.openPrice) / trade.openPrice) * 100 : 0;
-        const closeMaxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
-        if (closeDev > closeMaxDev) {
-          console.warn(`[PropEngine] CLOSE GUARD: Blocking ${closeReason} for ${trade.tradeId} — closePrice ${closePrice} deviates ${closeDev.toFixed(1)}% from open ${trade.openPrice}`);
-          continue;
-        }
+        //Sanket v2.0 - Spike protection handled by AllTick quarantine + server-side Redis prices.
+        // Removed openPrice-based close guard — it blocked legitimate SL/TP when market moved significantly.
 
         // Calculate PnL
         const pnl = trade.side === 'BUY'
