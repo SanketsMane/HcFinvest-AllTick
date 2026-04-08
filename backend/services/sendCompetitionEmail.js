@@ -51,7 +51,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+//Sanket v2.0 - Lazy-init Resend so missing API key doesn't crash server on import
+let _resend = null;
+function getResend() {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('[sendCompetitionEmail] RESEND_API_KEY not set in .env');
+    }
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 const sendCompetitionEmail = async ({ to, subject, html }) => {
   try {
@@ -60,7 +70,7 @@ const sendCompetitionEmail = async ({ to, subject, html }) => {
 
     const fromName = process.env.SMTP_FROM_NAME || "HC Finvest";
 
-    const response = await resend.emails.send({
+    const response = await getResend().emails.send({
       from: `${fromName} <${fromEmail}>`,
       to: [to],
       subject,
