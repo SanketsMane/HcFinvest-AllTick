@@ -640,13 +640,23 @@ class TradeEngine {
       
       if (!prices) continue
 
+      //Sanket v2.0 - Spike guard: reject execution price that deviates too far from trade openPrice.
+      // A bad tick (e.g. 4672 vs real 4818) can pass the quarantine and trigger a false SL/TP close.
+      const execPrice = trade.side === 'BUY' ? prices.bid : prices.ask;
+      if (execPrice && trade.openPrice) {
+        const deviationPct = Math.abs((execPrice - trade.openPrice) / trade.openPrice) * 100;
+        const maxDeviation = targetSym.includes('BTC') || targetSym.includes('ETH') ? 15 : targetSym.includes('XAU') || targetSym.includes('XAG') ? 1.5 : 2;
+        if (deviationPct > maxDeviation) {
+          console.warn(`[TradeEngine] SPIKE GUARD: Skipping SL/TP for ${trade.tradeId} — price ${execPrice} deviates ${deviationPct.toFixed(1)}% from open ${trade.openPrice}`);
+          continue;
+        }
+      }
+
       const trigger = trade.checkSlTp(prices.bid, prices.ask)
       if (trigger) {
-        // ENHANCED: Real-World Market Execution (Gap/Slippage Handling)
-        // Closing a trade (SL/TP) uses the first available market price (bid/ask) instead of the target stop/limit level
         const executionPrice = trade.side === 'BUY' ? prices.bid : prices.ask;
         
-        console.log(`[TradeEngine] SL/TP ${trigger} HIT for trade ${trade.tradeId} @ market price ${executionPrice} (Slippage tracked)`);
+        console.log(`[TradeEngine] SL/TP ${trigger} HIT for trade ${trade.tradeId} @ market price ${executionPrice}`);
 
         const result = await this.closeTrade(trade._id, executionPrice, executionPrice, trigger)
         triggeredTrades.push({ trade: result.trade, trigger, pnl: result.realizedPnl })

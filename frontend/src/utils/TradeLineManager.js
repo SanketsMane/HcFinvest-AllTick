@@ -398,11 +398,13 @@ export class TradeLineManager {
       ? `${orderType || (isBuy ? 'BUY' : 'SELL')} @ ${fmt(entry)}`
       : `${isBuy ? 'BUY' : 'SELL'} ${fmt(entry)}`;
 
+    //Sanket v2.0 - BUY entry = blue, SELL entry = red (solid lines)
+    const entryColor = isBuy ? '#2196F3' : '#f44336';
     if (!set.entry) {
       set.entry = await this._createShape(tid, 'entry', entry, { 
-        color: '#2196F3', 
-        style: 1, 
-        width: 2, 
+        color: entryColor, 
+        style: 0, 
+        width: 1, 
         text: labelText,
         selectable: false // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.46 Stationary Anchor: Entry lines cannot be selected/deleted.
       });
@@ -416,7 +418,7 @@ export class TradeLineManager {
       if (!entryExists) {
         delete this.tvIdMap[set.entry.tvId];
         set.entry = null;
-        set.entry = await this._createShape(tid, 'entry', entry, { color: '#2196F3', style: 1, width: 2, text: labelText, selectable: false });
+        set.entry = await this._createShape(tid, 'entry', entry, { color: entryColor, style: 0, width: 1, text: labelText, selectable: false });
       } else {
         this._updateShape(set.entry.tvId, entry, labelText);
       }

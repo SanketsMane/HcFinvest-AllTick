@@ -212,7 +212,8 @@ class AllTickApiService {
       if (withinPendingBand && withinWindow) {
         pending.confirmations += 1;
         pending.lastSeenAt = ts;
-        if (pending.confirmations >= 2) {
+        //Sanket v2.0 - Require 3 confirmations (was 2) to prevent repeated bad ticks from passing through
+        if (pending.confirmations >= 3) {
           this.markAcceptedPrice(symbol, midPrice, ts);
           return true;
         }

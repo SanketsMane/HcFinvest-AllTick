@@ -736,6 +736,16 @@ class PropTradingEngine {
 
       const bid = priceData.rawBid !== undefined ? priceData.rawBid : priceData.bid
       const ask = priceData.rawAsk !== undefined ? priceData.rawAsk : priceData.ask
+
+      //Sanket v2.0 - Spike guard: reject execution price that deviates too far from trade openPrice.
+      // A bad tick can pass quarantine and trigger a false SL/TP close.
+      const checkPrice = trade.side === 'BUY' ? bid : ask;
+      if (checkPrice && trade.openPrice) {
+        const deviationPct = Math.abs((checkPrice - trade.openPrice) / trade.openPrice) * 100;
+        const maxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
+        if (deviationPct > maxDev) continue;
+      }
+
       const sl = trade.sl || trade.stopLoss
       const tp = trade.tp || trade.takeProfit
 
