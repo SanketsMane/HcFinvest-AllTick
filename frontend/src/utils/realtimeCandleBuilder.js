@@ -1,5 +1,9 @@
 const LONG_GAP_MS = 45 * 60 * 1000;
 const ALLOWED_TIME_SKEW_MS = 5000;
+//Sanket v2.0 - Industry-standard stale-tick tolerance (Bloomberg=5s, TradingView=5s, MT4=3s)
+//Sanket v2.0 - Ticks arriving within this window of a bucket boundary are clamped to the current open candle
+//Sanket v2.0 - rather than hard-rejected — prevents frozen candles caused by feed clock skew
+const STALE_TICK_TOLERANCE_MS = 3000;
 
 export const toEventTimeMs = (rawTime) => {
   if (typeof rawTime === 'number') {
@@ -128,10 +132,20 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
     return { accepted: false, reason: 'invalid_timeframe' };
   }
 
-  const bucketTime = Math.floor(tickTime / resolutionMs) * resolutionMs;
+  //Sanket v2.0 - Use let so we can clamp slightly-late ticks to current bucket (see tolerance window below)
+  let bucketTime = Math.floor(tickTime / resolutionMs) * resolutionMs;
 
   if (currentBar && Number.isFinite(currentBar.time) && bucketTime < currentBar.time) {
-    return { accepted: false, reason: 'out_of_order_bucket', bucketTime };
+    const skewMs = currentBar.time - bucketTime;
+    if (skewMs <= STALE_TICK_TOLERANCE_MS) {
+      //Sanket v2.0 - Feed clock is slightly behind the minute boundary (e.g. AllTick timestamp 1-2s late)
+      //Sanket v2.0 - Clamp to current open bucket — same pattern used by Bloomberg, TradingView, MT4
+      //Sanket v2.0 - instead of rejecting, assign tick to current open candle so chart stays live
+      bucketTime = currentBar.time;
+    } else {
+      //Sanket v2.0 - Genuinely stale tick (>3s behind current bucket) — hard reject
+      return { accepted: false, reason: 'out_of_order_bucket', bucketTime };
+    }
   }
 
   // 1. Initial Seeding
@@ -194,8 +208,13 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
     }
   }
 
-  // Finalize the actual new tick bucket
-  const open = tickPrice; 
+  //Sanket v2.0 - SNAP OPEN TO PREVIOUS CLOSE: ensures candle continuity on mid-minute joins
+  //Sanket v2.0 - Same pattern as backend storageService.ingestTick — price values from feed, open from previous close
+  //Sanket v2.0 - Critical because TradingView CL locks the `open` field on first onRealtimeCallback push:
+  //Sanket v2.0 - subsequent updates only accept close/high/low. Using tickPrice as open creates a flat candle permanently.
+  const open = (currentBar && Number.isFinite(currentBar.close) && currentBar.close > 0)
+    ? currentBar.close
+    : tickPrice;
   const nextBar = {
     time: bucketTime,
     open: open,

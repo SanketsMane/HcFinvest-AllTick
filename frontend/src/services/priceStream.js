@@ -243,11 +243,6 @@ class PriceStreamService {
       const { symbol: rawSymbol, bid, ask, time, rawBid, rawAsk } = tickData
       const symbol = normalizeSym(rawSymbol)
 
-      // 🔍 DEBUG-TICK: Log every raw tick arriving from socket
-      if (symbol === 'XAUUSD' || symbol === 'EURUSD') {
-        console.log(`[TICK-RAW] ${symbol} bid=${bid} ask=${ask} time=${time} raw=${JSON.stringify(tickData)}`)
-      }
-
       //Sanket v2.0 - Drop ticks with invalid/zero bid to prevent PnL flicker to $0
       if (!symbol || !bid || bid <= 0) {
         console.warn(`[TICK-DROP-ZERO] ${symbol} bid=${bid} ask=${ask} — dropped (zero/null bid)`)
@@ -279,11 +274,6 @@ class PriceStreamService {
       }
       
       this.prices[symbol] = priceObj
-
-      // 🔍 DEBUG-DISPATCH: Log what gets sent to TradingPage subscribers
-      if (symbol === 'XAUUSD' || symbol === 'EURUSD') {
-        console.log(`[TICK-DISPATCH] ${symbol} → subscribers bid=${acceptedTick.bid} ask=${acceptedTick.ask}`)
-      }
       
       this.subscribers.forEach((callback) => {
         try { callback(this.prices, { [symbol]: this.prices[symbol] }, this.lastTickAt) } catch {}

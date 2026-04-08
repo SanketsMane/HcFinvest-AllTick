@@ -2919,7 +2919,7 @@
 // ---------------------------------------------------------------------------------------------------------------------------
 
 import { API_URL } from '../config/api'
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react'
 import { getSafeJSON } from '../utils/safeLocalStorage';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon, Clock, ChevronDown, Check, ShieldAlert, Lock, ShieldCheck, ShieldX } from 'lucide-react'
@@ -2944,11 +2944,14 @@ const AnimatedPrice = ({ target, decimals }) => {
   return <>{num.toFixed(decimals)}</>;
 };
 
+//Sanket v2.0 - tabular-nums prevents digit-width jitter on fast PnL updates
+const TABULAR_NUMS_STYLE = { fontVariantNumeric: 'tabular-nums' };
+
 const AnimatedPNL = ({ value }) => {
   const pnl = useInterpolation(value ?? 0, 0.15);
   const isPositive = pnl >= 0;
   return (
-    <span className={isPositive ? 'text-green-500 font-medium' : 'text-red-500 font-medium'}>
+    <span style={TABULAR_NUMS_STYLE} className={isPositive ? 'text-green-500 font-medium' : 'text-red-500 font-medium'}>
       {isPositive ? '+' : ''}${pnl.toFixed(2)}
     </span>
   );
@@ -2956,14 +2959,16 @@ const AnimatedPNL = ({ value }) => {
 
 const AnimatedValue = ({ value, decimals = 2 }) => {
   const val = useInterpolation(value ?? 0, 0.15);
-  return <>{val.toFixed(decimals)}</>;
+  return <span style={TABULAR_NUMS_STYLE}>{val.toFixed(decimals)}</span>;
 };
 
 //Sanket v2.0 - Animated positions table row. The whole <tr> re-renders at 60fps driven by
 // useInterpolation on the live bid/ask for this trade's symbol. Only the current-price and
 // P/L cells visually change; all other cells render the same static trade fields.
 // Isolated as a component so TradingPage itself is never triggered by the RAF loop.
-const AnimatedTradeRow = ({ trade, rawBid, rawAsk, fallbackPnl, priceDecimals, isDarkMode, onModify, onClose }) => {
+//Sanket v2.0 - onPnlChange callback reports row PnL to parent ref on every frame so
+// summary floating P/L stays perfectly in sync with what the user sees in each row.
+const AnimatedTradeRow = memo(({ trade, rawBid, rawAsk, fallbackPnl, priceDecimals, isDarkMode, onModify, onClose, onPnlChange, tradeKey }) => {
   const smooth = useInterpolation(
     (rawBid > 0 || rawAsk > 0) ? { bid: rawBid || 0, ask: rawAsk || 0 } : 0,
     0.15
@@ -2981,20 +2986,29 @@ const AnimatedTradeRow = ({ trade, rawBid, rawAsk, fallbackPnl, priceDecimals, i
         ? (validPrice - trade.openPrice) * trade.quantity * contractSize
         : (trade.openPrice - validPrice) * trade.quantity * contractSize) - (trade.commission || 0) - (trade.swap || 0)
     : (fallbackPnl || 0);
+
+  //Sanket v2.0 - Report row-level PnL to parent on every interpolation frame.
+  // Uses useEffect so it runs after render, keeping the ref map always up-to-date.
+  useEffect(() => {
+    if (onPnlChange && tradeKey) onPnlChange(tradeKey, pnl);
+  });
+
   const fmt = (p) => p ? p.toFixed(priceDecimals) : '-';
+  //Sanket v2.0 - tabular-nums on all numeric cells prevents digit-width jitter
+  const numCls = (extra = '') => `py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'} ${extra}`.trim();
   return (
     <tr className={`border-t ${isDarkMode ? 'border-gray-800 hover:bg-[#1a1a1a]' : 'border-gray-200 hover:bg-gray-50'}`}>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{new Date(trade.openedAt).toLocaleTimeString()}</td>
+      <td className={numCls()}>{new Date(trade.openedAt).toLocaleTimeString()}</td>
       <td className={`py-2 px-3 text-xs font-medium ${isDarkMode ? '' : 'text-gray-900'}`}>{String(trade.symbol || '').toUpperCase().replace(/\.I$/i, '')}</td>
       <td className={`py-2 px-3 text-xs font-medium ${trade.side === 'BUY' ? 'text-blue-500' : 'text-red-500'}`}>{trade.side}</td>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.quantity}</td>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{fmt(trade.openPrice)}</td>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{fmt(validPrice)}</td>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.stopLoss ? fmt(trade.stopLoss) : '-'}</td>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>{trade.takeProfit ? fmt(trade.takeProfit) : '-'}</td>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.commission?.toFixed(2) || '0.00'}</td>
-      <td className={`py-2 px-3 text-xs ${isDarkMode ? '' : 'text-gray-700'}`}>${trade.swap?.toFixed(2) || '0.00'}</td>
-      <td className={`py-2 px-3 text-xs font-medium ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>${pnl.toFixed(2)}</td>
+      <td className={numCls()} style={TABULAR_NUMS_STYLE}>{trade.quantity}</td>
+      <td className={numCls()} style={TABULAR_NUMS_STYLE}>{fmt(trade.openPrice)}</td>
+      <td className={numCls()} style={TABULAR_NUMS_STYLE}>{fmt(validPrice)}</td>
+      <td className={numCls()} style={TABULAR_NUMS_STYLE}>{trade.stopLoss ? fmt(trade.stopLoss) : '-'}</td>
+      <td className={numCls()} style={TABULAR_NUMS_STYLE}>{trade.takeProfit ? fmt(trade.takeProfit) : '-'}</td>
+      <td className={numCls()} style={TABULAR_NUMS_STYLE}>${trade.commission?.toFixed(2) || '0.00'}</td>
+      <td className={numCls()} style={TABULAR_NUMS_STYLE}>${trade.swap?.toFixed(2) || '0.00'}</td>
+      <td className={`py-2 px-3 text-xs font-medium ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`} style={TABULAR_NUMS_STYLE}>${pnl.toFixed(2)}</td>
       <td className="py-2 px-3">
         <div className="flex items-center gap-1">
           <button onClick={() => onModify(trade)} className="p-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors" title="Modify SL/TP"><Pencil size={12} /></button>
@@ -3003,7 +3017,7 @@ const AnimatedTradeRow = ({ trade, rawBid, rawAsk, fallbackPnl, priceDecimals, i
       </td>
     </tr>
   );
-};
+});
 
 const getTradeCacheKey = (trade = {}) => trade?._id || trade?.id || trade?.tradeId || null;
 
@@ -3737,38 +3751,40 @@ const TradingPage = () => {
   const lastValidPricesRef = useRef({});
   //Sanket v2.0 - Cache last computed PnL per trade to use as fallback when price is temporarily missing
   const lastTradePnlRef = useRef({});
-  //Sanket v2.0 - Keep last non-zero floating PnL to absorb transient server/tick races.
-  const lastNonZeroFloatingPnlRef = useRef(0);
-  const lastNonZeroFloatingPnlAtRef = useRef(0);
+  //Sanket v2.0 - Row-level PnL reported by each AnimatedTradeRow at 60fps.
+  // Summary floating P/L is derived from this so it exactly matches what each row shows.
+  const rowPnlMapRef = useRef({});
+  const rowPnlRafRef = useRef(null);
+  //Sanket v2.0 - Stable callback for AnimatedTradeRow to report its computed PnL on every frame.
+  // Batches into a single RAF to update displayFloatingPnl once per animation frame, not per row.
+  const handleRowPnlChange = useCallback((tradeKey, pnl) => {
+    rowPnlMapRef.current[tradeKey] = pnl;
+    if (!rowPnlRafRef.current) {
+      rowPnlRafRef.current = requestAnimationFrame(() => {
+        rowPnlRafRef.current = null;
+        let total = 0;
+        const keys = Object.keys(rowPnlMapRef.current);
+        for (let i = 0; i < keys.length; i++) total += rowPnlMapRef.current[keys[i]] || 0;
+        const rounded = Math.round(total * 100) / 100;
+        setDisplayFloatingPnl(rounded);
+      });
+    }
+  }, []);
 
+  //Sanket v2.0 - displayFloatingPnl is now driven at 60fps by handleRowPnlChange RAF loop.
+  // This effect only handles edge cases: no open trades or stale rowPnlMapRef cleanup.
   useEffect(() => {
-    const incomingFloating = Number(accountSummary?.floatingPnl ?? 0)
-    const now = Date.now()
-
-    if (Math.abs(incomingFloating) > 0.000001) {
-      lastNonZeroFloatingPnlRef.current = incomingFloating
-      lastNonZeroFloatingPnlAtRef.current = now
-      setDisplayFloatingPnl(incomingFloating)
-      return
-    }
-
     if (openTrades.length === 0) {
-      setDisplayFloatingPnl(0)
-      return
+      rowPnlMapRef.current = {};
+      setDisplayFloatingPnl(0);
+      return;
     }
-
-    const hasRecentTicks = (now - (priceStreamService.lastTickAt || 0)) < 15000
-    const hasRecentNonZero = Math.abs(lastNonZeroFloatingPnlRef.current) > 0.000001
-      && (now - lastNonZeroFloatingPnlAtRef.current) < 20000
-
-    if (hasRecentTicks && hasRecentNonZero) {
-      // Ignore transient 0 snapshots while feed is alive and we just had valid non-zero PnL.
-      setDisplayFloatingPnl(lastNonZeroFloatingPnlRef.current)
-      return
-    }
-
-    setDisplayFloatingPnl(0)
-  }, [accountSummary?.floatingPnl, openTrades.length, livePrices])
+    //Sanket v2.0 - Prune rowPnlMapRef entries for trades that are no longer open
+    const activeKeys = new Set(openTrades.map(t => getTradeCacheKey(t)).filter(Boolean));
+    Object.keys(rowPnlMapRef.current).forEach(k => {
+      if (!activeKeys.has(k)) delete rowPnlMapRef.current[k];
+    });
+  }, [openTrades])
 
   useEffect(() => {
     const unsubscribe = priceStreamService.subscribe('tradingPage', (prices, updated, timestamp) => {
@@ -3782,22 +3798,22 @@ const TradingPage = () => {
         const selectedBid = selectedTick.bid
         const selectedAsk = selectedTick.ask || selectedTick.bid
 
-        // uD83DuDD0D DEBUG-BUYSELL: Log what the buy/sell panel receives
-        console.log(`[BUYSELL-UPDATE] ${selectedSymbol} bid=${selectedBid} ask=${selectedAsk} spread=${Math.abs(selectedAsk-selectedBid).toFixed(5)}`)
-
-        setLivePrices(prev => ({
-          ...prev,
+        //Sanket v2.0 - Merge selected symbol tick into the buffer immediately so the
+        // single batched setLivePrices call below carries it along — avoids double setState.
+        priceBufferRef.current = {
+          ...priceBufferRef.current,
           [selectedSymbol]: {
-            ...prev[selectedSymbol],
+            ...priceBufferRef.current[selectedSymbol],
             ...selectedTick,
             bid: selectedBid,
             ask: selectedAsk,
             spread: Math.abs(selectedAsk - selectedBid)
           }
-        }))
+        };
 
         setSelectedInstrument(prev => {
           if (!prev || prev.symbol !== selectedSymbol) return prev
+          if (prev.bid === selectedBid && prev.ask === selectedAsk) return prev
           return {
             ...prev,
             bid: selectedBid,
@@ -3818,13 +3834,9 @@ const TradingPage = () => {
         
         const currentPrices = priceBufferRef.current;
         
+        //Sanket v2.0 - Single batched setLivePrices per 120ms window (was two separate calls)
         setLivePrices(prev => ({ ...prev, ...currentPrices }));
         updateQuoteCache(currentPrices)
-        
-        // Update instruments only if they are actually in the category being viewed
-        // uD83DuDD0D DEBUG-INSTRUMENTS: Log XAUUSD price arriving in instruments list
-        const _dbgXau = currentPrices['XAUUSD']
-        if (_dbgXau) console.log(`[INSTRUMENTS-UPDATE] XAUUSD bid=${_dbgXau.bid} ask=${_dbgXau.ask} freshness=${_dbgXau.quoteFreshness}`)
 
         setInstruments(prev => prev.map(inst => {
           const priceData = currentPrices[inst.symbol]
@@ -3842,7 +3854,7 @@ const TradingPage = () => {
           return inst
         }))
 
-        // Update selected instrument
+        // Update selected instrument from batch
         const selectedPrice = currentPrices[selectedInstrument?.symbol]
         if (selectedPrice && selectedPrice.bid && selectedPrice.bid > 0) {
           setSelectedInstrument(prev => ({
@@ -5811,6 +5823,8 @@ const TradingPage = () => {
                           isDarkMode={isDarkMode}
                           onModify={openModifyModal}
                           onClose={openCloseModal}
+                          onPnlChange={handleRowPnlChange}
+                          tradeKey={tradeCacheKey}
                         />
                       );
                     })
@@ -6714,7 +6728,7 @@ const TradingPage = () => {
         </div>
 
         {/* Bottom Status Bar */}
-        <footer className={`h-6 border-t flex items-center px-2 sm:px-3 text-[10px] sm:text-xs shrink-0 overflow-x-auto ${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'}`}>
+        <footer className={`h-6 border-t flex items-center px-2 sm:px-3 text-[10px] sm:text-xs shrink-0 overflow-x-auto ${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'}`} style={TABULAR_NUMS_STYLE}>
           <span className={`font-medium shrink-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedInstrument.symbol}</span>
           <span className="text-gray-500 ml-2 sm:ml-4 shrink-0">Bal: <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>$<AnimatedValue value={accountSummary.balance} /></span></span>
           {!isMobile && (

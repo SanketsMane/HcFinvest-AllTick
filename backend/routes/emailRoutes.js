@@ -1,6 +1,6 @@
 import express from "express";
 import sendCompetitionEmail from "../services/sendCompetitionEmail.js";
-import competitionJoinTemplate from "../scripts/CompetitionEmailTemplate.js";
+import competitionJoinTemplate from "../services/CompetitionEmailTemplate.js";
 
 const router = express.Router();
 

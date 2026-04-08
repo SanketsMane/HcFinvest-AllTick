@@ -696,16 +696,20 @@ const MobileTradingApp = () => {
     return price.toFixed(decimals)
   }
 
+  //Sanket v2.0 - PnL cache ref avoids object mutation on trade and prevents flickering to $0
+  const _mobilePnlCacheRef = useRef({});
   const calculatePnl = (trade) => {
     const prices = getPrice(trade.symbol)
     const currentPrice = trade.side === 'BUY' ? prices.bid : prices.ask
-    // Return previous PnL or 0 if no valid price (prevent flickering)
-    if (!currentPrice || currentPrice <= 0) return trade._lastPnl || 0
+    const cacheKey = trade._id || trade.id || trade.tradeId;
+    // Return cached PnL if no valid price (prevent flickering)
+    if (!currentPrice || currentPrice <= 0) return cacheKey ? (_mobilePnlCacheRef.current[cacheKey] || 0) : 0
     const pnl = trade.side === 'BUY'
       ? (currentPrice - trade.openPrice) * trade.quantity * (trade.contractSize || 100000)
       : (trade.openPrice - currentPrice) * trade.quantity * (trade.contractSize || 100000)
-    trade._lastPnl = pnl // Cache for fallback
-    return pnl
+    const net = pnl - (trade.commission || 0) - (trade.swap || 0)
+    if (cacheKey) _mobilePnlCacheRef.current[cacheKey] = net;
+    return net
   }
 
   // Calculate total floating PnL and update account summary in real-time

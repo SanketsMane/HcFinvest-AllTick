@@ -580,8 +580,14 @@ class StorageService extends EventEmitter {
     const tickLow = Math.min(bid, ask);
 
     const tickTimeMs = this.parseTickTimestamp(priceData.time);
+    //Sanket v2.0 - Use server's Date.now() for bucket assignment, NOT AllTick's tick timestamp
+    //Sanket v2.0 - AllTick timestamps can lag 1-3s behind the actual minute boundary, causing the BACKEND to place
+    //Sanket v2.0 - the new-minute's first ticks into the PREVIOUS bucket (17:06:00 instead of 17:07:00).
+    //Sanket v2.0 - Result: /current-candle returns null for the new minute → frontend creates flat O=H=L=C seed candle
+    //Sanket v2.0 - Fix identical to Bloomberg/TradingView pattern: price values from feed, TIME from authoritative clock
+    const bucketAssignmentMs = Date.now();
     for (const timeframe of this.realtimeTimeframes) {
-      const bucketStartMs = this.getBucketStartMs(tickTimeMs, timeframe);
+      const bucketStartMs = this.getBucketStartMs(bucketAssignmentMs, timeframe);
       const barKey = `${resolvedSymbol}|${timeframe}`;
       const existing = this.liveBars.get(barKey);
 

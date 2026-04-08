@@ -310,11 +310,11 @@ const Datafeed = {
           console.log(`[DATAFEED] ⚠️ No valid bars for ${symbolInfo.name}. Returning noData.`);
           onHistoryCallback([], { noData: true });
       } else {
-          //Sanket v2.0 - CRITICAL: Inject current running candle into history array on first request
-          //Sanket v2.0 - TradingView sets lastBarsCache from the LAST bar in onHistoryCallback
-          //Sanket v2.0 - If the live candle is NOT in this array, TV creates a new empty bar on first tick
-          //Sanket v2.0 - Also use recentClosed (Redis ZSET candles) to fill the gap left by stale history cache
-          //Sanket v2.0 - Without this: history ends at 06:14 (5-min cache lag), live bar at 06:27 → 13-min blank gap
+          //Sanket v2.0 - Inject ONLY recentClosed (completed bars from Redis ZSET) to fill the gap between
+          //Sanket v2.0 - stale AllTick history cache and the current time. Do NOT inject the live running candle.
+          //Sanket v2.0 - TV CL v30 treats bars from onHistoryCallback as finalized history and won't accept
+          //Sanket v2.0 - realtime updates for them via onRealtimeCallback. The current candle is handled
+          //Sanket v2.0 - entirely by subscribeBars/bootstrapLiveBar — TV sees it as a genuinely NEW bar.
           if (useLiveCache) {
             try {
               const liveRes = await fetch(
@@ -324,57 +324,21 @@ const Datafeed = {
                 const liveJson = await liveRes.json();
                 if (liveJson?.success) {
                   const recentClosed = Array.isArray(liveJson.recentClosed) ? liveJson.recentClosed : [];
-                  const liveCandle = liveJson.candle;
 
-                  // ── Step 1: Merge recentClosed Redis candles to fill the history gap ──
-                  //Sanket v2.0 - recentClosed has tick-accurate bars from the last 30 min from Redis ZSET
-                  //Sanket v2.0 - We use them to replace/append candles that AllTick history is missing
+                  //Sanket v2.0 - Merge only CLOSED bars from Redis ZSET into history to fill the cache gap
                   if (recentClosed.length > 0) {
                     const lastHistTime = bars[bars.length - 1].time;
                     for (const rc of recentClosed) {
                       if (!Number.isFinite(rc.time) || rc.time <= 0) continue;
                       if (rc.time <= lastHistTime) {
-                        //Sanket v2.0 - Bar already exists in history: replace it with fresher Redis data
                         const idx = bars.findIndex(b => b.time === rc.time);
                         if (idx !== -1) bars[idx] = applyChartPriceModeToBar(rc, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
                       } else {
-                        //Sanket v2.0 - Bar is newer than history: append to fill the gap
                         bars.push(applyChartPriceModeToBar(rc, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide));
                       }
                     }
-                    // Re-sort after merging (recentClosed may arrive out-of-order)
                     bars.sort((a, b) => a.time - b.time);
-                    console.log(`[DATAFEED] ✅ Merged ${recentClosed.length} Redis candles for ${symbolInfo.name}`);
-                  }
-
-                  // ── Step 2: Append current open bar (or flat-fill any remaining tiny gap) ──
-                  if (liveCandle && Number.isFinite(liveCandle.time) && liveCandle.time > 0) {
-                    const rawLive = {
-                      time: liveCandle.time,
-                      open: Number(liveCandle.open),
-                      high: Number(liveCandle.high),
-                      low: Number(liveCandle.low),
-                      close: Number(liveCandle.close),
-                      volume: Number(liveCandle.volume) || 0
-                    };
-                    const liveBar = applyChartPriceModeToBar(rawLive, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
-                    const lastHistoryBar = bars[bars.length - 1];
-                    if (liveBar.time === lastHistoryBar.time) {
-                      //Sanket v2.0 - Same bucket: replace with live OHLC (more ticks than Redis has)
-                      bars[bars.length - 1] = liveBar;
-                      console.log(`[DATAFEED] ✅ Live candle merged for ${symbolInfo.name} t=${liveBar.time}`);
-                    } else if (liveBar.time > lastHistoryBar.time) {
-                      //Sanket v2.0 - Still a small gap? flat-fill any remaining buckets (should be at most 1-2)
-                      const _tfMsMap = {'1m':60000,'5m':300000,'15m':900000,'30m':1800000,'1h':3600000,'2h':7200000,'4h':14400000,'1d':86400000,'1w':604800000,'1M':2592000000};
-                      const _resMs = _tfMsMap[timeframe] || 60000;
-                      let _fill = lastHistoryBar.time + _resMs;
-                      while (_fill < liveBar.time) {
-                        bars.push({ time: _fill, open: lastHistoryBar.close, high: lastHistoryBar.close, low: lastHistoryBar.close, close: lastHistoryBar.close, volume: 0.0001 });
-                        _fill += _resMs;
-                      }
-                      bars.push(liveBar);
-                      console.log(`[DATAFEED] ✅ Live candle appended for ${symbolInfo.name} t=${liveBar.time}`);
-                    }
+                    console.log(`[DATAFEED] ✅ Merged ${recentClosed.length} Redis closed candles for ${symbolInfo.name}`);
                   }
                 }
               }
@@ -383,18 +347,44 @@ const Datafeed = {
             }
           }
 
-          Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
-          //Sanket v2.0 - Only update if this batch is more recent. Backward pagination batches
-          // arrive AFTER the first (most-recent) batch and would overwrite _lastHistoryBars with
-          // stale old bars. subscribeBars seeds lastPushedBarTime from this value, so if it's
-          // stale, bootstrapLiveBar and handleCandleUpdate can push bars older than TV's last
-          // getBars bar, causing putToCacheNewBar time violations on 1W/1D/higher timeframes.
-          const candidateBar = bars[bars.length - 1];
-          if (!Datafeed._lastHistoryBars[historyKey] || candidateBar.time > Datafeed._lastHistoryBars[historyKey].time) {
-            Datafeed._lastHistoryBars[historyKey] = { ...candidateBar };
+          //Sanket v2.0 - Strip the current running candle from history output.
+          //Sanket v2.0 - AllTick API returns partial current-bucket bars in its history response, and Redis
+          //Sanket v2.0 - cache preserves them. TV CL v30 treats ALL bars from onHistoryCallback as finalized
+          //Sanket v2.0 - and silently ignores onRealtimeCallback updates for the same bar time. By stripping
+          //Sanket v2.0 - the current bucket here, subscribeBars/bootstrapLiveBar can push it as a genuinely
+          //Sanket v2.0 - NEW bar that TV fully accepts for live open/high/low/close updates.
+          if (firstDataRequest && bars.length > 0) {
+            const _resMsLookup = { '1m': 60000, '5m': 300000, '15m': 900000, '30m': 1800000, '1h': 3600000, '2h': 7200000, '4h': 14400000, '1d': 86400000, '1w': 604800000, '1M': 2592000000 };
+            const _resMs = _resMsLookup[timeframe] || 60000;
+            const _nowMs = Date.now() + (Datafeed._serverTimeOffsetMs || 0);
+            const _currentBucket = Math.floor(_nowMs / _resMs) * _resMs;
+            let _stripped = 0;
+            while (bars.length > 0 && bars[bars.length - 1].time >= _currentBucket) {
+              bars.pop();
+              _stripped++;
+            }
+            if (_stripped > 0) {
+              console.log(`[DATAFEED] 🔒 Stripped ${_stripped} current-bucket bar(s) (bucket=${_currentBucket}) — live candle handled by subscribeBars`);
+            }
           }
-          console.log(`[DATAFEED] ✅ Returning ${bars.length} bars, lastBar.time=${candidateBar.time}`);
-          onHistoryCallback(bars, { noData: false });
+
+          if (bars.length === 0) {
+            console.log(`[DATAFEED] ⚠️ All bars were current-bucket — returning noData`);
+            onHistoryCallback([], { noData: true });
+          } else {
+            Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
+            //Sanket v2.0 - Only update if this batch is more recent. Backward pagination batches
+            // arrive AFTER the first (most-recent) batch and would overwrite _lastHistoryBars with
+            // stale old bars. subscribeBars seeds lastPushedBarTime from this value, so if it's
+            // stale, bootstrapLiveBar and handleCandleUpdate can push bars older than TV's last
+            // getBars bar, causing putToCacheNewBar time violations on 1W/1D/higher timeframes.
+            const candidateBar = bars[bars.length - 1];
+            if (!Datafeed._lastHistoryBars[historyKey] || candidateBar.time > Datafeed._lastHistoryBars[historyKey].time) {
+              Datafeed._lastHistoryBars[historyKey] = { ...candidateBar };
+            }
+            console.log(`[DATAFEED] ✅ Returning ${bars.length} bars, lastBar.time=${candidateBar.time}`);
+            onHistoryCallback(bars, { noData: false });
+          }
       }
     } catch (err) {
       console.error("[DATAFEED] ❌ getBars Exception:", err.message);
@@ -431,11 +421,19 @@ const Datafeed = {
     
     let lastBarTime = null;
     let currentBar = null;
-    let lastUpdateTime = 0;
     let tickCount = 0;
     let lastTickTime = 0;
-    const throttleMs = 50;
     let isActive = true;
+    //Sanket v2.0 - Removed 50ms render throttle: every tick now updates OHLC (high/low accuracy)
+    //Sanket v2.0 - RAF loop already drives rendering at 60fps — no separate throttle needed
+
+    //Sanket v2.0 - 60fps RAF smooth interpolation: mirrors useInterpolation so candle close glides like BUY/SELL buttons
+    let displayClose = null;  // what TradingView currently sees (lerped)
+    let targetClose  = null;  // latest accepted tick price (lerp target)
+    let rafHandle    = null;
+    let prevRafTime  = null;
+    const CHART_SMOOTH = 0.15; // same smoothing factor as AnimatedPrice / AnimatedTradeRow
+    const CHART_EPS    = 0.00001;
 
     //Sanket v2.0 - Rolling median spike guard: tracks last N accepted chart prices to detect outlier ticks
     //Sanket v2.0 - AllTick sends stale/cached quotes (e.g. session open price) that create spike wicks on chart
@@ -465,12 +463,16 @@ const Datafeed = {
     if (seededBar && Number.isFinite(seededBar.time)) {
       currentBar = { ...seededBar };
       lastBarTime = seededBar.time;
-      lastUpdateTime = Date.now();
       //Sanket v2.0 - Pre-seed rolling window from historical bar close so spike guard is active from first tick
       //Sanket v2.0 - Use server-aligned time so a stale seeded bar is not mistakenly treated as fresh
       const _seedNowMs = Date.now() + (Datafeed._serverTimeOffsetMs || 0);
       if (Number.isFinite(seededBar.close) && seededBar.close > 0 && (_seedNowMs - seededBar.time) < 120000) {
         _priceWindow = Array(5).fill(seededBar.close);
+      }
+      //Sanket v2.0 - Seed smooth display from historical bar so RAF starts at the correct price
+      if (Number.isFinite(seededBar.close) && seededBar.close > 0) {
+        displayClose = seededBar.close;
+        targetClose  = seededBar.close;
       }
     }
 
@@ -492,22 +494,11 @@ const Datafeed = {
       } catch {}
     };
 
-    //Sanket v2.0 - Immediately push the seeded bar via onRealtimeCallback so TradingView activates
-    //Sanket v2.0 - it as the current live candle before the first tick arrives.
-    //Sanket v2.0 - Without this TV treats the injected getBars candle as "static history" and waits
-    //Sanket v2.0 - for the first tick to define the candle body — causing the tiny/late-start visual bug.
-    //Sanket v2.0 - setTimeout(0): deferred so TV's subscribeBars handler finishes registering first.
-    if (currentBar) {
-      setTimeout(() => {
-        if (isActive && currentBar) pushBar(currentBar);
-      }, 0);
-    }
-
     //Sanket v2.0 - Rewritten: Phase 1 fetches CURRENT RUNNING bar directly from backend live state
     //Sanket v2.0 - This is the REAL FIX: on mid-candle joins the chart now continues the active candle
     //Sanket v2.0 - instead of creating a new empty one. Phase 2 falls back to preferLive history.
     //Sanket v2.0 - Only create a new candle when the first tick arrives for a genuinely new bucket.
-    const bootstrapLiveBar = async () => {
+    const bootstrapLiveBar = async (attempt = 1) => {
       try {
         // ── Phase 1: Fetch exactly the current in-progress bar from backend live state ──
         const currentCandleRes = await fetch(
@@ -532,13 +523,15 @@ const Datafeed = {
             };
             currentBar = applyChartPriceModeToBar(liveCandle, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
             lastBarTime = liveCandle.time;
-            lastUpdateTime = Date.now();
             Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
             Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
             // Seed spike guard window with the real close
             if (liveCandle.close > 0 && _priceWindow.length < 5) {
               _priceWindow = Array(5).fill(liveCandle.close);
             }
+            //Sanket v2.0 - Seed smooth display from bootstrapped live bar
+            displayClose = currentBar.close;
+            targetClose  = currentBar.close;
             pushBar(currentBar);
             return; // Done — live bar fully seeded
           }
@@ -569,9 +562,11 @@ const Datafeed = {
         if (latest.time === currentBucket) {
           currentBar = applyChartPriceModeToBar(latest, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
           lastBarTime = latest.time;
-          lastUpdateTime = Date.now();
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
+          //Sanket v2.0 - Seed smooth display from phase-2 fallback live bar
+          displayClose = currentBar.close;
+          targetClose  = currentBar.close;
           pushBar(currentBar);
           return;
         }
@@ -581,15 +576,54 @@ const Datafeed = {
         if (lastBarTime === null) {
           currentBar = applyChartPriceModeToBar(latest, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
           lastBarTime = latest.time;
-          lastUpdateTime = Date.now();
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
         }
-      } catch (error) {}
+
+      } catch (error) {
+        //Sanket v2.0 - Retry once after 2s on network error so a transient failure doesn't leave chart without a candle
+        //Sanket v2.0 - Same retry-once pattern used by Bloomberg datafeed adapters and TradingView's own UDF client
+        if (attempt === 1 && isActive) {
+          setTimeout(() => bootstrapLiveBar(2), 2000);
+        }
+      }
     };
 
     bootstrapLiveBar();
-    
+
+    //Sanket v2.0 - RAF smooth interpolation loop: lerps displayClose → targetClose at 60fps.
+    //Sanket v2.0 - Feeds TradingView onRealtimeCallback every frame so the candle body glides
+    //Sanket v2.0 - instead of snapping, matching the smoothness of the BUY/SELL price buttons.
+    const rafLoop = (time) => {
+      if (!isActive) return;
+      //Sanket v2.0 - Pause lerp when browser tab is hidden: saves CPU, prevents dt accumulation on re-focus
+      //Sanket v2.0 - Mirrors the visibilitychange pausing pattern in useInterpolation.js
+      if (document.visibilityState === 'hidden') {
+        prevRafTime = null;
+        rafHandle = requestAnimationFrame(rafLoop);
+        return;
+      }
+      if (displayClose !== null && targetClose !== null && currentBar) {
+        const dt = prevRafTime !== null ? (time - prevRafTime) / 1000 : 1 / 60;
+        const lerpFactor = Math.min(1, CHART_SMOOTH * 60 * dt);
+        const diff = targetClose - displayClose;
+        if (Math.abs(diff) > CHART_EPS) {
+          displayClose = displayClose + diff * lerpFactor;
+          //Sanket v2.0 - open/high/low stay tick-accurate; only close is interpolated for smooth display
+          const displayBar = {
+            ...currentBar,
+            close: displayClose,
+            high: Math.max(currentBar.high, displayClose),
+            low:  Math.min(currentBar.low,  displayClose),
+          };
+          onRealtimeCallback(displayBar);
+        }
+      }
+      prevRafTime = time;
+      rafHandle = requestAnimationFrame(rafLoop);
+    };
+    rafHandle = requestAnimationFrame(rafLoop);
+
     priceStreamService.subscribeBars(symbolInfo.name);
     
     const normalizedSym = normalizeRealtimeSymbol(symbolInfo.name);
@@ -598,12 +632,18 @@ const Datafeed = {
       priceStreamService.setPrioritySymbols([...existingPriority, normalizedSym]);
     }
 
-    // ✅ Monitor for data gaps
+    // ✅ Monitor for data gaps + auto-recover
     const dataGapMonitor = setInterval(() => {
       const now = Date.now();
       if (lastTickTime > 0) {
         const timeSinceLastTick = now - lastTickTime;
-        if (timeSinceLastTick > 15000) {
+        if (timeSinceLastTick > 30000 && timeSinceLastTick < 300000) {
+          //Sanket v2.0 - Auto-recover candle state after connection gap — same as Bloomberg bar-resync on WS reconnect
+          //Sanket v2.0 - Re-fetch current candle from backend so chart doesn't show a frozen/stale body
+          console.warn(`[DATAFEED] ⚠️ DATA GAP ${symbolInfo.name} ${(timeSinceLastTick/1000).toFixed(0)}s — re-bootstrapping live bar`);
+          lastTickTime = now; // Reset so we don't spam bootstrap every 10s until next tick arrives
+          bootstrapLiveBar();
+        } else if (timeSinceLastTick > 15000) {
           console.warn(`[DATAFEED] ⚠️ DATA GAP for ${symbolInfo.name} for ${(timeSinceLastTick/1000).toFixed(1)}s`);
         }
       }
@@ -636,7 +676,6 @@ const Datafeed = {
 
       currentBar = { ...authoritativeBar };
       lastBarTime = validatedBar.bar.time;
-      lastUpdateTime = Date.now();
 
       Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
       const existing = Datafeed._lastHistoryBars[historyKey];
@@ -644,26 +683,21 @@ const Datafeed = {
         Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
       }
 
+      //Sanket v2.0 - Closed candle from backend authority: teleport display instantly (no lerp across candle boundary)
+      displayClose = authoritativeBar.close;
+      targetClose  = authoritativeBar.close;
       pushBar(currentBar);
     };
     
     const handlePriceUpdate = (e) => {
       tickCount++;
       if (!isActive) return;
-      const { symbol, bid, ask, time } = e.detail;
+      //Sanket v2.0 - No 50ms throttle: every tick updates OHLC so high/low wicks are always tick-accurate
+      //Sanket v2.0 - RAF loop already drives rendering at 60fps — no separate throttle needed
+      const { symbol, bid, ask } = e.detail;
       lastTickTime = Date.now();
       
       if (normalizeRealtimeSymbol(symbol) !== normalizedSym) return;
-
-      // 🔍 DEBUG-CHART: Log every tick reaching the chart candle builder
-      console.log(`[CHART-TICK] ${symbol} bid=${bid} ask=${ask} currentBar.close=${currentBar?.close} time=${time}`);
-
-      const now = Date.now();
-      if ((now - lastUpdateTime) < throttleMs) {
-        console.log(`[CHART-THROTTLED] ${symbol} tick dropped (throttle ${throttleMs}ms, elapsed ${now-lastUpdateTime}ms)`);
-        return;
-      }
-      lastUpdateTime = now;
 
       const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
       if (!isFinite(price) || price <= 0) {
@@ -687,17 +721,19 @@ const Datafeed = {
 
       //Sanket v2.0 - buildCandleFromTick handles same-bucket updates, new-minute bar creation, and gap interpolation
       //Sanket v2.0 - replaces validateRealtimeUpdate which could not create new bars nor interpolate gaps
+      //Sanket v2.0 - Use authoritative local time (adjusted for server offset) for bucket assignment — NOT AllTick's
+      //Sanket v2.0 - tick timestamp. AllTick's clock can be up to ~1s behind a minute boundary, causing the tick's
+      //Sanket v2.0 - bucketTime to fall in the PREVIOUS minute → out_of_order_bucket rejection for entire minute.
+      const tickTimeMs = Date.now() + (Datafeed._serverTimeOffsetMs || 0);
       const result = buildCandleFromTick({
         currentBar,
         tickPrice: price,
-        tickTime: time,
+        tickTime: tickTimeMs,
         resolutionMs,
         symbol: symbolInfo.name
       });
 
       if (!result.accepted) {
-        //Sanket v2.0 - Show actual rejection reason (was mislabeled as CHART-SPIKE-DROPPED for all rejections including out_of_order_bucket)
-        console.warn(`[CHART-SKIP] ${symbol} reason=${result.reason} price=${price} currentBar.close=${currentBar?.close}`);
         return;
       }
 
@@ -705,12 +741,38 @@ const Datafeed = {
       _priceWindow.push(price);
       if (_priceWindow.length > SPIKE_WINDOW_SIZE) _priceWindow.shift();
 
-      for (const bar of result.bars) {
-        console.log(`[CHART-PUSH] ${symbol} close=${bar.close} high=${bar.high} low=${bar.low} barTime=${bar.time}`);
-        pushBar(bar);
+      //Sanket v2.0 - Closed candles (minute boundary cross): push raw + teleport display
+      //Sanket v2.0 - Current open candle: only update targetClose; RAF loop lerps displayClose toward it at 60fps
+      for (let i = 0; i < result.bars.length; i++) {
+        const bar = result.bars[i];
+        if (i < result.bars.length - 1) {
+          pushBar(bar);
+          displayClose = bar.close;
+          targetClose  = bar.close;
+        } else {
+          if (displayClose === null) {
+            displayClose = bar.close;
+          } else {
+            const jumpPct = Math.abs(bar.close - displayClose) / (displayClose || 1) * 100;
+            if (jumpPct > 1) displayClose = bar.close;
+          }
+          targetClose = bar.close;
+        }
       }
       currentBar = result.bars[result.bars.length - 1];
       lastBarTime = currentBar.time;
+
+      //Sanket v2.0 - Push current bar to TV on every accepted tick — ensures TV treats it as live
+      //Sanket v2.0 - Since the current candle is NEVER in getBars history, TV fully accepts these updates
+      if (currentBar) {
+        const _liveClose = displayClose ?? currentBar.close;
+        onRealtimeCallback({
+          ...currentBar,
+          close: _liveClose,
+          high: Math.max(currentBar.high, _liveClose),
+          low:  Math.min(currentBar.low,  _liveClose),
+        });
+      }
     };
 
     Datafeed._subscribers = Datafeed._subscribers || {};
@@ -726,6 +788,7 @@ const Datafeed = {
     
     return function cleanup() {
       isActive = false;
+      if (rafHandle) cancelAnimationFrame(rafHandle);
       clearInterval(dataGapMonitor);
       priceStreamService.unsubscribeBars(symbolInfo.name);
       getPriceEvents().removeEventListener("candleUpdate", handleCandleUpdate);
