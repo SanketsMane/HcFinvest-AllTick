@@ -351,6 +351,18 @@ class TradeEngine {
     const bidToUse = rawBid !== null ? rawBid : currentBid
     const askToUse = rawAsk !== null ? rawAsk : currentAsk
     const closePrice = trade.side === 'BUY' ? bidToUse : askToUse
+
+    //Sanket v2.0 - Bulletproof price guard inside closeTrade: reject automated closes at bad prices.
+    // This is the LAST safety net — catches bad ticks no matter which code path triggers the close.
+    if (closedBy === 'SL' || closedBy === 'TP' || closedBy === 'STOP_OUT') {
+      const sym = trade.symbol.toUpperCase().replace(/\.I$/i, '');
+      const devPct = trade.openPrice ? Math.abs((closePrice - trade.openPrice) / trade.openPrice) * 100 : 0;
+      const maxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
+      if (devPct > maxDev) {
+        console.warn(`[TradeEngine] CLOSE GUARD: Blocking ${closedBy} close for ${trade.tradeId} — closePrice ${closePrice} deviates ${devPct.toFixed(1)}% from open ${trade.openPrice}`);
+        return { trade, realizedPnl: 0, blocked: true };
+      }
+    }
     
     // Determine the actual quantity to close
     const totalQuantity = trade.quantity;

@@ -207,13 +207,13 @@ class AllTickApiService {
     // Quarantine spikes: require a second near-identical anomalous tick before acceptance.
     const pending = this.pendingSpikeBySymbol.get(symbol);
     if (pending) {
-      const withinPendingBand = Math.abs((midPrice - pending.price) / pending.price) * 100 <= 0.35;
+      const withinPendingBand = Math.abs((midPrice - pending.price) / pending.price) * 100 <= 0.25;
       const withinWindow = (ts - pending.firstSeenAt) <= 15000;
       if (withinPendingBand && withinWindow) {
         pending.confirmations += 1;
         pending.lastSeenAt = ts;
-        //Sanket v2.0 - Require 3 confirmations (was 2) to prevent repeated bad ticks from passing through
-        if (pending.confirmations >= 3) {
+        //Sanket v2.0 - Require 5 confirmations to prevent repeated bad ticks from passing through
+        if (pending.confirmations >= 5) {
           this.markAcceptedPrice(symbol, midPrice, ts);
           return true;
         }

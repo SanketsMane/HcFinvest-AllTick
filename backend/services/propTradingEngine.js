@@ -778,6 +778,15 @@ class PropTradingEngine {
       }
 
       if (shouldClose) {
+        //Sanket v2.0 - Close guard: validate closePrice vs openPrice before saving.
+        // Prevents any bad tick from reaching the database.
+        const closeDev = trade.openPrice ? Math.abs((closePrice - trade.openPrice) / trade.openPrice) * 100 : 0;
+        const closeMaxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
+        if (closeDev > closeMaxDev) {
+          console.warn(`[PropEngine] CLOSE GUARD: Blocking ${closeReason} for ${trade.tradeId} — closePrice ${closePrice} deviates ${closeDev.toFixed(1)}% from open ${trade.openPrice}`);
+          continue;
+        }
+
         // Calculate PnL
         const pnl = trade.side === 'BUY'
           ? (closePrice - trade.openPrice) * trade.quantity * trade.contractSize
