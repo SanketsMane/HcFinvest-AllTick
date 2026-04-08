@@ -501,7 +501,7 @@ router.get('/pending/:tradingAccountId', async (req, res) => {
 router.get('/history/:tradingAccountId', async (req, res) => {
   try {
     const { tradingAccountId } = req.params
-    const { limit = 50, offset = 0, startDate, endDate, filter } = req.query
+    const { limit, offset = 0, startDate, endDate, filter } = req.query
 
     // Build date filter
     let dateFilter = {}
@@ -538,15 +538,17 @@ router.get('/history/:tradingAccountId', async (req, res) => {
       ...dateFilter
     }
 
-    const trades = await Trade.find(query)
+    //Sanket v2.0 - Only apply limit when explicitly requested so History tab shows all trades
+    let tradesQuery = Trade.find(query)
       .sort({ closedAt: -1 })
       .skip(parseInt(offset))
-      .limit(parseInt(limit))
+    if (limit) tradesQuery = tradesQuery.limit(parseInt(limit))
+    const trades = await tradesQuery
 
     const total = await Trade.countDocuments(query)
 
     // Calculate summary stats
-    const allTrades = await Trade.find(query)
+    const allTrades = limit ? await Trade.find(query) : trades
     const totalPnl = allTrades.reduce((sum, t) => sum + (t.realizedPnl || 0), 0)
     const winTrades = allTrades.filter(t => t.realizedPnl > 0).length
     const winRate = allTrades.length > 0 ? ((winTrades / allTrades.length) * 100).toFixed(1) : 0
@@ -555,7 +557,7 @@ router.get('/history/:tradingAccountId', async (req, res) => {
       success: true,
       trades,
       total,
-      limit: parseInt(limit),
+      limit: limit ? parseInt(limit) : null,
       offset: parseInt(offset),
       summary: {
         totalTrades: allTrades.length,

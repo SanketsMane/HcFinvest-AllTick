@@ -423,7 +423,7 @@ const MobileTradingApp = () => {
   const fetchTradeHistory = async () => {
     if (!selectedAccount) return
     try {
-      const res = await fetch(`${API_URL}/trade/history/${selectedAccount._id}?limit=50`)
+      const res = await fetch(`${API_URL}/trade/history/${selectedAccount._id}`)
       const data = await res.json()
       if (data.success) setTradeHistory(data.trades || [])
     } catch (e) {}
