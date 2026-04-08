@@ -294,7 +294,7 @@ const MobileTradingApp = () => {
     }
   }
   
-  // Check pending orders and SL/TP execution
+  // Check pending orders execution
   const checkPendingOrdersAndSlTp = async (prices) => {
     if (!selectedAccount) return
     
@@ -315,23 +315,8 @@ const MobileTradingApp = () => {
         fetchPendingOrders()
       }
       
-      // Check SL/TP for open trades
-      const sltpRes = await fetch(`${API_URL}/trade/check-sltp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prices })
-      })
-      const sltpData = await sltpRes.json()
-      
-      if (sltpData.success && sltpData.closedCount > 0) {
-        sltpData.closedTrades.forEach(trade => {
-          const pnlText = trade.pnl >= 0 ? `+$${trade.pnl.toFixed(2)}` : `-$${Math.abs(trade.pnl).toFixed(2)}`
-          showNotification(`${trade.reason} hit: ${trade.symbol} closed at ${pnlText}`, trade.pnl >= 0 ? 'success' : 'error')
-        })
-        fetchOpenTrades()
-        fetchTradeHistory()
-        fetchAccountSummary()
-      }
+      //Sanket v2.0 - SL/TP checking removed from frontend — backend interval handles it every 1s.
+      // Sending client-side prices to check-sltp created race conditions and bad-tick false closes.
     } catch (e) {
       // Silently fail - this runs in background
     }

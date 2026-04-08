@@ -9,6 +9,7 @@ import copyTradingEngine from '../services/copyTradingEngine.js'
 import ibEngine from '../services/ibEngineNew.js'
 import MasterTrader from '../models/MasterTrader.js'
 import redisClient from '../services/redisClient.js'
+import alltickApiService from '../services/alltickApiService.js'
 import { isMarketOpen, isPriceFresh } from '../utils/marketHours.js'
 
 const router = express.Router()
@@ -792,21 +793,19 @@ router.post('/kill-switch', async (req, res) => {
 });
 
 // POST /api/trade/check-stopout - Check and execute stop out if needed
+//Sanket v2.0 - Always use server-side Redis prices, never trust client-side prices for stop-out.
 router.post('/check-stopout', async (req, res) => {
   try {
-    const { tradingAccountId, prices } = req.body
+    const { tradingAccountId } = req.body
 
     if (!tradingAccountId) {
       return res.status(400).json({ success: false, message: 'Trading account ID required' })
     }
 
-    let currentPrices = {}
-    if (prices) {
-      try {
-        currentPrices = typeof prices === 'string' ? JSON.parse(prices) : prices
-      } catch (e) {
-        // Ignore parse errors
-      }
+    // ALWAYS use server-side prices from Redis — never trust frontend prices
+    const currentPrices = await alltickApiService.getAllPrices()
+    if (!currentPrices || Object.keys(currentPrices).length === 0) {
+      return res.json({ success: true, stopOutTriggered: false, message: 'No server prices available' })
     }
 
     // Check if this is a challenge account
@@ -882,59 +881,31 @@ router.post('/cancel', async (req, res) => {
   }
 })
 
-// POST /api/trade/check-sltp - Check and trigger SL/TP for all trades
+// POST /api/trade/check-sltp - DISABLED: SL/TP checking is now backend-only (1s interval in server.js)
+//Sanket v2.0 - Frontend was calling this with unvalidated client-side prices, causing false SL/TP closes.
+// The backend interval in server.js uses server-side Redis prices which go through spike quarantine.
 router.post('/check-sltp', async (req, res) => {
-  try {
-    const { prices } = req.body
-
-    if (!prices || typeof prices !== 'object') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Prices object is required' 
-      })
-    }
-
-    // Check SL/TP for all open challenge trades
-    const closedChallengeTrades = await propTradingEngine.checkSlTpForAllTrades(prices)
-    
-    // Check SL/TP for all regular trades
-    const closedRegularTrades = await tradeEngine.checkSlTpForAllTrades(prices)
-
-    const allClosedTrades = [...closedChallengeTrades, ...closedRegularTrades]
-
-    res.json({
-      success: true,
-      closedCount: allClosedTrades.length,
-      closedTrades: allClosedTrades.map(ct => ({
-        tradeId: ct.trade.tradeId,
-        symbol: ct.trade.symbol,
-        reason: ct.trigger || ct.reason,
-        pnl: ct.pnl
-      }))
-    })
-  } catch (error) {
-    console.error('Error checking SL/TP:', error)
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    })
+  res.json({
+    success: true,
+    closedCount: 0,
+    closedTrades: []
+  })
+})
   }
 })
 
 // POST /api/trade/check-pending - Check and execute pending orders when price is reached
+//Sanket v2.0 - Always use server-side Redis prices, never trust client-side prices.
 router.post('/check-pending', async (req, res) => {
   try {
-    const { prices } = req.body
-
-    if (!prices || typeof prices !== 'object') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Prices object is required' 
-      })
+    // ALWAYS use server-side prices from Redis — never trust frontend prices
+    const serverPrices = await alltickApiService.getAllPrices()
+    if (!serverPrices || Object.keys(serverPrices).length === 0) {
+      return res.json({ success: true, executedCount: 0, executedTrades: [] })
     }
 
     // Check pending orders for execution
-    const executedTrades = await tradeEngine.checkPendingOrders(prices)
+    const executedTrades = await tradeEngine.checkPendingOrders(serverPrices)
 
     res.json({
       success: true,

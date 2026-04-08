@@ -97,8 +97,36 @@ class AllTickApiService {
     // REST Request Queue
     this.restQueue = Promise.resolve();
 
+    //Sanket v2.0 - Seed spike filter baseline from Redis on startup.
+    // Prevents first bad tick from becoming the baseline after PM2 restart.
+    this.seedSpikeBaselinesFromRedis();
+
     // 🚀 NEW: Authoritative Backend Heartbeat (keeps charts moving)
     this.startProactiveHeartbeat();
+  }
+
+  //Sanket v2.0 - On startup, read existing prices from Redis to populate spike filter baselines.
+  // Without this, the first tick after restart is auto-accepted — if it's a bad tick, all real prices get rejected.
+  async seedSpikeBaselinesFromRedis() {
+    try {
+      const data = await redisClient.hgetall('live_prices');
+      if (!data || Object.keys(data).length === 0) return;
+      let seeded = 0;
+      for (const [sym, val] of Object.entries(data)) {
+        try {
+          const parsed = JSON.parse(val);
+          const mid = (parsed.bid + parsed.ask) / 2;
+          if (Number.isFinite(mid) && mid > 0) {
+            this.lastAcceptedMidBySymbol.set(sym, mid);
+            this.lastAcceptedTsBySymbol.set(sym, parsed.receivedAt || Date.now());
+            seeded++;
+          }
+        } catch {}
+      }
+      console.log(`[AllTick] Seeded spike baselines from Redis for ${seeded} symbols`);
+    } catch (err) {
+      console.warn('[AllTick] Failed to seed spike baselines from Redis:', err.message);
+    }
   }
 
   /**

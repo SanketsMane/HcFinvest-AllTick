@@ -4262,22 +4262,8 @@ const TradingPage = () => {
               })
             }
             
-            // Check SL/TP for all trades (auto-close when hit)
-            const slTpRes = await fetch(`${API_URL}/trade/check-sltp`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prices: allPrices })
-            })
-            const slTpData = await slTpRes.json()
-            if (slTpData.success && slTpData.closedCount > 0) {
-              // Refresh trades if any were closed by SL/TP
-              fetchOpenTrades()
-              fetchTradeHistory()
-              // Show notification
-              slTpData.closedTrades.forEach(ct => {
-                setTradeSuccess(`Trade ${ct.symbol} closed by ${ct.reason}: ${ct.pnl >= 0 ? '+' : ''}$${ct.pnl.toFixed(2)}`)
-              })
-            }
+            //Sanket v2.0 - SL/TP checking removed from frontend — backend interval handles it every 1s.
+            // Sending client-side prices to check-sltp created race conditions and bad-tick false closes.
           } catch (e) {
             // Silent fail for SL/TP check
           }

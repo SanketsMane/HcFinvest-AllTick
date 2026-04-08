@@ -743,7 +743,10 @@ class PropTradingEngine {
       if (checkPrice && trade.openPrice) {
         const deviationPct = Math.abs((checkPrice - trade.openPrice) / trade.openPrice) * 100;
         const maxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
-        if (deviationPct > maxDev) continue;
+        if (deviationPct > maxDev) {
+          console.warn(`[PropEngine] SPIKE GUARD: Skipping SL/TP for ${trade.tradeId} — price ${checkPrice} deviates ${deviationPct.toFixed(1)}% from open ${trade.openPrice}`);
+          continue;
+        }
       }
 
       const sl = trade.sl || trade.stopLoss

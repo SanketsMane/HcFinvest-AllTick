@@ -209,6 +209,18 @@ tradeSchema.methods.calculatePnl = function(currentBid, currentAsk) {
 tradeSchema.methods.checkSlTp = function(currentBid, currentAsk) {
   if (this.status !== 'OPEN') return null
   
+  //Sanket v2.0 - NUCLEAR spike guard: reject bad tick prices at the lowest level.
+  // No matter which code path calls checkSlTp, a bad tick cannot trigger SL/TP.
+  if (this.openPrice) {
+    const sym = (this.symbol || '').toUpperCase();
+    const checkPrice = this.side === 'BUY' ? currentBid : currentAsk;
+    if (checkPrice && checkPrice > 0) {
+      const devPct = Math.abs((checkPrice - this.openPrice) / this.openPrice) * 100;
+      const maxDev = sym.includes('BTC') || sym.includes('ETH') ? 15 : sym.includes('XAU') || sym.includes('XAG') ? 1.5 : 2;
+      if (devPct > maxDev) return null;
+    }
+  }
+  
   // MT5 Logic:
   // BUY positions close at BID price. SL/TP must trigger on BID.
   // SELL positions close at ASK price. SL/TP must trigger on ASK.
