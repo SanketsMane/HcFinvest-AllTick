@@ -218,6 +218,15 @@ export const updateCandleListWithTick = (candles, tick, timeframeMinutes) => {
   const lastIndex = updated.length - 1;
   const lastCandle = updated[lastIndex];
 
+  //Sanket v2.0 - Reject spike ticks before they corrupt candle OHLC data
+  //Sanket v2.0 - If tick deviates >2% from the last candle's close, skip it entirely
+  if (lastCandle.close > 0) {
+    const devPct = Math.abs((tickPrice - lastCandle.close) / lastCandle.close) * 100;
+    if (devPct > 2) {
+      return candles; // Return original candles unchanged
+    }
+  }
+
   if (lastCandle.time === bucketTime) {
     // ✍️ Update existing "Live" candle (IMMUTABLE UPDATE)
     updated[lastIndex] = {

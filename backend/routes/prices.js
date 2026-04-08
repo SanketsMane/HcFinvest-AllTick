@@ -380,6 +380,15 @@ router.get('/history', async (req, res) => {
     return 3
   }
 
+  //Sanket v2.0 - Wick spike threshold: max % a bar's low/high can deviate from its body midpoint
+  const getWickSpikeThresholdPct = (sym = '') => {
+    const upper = String(sym).toUpperCase()
+    if (upper.includes('BTC') || upper.includes('ETH') || upper.includes('BNB') || upper.includes('SOL') || upper.includes('DOGE')) return 5
+    if (upper.includes('XAU') || upper.includes('XAG')) return 1.5
+    if (upper.includes('OIL') || upper.includes('NGAS') || upper.includes('US30') || upper.includes('US100') || upper.includes('US500')) return 1
+    return 0.5
+  }
+
   const sanitizeHistoricalSeries = (candles, intervalMinutes, sym) => {
     if (!Array.isArray(candles) || candles.length === 0) return []
     const intervalMs = intervalMinutes * 60 * 1000
@@ -424,6 +433,22 @@ router.get('/history', async (req, res) => {
       }
 
       sanitized.push(normalized)
+    }
+
+    //Sanket v2.0 - Clamp spike wicks: if a bar's low/high deviates too far from body, clip it
+    const wickPct = getWickSpikeThresholdPct(sym)
+    for (let i = 0; i < sanitized.length; i++) {
+      const b = sanitized[i]
+      const bodyMid = (b.open + b.close) / 2
+      const threshold = bodyMid * (wickPct / 100)
+      const bodyLow = Math.min(b.open, b.close)
+      const bodyHigh = Math.max(b.open, b.close)
+      if (b.low < bodyLow - threshold) {
+        sanitized[i] = { ...b, low: bodyLow - threshold }
+      }
+      if (sanitized[i].high > bodyHigh + threshold) {
+        sanitized[i] = { ...sanitized[i], high: bodyHigh + threshold }
+      }
     }
 
     return sanitized

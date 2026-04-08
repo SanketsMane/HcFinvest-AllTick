@@ -304,6 +304,29 @@ const Datafeed = {
         // Apply Retail Lens Markup to historical bars
         const rawBars = normalizeBars(result.candles, symbolInfo.name);
         bars = rawBars.map(bar => applyChartPriceModeToBar(bar, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide));
+
+        //Sanket v2.0 - Sanitize spike wicks baked into historical candle data by AllTick bad ticks
+        //Sanket v2.0 - If a bar's low/high deviates >1.5% from its body midpoint, clamp to body range
+        if (bars.length > 2) {
+          const sym = String(symbolInfo.name).toUpperCase();
+          const wickThresholdPct = (sym.includes('BTC') || sym.includes('ETH') || sym.includes('BNB') || sym.includes('SOL') || sym.includes('DOGE')) ? 5
+            : (sym.includes('XAU') || sym.includes('XAG')) ? 1.5
+            : (sym.includes('OIL') || sym.includes('NGAS') || sym.includes('US30') || sym.includes('US100') || sym.includes('US500')) ? 1
+            : 0.5;
+          for (let i = 0; i < bars.length; i++) {
+            const b = bars[i];
+            const bodyMid = (b.open + b.close) / 2;
+            const threshold = bodyMid * (wickThresholdPct / 100);
+            const bodyLow = Math.min(b.open, b.close);
+            const bodyHigh = Math.max(b.open, b.close);
+            if (b.low < bodyLow - threshold) {
+              bars[i] = { ...b, low: bodyLow - threshold };
+            }
+            if (bars[i].high > bodyHigh + threshold) {
+              bars[i] = { ...bars[i], high: bodyHigh + threshold };
+            }
+          }
+        }
       }
 
       if (bars.length === 0) {

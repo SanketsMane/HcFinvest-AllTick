@@ -153,6 +153,7 @@ class AllTickApiService {
     }, 10000); // 10 second pulse
   }
 
+  //Sanket v2.0 - Tightened XAU/XAG to 1.5% to match frontend spike guard — 5% let ~3% bad ticks through
   getSpikeThresholdPercent(symbol = '') {
     const s = String(symbol).toUpperCase();
 
@@ -160,11 +161,15 @@ class AllTickApiService {
       return 20;
     }
 
-    if (s.includes('XAU') || s.includes('XAG') || s.includes('OIL') || s.includes('NGAS') || s.includes('COPPER') || s.includes('US30') || s.includes('US100') || s.includes('US500') || s.includes('UK100') || s.includes('ES35')) {
-      return 5;
+    if (s.includes('XAU') || s.includes('XAG')) {
+      return 1.5;
     }
 
-    return 3;
+    if (s.includes('OIL') || s.includes('NGAS') || s.includes('COPPER') || s.includes('US30') || s.includes('US100') || s.includes('US500') || s.includes('UK100') || s.includes('ES35')) {
+      return 3;
+    }
+
+    return 1;
   }
 
   markAcceptedPrice(symbol, mid, ts) {
