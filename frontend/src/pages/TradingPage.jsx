@@ -4541,12 +4541,20 @@ const TradingPage = () => {
     // INSTANT: Show success immediately before any async operation
     const executionPrice = side === 'BUY' ? ask : bid
     const tradeId = `temp_${Date.now()}`
+    //Sanket v2.0 - Optimistic trade must include contractSize to prevent PnL flash
+    // (AnimatedTradeRow defaults missing contractSize to 100000 forex default,
+    //  which is 1000x too large for XAUUSD contractSize=100)
+    const optimisticContractSize = getMarginContractSize(selectedInstrument.symbol)
     const optimisticTrade = {
       _id: tradeId,
       symbol: selectedInstrument.symbol,
       side,
       quantity: parseFloat(volume),
       openPrice: executionPrice,
+      contractSize: optimisticContractSize,
+      openedAt: new Date().toISOString(),
+      commission: 0,
+      swap: 0,
       status: 'OPEN',
       createdAt: new Date().toISOString(),
       isOptimistic: true
