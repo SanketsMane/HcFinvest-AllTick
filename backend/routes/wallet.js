@@ -1,4 +1,517 @@
 
+// // wallet.js routes
+ 
+// import express from 'express'
+// import Wallet from '../models/Wallet.js'
+// import Transaction from '../models/Transaction.js'
+// import TradingAccount from '../models/TradingAccount.js'
+// import User from '../models/User.js'
+// import AdminWallet from '../models/AdminWallet.js'
+// import AdminWalletTransaction from '../models/AdminWalletTransaction.js'
+// import KYC from '../models/KYC.js'
+// import UserBankAccount from '../models/UserBankAccount.js'
+
+// const router = express.Router()
+
+// // Helper to validate MongoDB ObjectId
+// const isValidObjectId = (id) => {
+//   return id && id !== 'undefined' && id !== 'null' && /^[a-fA-F0-9]{24}$/.test(id)
+// }
+
+// // GET /api/wallet/:userId - Get user wallet
+// router.get('/:userId', async (req, res) => {
+//   try {
+//     const { userId } = req.params
+//     if (!isValidObjectId(userId)) {
+//       return res.status(400).json({ message: 'Invalid user ID' })
+//     }
+//     let wallet = await Wallet.findOne({ userId })
+//     if (!wallet) {
+//       wallet = new Wallet({ userId, balance: 0 })
+//       await wallet.save()
+//     }
+//     res.json({ wallet })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error fetching wallet', error: error.message })
+//   }
+// })
+
+// // POST /api/wallet/deposit - Create deposit request
+// router.post('/deposit', async (req, res) => {
+//   try {
+//     const { userId, amount, paymentMethod, transactionRef, screenshot } = req.body
+
+//     if (!isValidObjectId(userId)) {
+//       return res.status(400).json({ message: 'Invalid user ID' })
+//     }
+//     if (!amount || amount <= 0) {
+//       return res.status(400).json({ message: 'Invalid amount' })
+//     }
+
+//     // Get or create wallet
+//     let wallet = await Wallet.findOne({ userId })
+//     if (!wallet) {
+//       wallet = new Wallet({ userId, balance: 0 })
+//       await wallet.save()
+//     }
+
+//     // Create transaction
+//     const transaction = new Transaction({
+//       userId,
+//       walletId: wallet._id,
+//       type: 'Deposit',
+//       amount,
+//       paymentMethod,
+//       transactionRef,
+//       screenshot,
+//       status: 'Pending'
+//     })
+//     await transaction.save()
+
+//     // Update pending deposits
+//     wallet.pendingDeposits += amount
+//     await wallet.save()
+
+//     res.status(201).json({ message: 'Deposit request submitted', transaction })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error creating deposit', error: error.message })
+//   }
+// })
+
+// // POST /api/wallet/withdraw - Create withdrawal request
+// router.post('/withdraw', async (req, res) => {
+//   try {
+//     const { userId, amount, paymentMethod } = req.body
+
+//     if (!isValidObjectId(userId)) {
+//       return res.status(400).json({ message: 'Invalid user ID' })
+//     }
+//     if (!amount || amount <= 0) {
+//       return res.status(400).json({ message: 'Invalid amount' })
+//     }
+
+//     // SECURITY CHECK 1: Verify KYC is approved
+//     const kyc = await KYC.findOne({ userId, status: 'approved' })
+//     if (!kyc) {
+//       return res.status(400).json({ 
+//         message: 'KYC verification required before withdrawal. Please complete your KYC first.' 
+//       })
+//     }
+
+//     // SECURITY CHECK 2: Verify user has at least one approved payment method
+//     const verifiedPaymentMethod = await UserBankAccount.findOne({ 
+//       userId, 
+//       status: 'Approved' 
+//     })
+//     if (!verifiedPaymentMethod) {
+//       return res.status(400).json({ 
+//         message: 'Please add and verify a withdrawal method (Bank/UPI) before requesting withdrawal.' 
+//       })
+//     }
+
+//     // Get wallet
+//     const wallet = await Wallet.findOne({ userId })
+//     if (!wallet) {
+//       return res.status(404).json({ message: 'Wallet not found' })
+//     }
+
+//     // Check balance
+//     if (wallet.balance < amount) {
+//       return res.status(400).json({ message: 'Insufficient balance' })
+//     }
+
+//     // Create transaction
+//     const transaction = new Transaction({
+//       userId,
+//       walletId: wallet._id,
+//       type: 'Withdrawal',
+//       amount,
+//       paymentMethod,
+//       status: 'Pending'
+//     })
+//     await transaction.save()
+
+//     // Deduct from balance and add to pending
+//     wallet.balance -= amount
+//     wallet.pendingWithdrawals += amount
+//     await wallet.save()
+
+//     res.status(201).json({ message: 'Withdrawal request submitted', transaction })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error creating withdrawal', error: error.message })
+//   }
+// })
+
+// // POST /api/wallet/transfer-to-trading - Transfer from wallet to trading account
+// router.post('/transfer-to-trading', async (req, res) => {
+//   try {
+//     const { userId, tradingAccountId, amount } = req.body
+
+//     if (!isValidObjectId(userId) || !isValidObjectId(tradingAccountId)) {
+//       return res.status(400).json({ message: 'Invalid user ID or trading account ID' })
+//     }
+//     if (!amount || amount <= 0) {
+//       return res.status(400).json({ message: 'Invalid amount' })
+//     }
+
+//     // Get wallet
+//     const wallet = await Wallet.findOne({ userId })
+//     if (!wallet) {
+//       return res.status(404).json({ message: 'Wallet not found' })
+//     }
+
+//     // Check wallet balance
+//     if (wallet.balance < amount) {
+//       return res.status(400).json({ message: 'Insufficient wallet balance' })
+//     }
+
+//     // Get trading account
+//     const tradingAccount = await TradingAccount.findById(tradingAccountId)
+//     if (!tradingAccount) {
+//       return res.status(404).json({ message: 'Trading account not found' })
+//     }
+
+//     // Verify ownership
+//     if (tradingAccount.userId.toString() !== userId) {
+//       return res.status(403).json({ message: 'Unauthorized' })
+//     }
+
+//     // Transfer funds
+//     wallet.balance -= amount
+//     tradingAccount.balance += amount
+
+//     await wallet.save()
+//     await tradingAccount.save()
+
+//     res.json({ 
+//       message: 'Funds transferred successfully',
+//       walletBalance: wallet.balance,
+//       tradingAccountBalance: tradingAccount.balance
+//     })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error transferring funds', error: error.message })
+//   }
+// })
+
+// // POST /api/wallet/transfer-from-trading - Transfer from trading account to wallet
+// router.post('/transfer-from-trading', async (req, res) => {
+//   try {
+//     const { userId, tradingAccountId, amount } = req.body
+
+//     if (!isValidObjectId(userId) || !isValidObjectId(tradingAccountId)) {
+//       return res.status(400).json({ message: 'Invalid user ID or trading account ID' })
+//     }
+//     if (!amount || amount <= 0) {
+//       return res.status(400).json({ message: 'Invalid amount' })
+//     }
+
+//     // Get trading account
+//     const tradingAccount = await TradingAccount.findById(tradingAccountId)
+//     if (!tradingAccount) {
+//       return res.status(404).json({ message: 'Trading account not found' })
+//     }
+
+//     // Verify ownership
+//     if (tradingAccount.userId.toString() !== userId) {
+//       return res.status(403).json({ message: 'Unauthorized' })
+//     }
+
+//     // Check trading account balance
+//     if (tradingAccount.balance < amount) {
+//       return res.status(400).json({ message: 'Insufficient trading account balance' })
+//     }
+
+//     // Get or create wallet
+//     let wallet = await Wallet.findOne({ userId })
+//     if (!wallet) {
+//       wallet = new Wallet({ userId, balance: 0 })
+//     }
+
+//     // Transfer funds
+//     tradingAccount.balance -= amount
+//     wallet.balance += amount
+
+//     await tradingAccount.save()
+//     await wallet.save()
+
+//     res.json({ 
+//       message: 'Funds transferred successfully',
+//       walletBalance: wallet.balance,
+//       tradingAccountBalance: tradingAccount.balance
+//     })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error transferring funds', error: error.message })
+//   }
+// })
+
+// // GET /api/wallet/transactions/:userId - Get user transactions (excludes demo account transactions)
+// router.get('/transactions/:userId', async (req, res) => {
+//   try {
+//     const { userId } = req.params
+//     if (!isValidObjectId(userId)) {
+//       return res.status(400).json({ message: 'Invalid user ID' })
+//     }
+    
+//     // Get all demo account IDs for this user
+//     const demoAccounts = await TradingAccount.find({ 
+//       userId, 
+//       $or: [{ isDemo: true }] 
+//     }).select('_id')
+//     const demoAccountIds = demoAccounts.map(acc => acc._id)
+    
+//     // Exclude demo-related transactions
+// /*     
+//     const transactions = await Transaction.find({ 
+//       userId,
+//       // Exclude demo transaction types
+//       type: { $nin: ['Demo_Credit', 'Demo_Reset'] },
+//       // Exclude transactions involving demo accounts
+//       $and: [
+//         { $or: [{ tradingAccountId: { $exists: false } }, { tradingAccountId: null }, { tradingAccountId: { $nin: demoAccountIds } }] },
+//         { $or: [{ toTradingAccountId: { $exists: false } }, { toTradingAccountId: null }, { toTradingAccountId: { $nin: demoAccountIds } }] },
+//         { $or: [{ fromTradingAccountId: { $exists: false } }, { fromTradingAccountId: null }, { fromTradingAccountId: { $nin: demoAccountIds } }] }
+//       ]
+//     }).sort({ createdAt: -1 })
+//  */    
+// const transactions = await Transaction.find({ 
+//   userId,
+//   type: { $nin: ['Demo_Credit', 'Demo_Reset'] },
+//   $and: [
+//     { $or: [{ tradingAccountId: { $exists: false } }, { tradingAccountId: null }, { tradingAccountId: { $nin: demoAccountIds } }] },
+//     { $or: [{ toTradingAccountId: { $exists: false } }, { toTradingAccountId: null }, { toTradingAccountId: { $nin: demoAccountIds } }] },
+//     { $or: [{ fromTradingAccountId: { $exists: false } }, { fromTradingAccountId: null }, { fromTradingAccountId: { $nin: demoAccountIds } }] }
+//   ]
+// })
+// .populate("tradingAccountId", "accountId")
+// .populate("fromTradingAccountId", "accountId")
+// .populate("toTradingAccountId", "accountId")
+// .sort({ createdAt: -1 })
+
+//     res.json({ transactions })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error fetching transactions', error: error.message })
+//   }
+// })
+
+// // GET /api/wallet/transactions/all - Get all transactions (admin)
+// router.get('/admin/transactions', async (req, res) => {
+//   try {
+//     const transactions = await Transaction.find()
+//       .populate('userId', 'firstName lastName email')
+//       .sort({ createdAt: -1 })
+//     res.json({ transactions })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error fetching transactions', error: error.message })
+//   }
+// })
+
+// // PUT /api/wallet/admin/approve/:id - Approve transaction (admin)
+// router.put('/admin/approve/:id', async (req, res) => {
+//   try {
+//     const transaction = await Transaction.findById(req.params.id)
+    
+//     if (!transaction) {
+//       return res.status(404).json({ message: 'Transaction not found' })
+//     }
+
+//     if (transaction.status !== 'PENDING') {
+//       return res.status(400).json({ message: 'Transaction already processed' })
+//     }
+
+//     const wallet = await Wallet.findById(transaction.walletId)
+
+//     if (transaction.type === 'DEPOSIT') {
+//       wallet.balance += transaction.amount
+//       if (wallet.pendingDeposits) wallet.pendingDeposits -= transaction.amount
+//     } else {
+//       if (wallet.pendingWithdrawals) wallet.pendingWithdrawals -= transaction.amount
+//     }
+
+//     transaction.status = 'APPROVED'
+//     transaction.processedAt = new Date()
+
+//     await wallet.save()
+//     await transaction.save()
+
+//     res.json({ message: 'Transaction approved', transaction })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error approving transaction', error: error.message })
+//   }
+// })
+
+// // PUT /api/wallet/admin/reject/:id - Reject transaction (admin)
+// router.put('/admin/reject/:id', async (req, res) => {
+//   try {
+//     const transaction = await Transaction.findById(req.params.id)
+    
+//     if (!transaction) {
+//       return res.status(404).json({ message: 'Transaction not found' })
+//     }
+
+//     if (transaction.status !== 'PENDING') {
+//       return res.status(400).json({ message: 'Transaction already processed' })
+//     }
+
+//     const wallet = await Wallet.findById(transaction.walletId)
+
+//     if (transaction.type === 'DEPOSIT') {
+//       if (wallet.pendingDeposits) wallet.pendingDeposits -= transaction.amount
+//     } else {
+//       // Refund withdrawal amount
+//       wallet.balance += transaction.amount
+//       if (wallet.pendingWithdrawals) wallet.pendingWithdrawals -= transaction.amount
+//     }
+
+//     transaction.status = 'REJECTED'
+//     transaction.processedAt = new Date()
+
+//     await wallet.save()
+//     await transaction.save()
+
+//     res.json({ message: 'Transaction rejected', transaction })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error rejecting transaction', error: error.message })
+//   }
+// })
+
+// // PUT /api/wallet/transaction/:id/approve - Approve transaction (admin)
+// router.put('/transaction/:id/approve', async (req, res) => {
+//   try {
+//     const { adminRemarks } = req.body
+//     const transaction = await Transaction.findById(req.params.id)
+    
+//     if (!transaction) {
+//       return res.status(404).json({ message: 'Transaction not found' })
+//     }
+
+//     if (transaction.status !== 'Pending') {
+//       return res.status(400).json({ message: 'Transaction already processed' })
+//     }
+
+//     const wallet = await Wallet.findById(transaction.walletId)
+
+//     if (transaction.type === 'Deposit') {
+//       wallet.balance += transaction.amount
+//       wallet.pendingDeposits -= transaction.amount
+//     } else {
+//       wallet.pendingWithdrawals -= transaction.amount
+//     }
+
+//     transaction.status = 'Approved'
+//     transaction.adminRemarks = adminRemarks || ''
+//     transaction.processedAt = new Date()
+
+//     await wallet.save()
+//     await transaction.save()
+
+//     res.json({ message: 'Transaction approved', transaction })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error approving transaction', error: error.message })
+//   }
+// })
+
+// // PUT /api/wallet/transaction/:id/reject - Reject transaction (admin)
+// router.put('/transaction/:id/reject', async (req, res) => {
+//   try {
+//     const { adminRemarks } = req.body
+//     const transaction = await Transaction.findById(req.params.id)
+    
+//     if (!transaction) {
+//       return res.status(404).json({ message: 'Transaction not found' })
+//     }
+
+//     if (transaction.status !== 'Pending') {
+//       return res.status(400).json({ message: 'Transaction already processed' })
+//     }
+
+//     const wallet = await Wallet.findById(transaction.walletId)
+
+//     if (transaction.type === 'Deposit') {
+//       wallet.pendingDeposits -= transaction.amount
+//     } else {
+//       // Refund withdrawal amount
+//       wallet.balance += transaction.amount
+//       wallet.pendingWithdrawals -= transaction.amount
+//     }
+
+//     transaction.status = 'Rejected'
+//     transaction.adminRemarks = adminRemarks || ''
+//     transaction.processedAt = new Date()
+
+//     await wallet.save()
+//     await transaction.save()
+
+//     res.json({ message: 'Transaction rejected', transaction })
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error rejecting transaction', error: error.message })
+//   }
+// })
+
+
+// // POST /api/wallet/deduct-entry-fee
+// router.post('/deduct-entry-fee', async (req, res) => {
+//   try {
+//     const { userId, amount } = req.body;
+
+//     console.log("REQ BODY 👉", req.body);
+
+//     // ✅ Validate
+//     if (!isValidObjectId(userId)) {
+//       return res.status(400).json({ message: 'Invalid user ID' });
+//     }
+
+//     if (!amount || amount <= 0) {
+//       return res.status(400).json({ message: 'Invalid amount' });
+//     }
+
+//     // ✅ Get wallet
+//     const wallet = await Wallet.findOne({ userId });
+
+//     if (!wallet) {
+//       return res.status(404).json({ message: 'Wallet not found' });
+//     }
+
+//     // ✅ Check balance
+//     if (wallet.balance < amount) {
+//       return res.status(400).json({ message: 'Insufficient balance' });
+//     }
+
+//     // ✅ Deduct balance
+//     wallet.balance -= amount;
+//     await wallet.save();
+
+//     // ✅ Create transaction (USE EXISTING TYPE)
+//     const transaction = new Transaction({
+//       userId,
+//       walletId: wallet._id,
+//       type: 'Withdrawal', // 🔥 safe (already exists in your system)
+//       amount,
+//       status: 'Completed'
+//     });
+
+//     await transaction.save();
+
+//     res.json({
+//       message: 'Entry fee deducted successfully',
+//       balance: wallet.balance
+//     });
+
+//   } catch (error) {
+//     console.error("BACKEND ERROR 👉", error);
+//     res.status(500).json({
+//       message: 'Error deducting entry fee',
+//       error: error.message
+//     });
+//   }
+// });
+
+
+
+
+// export default router
+
+
+
 // wallet.js routes
  
 import express from 'express'
@@ -10,6 +523,7 @@ import AdminWallet from '../models/AdminWallet.js'
 import AdminWalletTransaction from '../models/AdminWalletTransaction.js'
 import KYC from '../models/KYC.js'
 import UserBankAccount from '../models/UserBankAccount.js'
+import Notification from '../models/Notification.js'
 
 const router = express.Router()
 
@@ -400,11 +914,48 @@ router.put('/transaction/:id/approve', async (req, res) => {
     transaction.status = 'Approved'
     transaction.adminRemarks = adminRemarks || ''
     transaction.processedAt = new Date()
-
+/* 
     await wallet.save()
     await transaction.save()
 
     res.json({ message: 'Transaction approved', transaction })
+ */
+
+    await wallet.save()
+await transaction.save()
+
+// 🔔 CREATE + REALTIME NOTIFICATION
+try {
+  const notification = await Notification.create({
+    userId: transaction.userId?._id || transaction.userId,
+    title: 'Transaction Approved',
+    message: `₹${transaction.amount} ${transaction.type.toLowerCase()} request approved by Admin`,
+    type: transaction.type.toUpperCase(),
+    transactionId: transaction._id
+  })
+
+  console.log("✅ Notification Created:", notification)
+
+  // 🔥 SEND REAL-TIME SOCKET EVENT
+  const io = req.app.get("io");
+
+  if (io) {
+    io.to((transaction.userId?._id || transaction.userId).toString())
+      .emit("newNotification", notification);
+
+    console.log("📡 Notification sent in real-time");
+  }
+
+} catch (err) {
+  console.error("❌ Notification Error:", err.message)
+}
+
+
+
+res.json({ message: 'Transaction approved', transaction })
+
+
+
   } catch (error) {
     res.status(500).json({ message: 'Error approving transaction', error: error.message })
   }
@@ -437,11 +988,45 @@ router.put('/transaction/:id/reject', async (req, res) => {
     transaction.status = 'Rejected'
     transaction.adminRemarks = adminRemarks || ''
     transaction.processedAt = new Date()
-
+/* 
     await wallet.save()
     await transaction.save()
 
     res.json({ message: 'Transaction rejected', transaction })
+ */
+
+    await wallet.save()
+await transaction.save()
+
+// 🔔 CREATE + REALTIME NOTIFICATION
+try {
+  const notification = await Notification.create({
+    userId: transaction.userId?._id || transaction.userId,
+    title: 'Transaction Rejected',
+    message: `₹${transaction.amount} ${transaction.type.toLowerCase()} request rejected by Admin`,
+    type: transaction.type.toUpperCase(),
+    transactionId: transaction._id
+  })
+
+  console.log("✅ Notification Created:", notification)
+
+  // 🔥 REAL-TIME EMIT
+  const io = req.app.get("io");
+
+  if (io) {
+    io.to((transaction.userId?._id || transaction.userId).toString())
+      .emit("newNotification", notification);
+
+    console.log("📡 Notification sent in real-time");
+  }
+
+} catch (err) {
+  console.error("❌ Notification Error:", err.message)
+}
+
+res.json({ message: 'Transaction rejected', transaction })
+
+    
   } catch (error) {
     res.status(500).json({ message: 'Error rejecting transaction', error: error.message })
   }
@@ -509,3 +1094,4 @@ router.post('/deduct-entry-fee', async (req, res) => {
 
 
 export default router
+
