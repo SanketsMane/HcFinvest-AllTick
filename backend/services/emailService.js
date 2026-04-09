@@ -310,24 +310,36 @@ class EmailService {
 
     const formattedStartDate = startDate ? new Date(startDate).toLocaleString() : 'To be announced'
 
-    return this.sendEmail({
-      to,
-      toName,
-      userId,
-      subject: `Competition Joined Successfully - ${competitionName || this.appName}`,
-      html: this._getStatusEmailHTML({
-        title: 'Competition Registration Confirmed',
-        intro: `Hi ${toName || 'Trader'}, your spot has been confirmed successfully.`,
-        accentColor: '#16a34a',
-        rows: [
-          ['Competition', competitionName || 'Trading Competition'],
-          ['Start Date', formattedStartDate],
-          ['Status', 'Joined']
-        ]
-      }),
-      category: 'notification',
-      metadata: { type: 'competition_join', competitionName }
-    })
+    try {
+      return await this.sendTemplateEmail({
+        to,
+        toName,
+        userId,
+        templateSlug: 'competition-join',
+        data: { competition_name: competitionName || 'Trading Competition', start_date: formattedStartDate, user_name: toName || 'Trader' },
+        category: 'notification',
+        metadata: { type: 'competition_join', competitionName }
+      })
+    } catch {
+      return this.sendEmail({
+        to,
+        toName,
+        userId,
+        subject: `Competition Joined Successfully - ${competitionName || this.appName}`,
+        html: this._getStatusEmailHTML({
+          title: 'Competition Registration Confirmed',
+          intro: `Hi ${toName || 'Trader'}, your spot has been confirmed successfully.`,
+          accentColor: '#16a34a',
+          rows: [
+            ['Competition', competitionName || 'Trading Competition'],
+            ['Start Date', formattedStartDate],
+            ['Status', 'Joined']
+          ]
+        }),
+        category: 'notification',
+        metadata: { type: 'competition_join', competitionName }
+      })
+    }
   }
 
   //Sanket v2.0 - Centralized transaction notifications keep deposit/withdraw lifecycle emails consistent and logged
@@ -338,33 +350,57 @@ class EmailService {
     const type = String(transaction.type || 'Transaction')
     const amount = Number(transaction.amount || 0).toFixed(2)
     const status = statusLabel || transaction.status || 'Updated'
-    const subject = `${type} ${status} - ${this.appName}`
+    const introText = message || `Your ${type.toLowerCase()} request has been updated.`
+    const headingText = heading || `${type} ${status}`
+    const processedAt = transaction.processedAt ? new Date(transaction.processedAt).toLocaleString() : new Date().toLocaleString()
+    const txnMeta = {
+      type: 'wallet_update',
+      transactionId: transaction.transactionId || String(transaction._id || ''),
+      transactionType: type,
+      status
+    }
 
-    return this.sendEmail({
-      to: user.email,
-      toName: user.firstName,
-      userId: user._id,
-      subject,
-      html: this._getStatusEmailHTML({
-        title: heading || `${type} ${status}`,
-        intro: message || `Your ${type.toLowerCase()} request has been updated.`,
-        accentColor: status.toLowerCase().includes('approved') ? '#16a34a' : status.toLowerCase().includes('rejected') ? '#dc2626' : '#f97316',
-        rows: [
-          ['Transaction ID', transaction.transactionId || String(transaction._id || 'Pending')],
-          ['Type', type],
-          ['Amount', `$${amount}`],
-          ['Status', status],
-          ['Processed At', transaction.processedAt ? new Date(transaction.processedAt).toLocaleString() : new Date().toLocaleString()]
-        ]
-      }),
-      category: 'transactional',
-      metadata: {
-        type: 'wallet_update',
-        transactionId: transaction.transactionId || String(transaction._id || ''),
-        transactionType: type,
-        status
-      }
-    })
+    try {
+      return await this.sendTemplateEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        templateSlug: 'transaction-status',
+        data: {
+          heading: headingText,
+          message: introText,
+          transaction_id: transaction.transactionId || String(transaction._id || 'Pending'),
+          transaction_type: type,
+          amount: `$${amount}`,
+          status,
+          processed_at: processedAt,
+          user_name: user.firstName || 'Trader'
+        },
+        category: 'transactional',
+        metadata: txnMeta
+      })
+    } catch {
+      return this.sendEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        subject: `${type} ${status} - ${this.appName}`,
+        html: this._getStatusEmailHTML({
+          title: headingText,
+          intro: introText,
+          accentColor: status.toLowerCase().includes('approved') ? '#16a34a' : status.toLowerCase().includes('rejected') ? '#dc2626' : '#f97316',
+          rows: [
+            ['Transaction ID', transaction.transactionId || String(transaction._id || 'Pending')],
+            ['Type', type],
+            ['Amount', `$${amount}`],
+            ['Status', status],
+            ['Processed At', processedAt]
+          ]
+        }),
+        category: 'transactional',
+        metadata: txnMeta
+      })
+    }
   }
 
   //Sanket v2.0 - KYC status notifications ensure users know whether they can proceed with deposits/withdrawals
@@ -373,25 +409,39 @@ class EmailService {
     if (!user?.email) return { success: false, skipped: true }
 
     const normalizedStatus = String(status || 'updated').toUpperCase()
-    return this.sendEmail({
-      to: user.email,
-      toName: user.firstName,
-      userId: user._id,
-      subject: `KYC ${normalizedStatus} - ${this.appName}`,
-      html: this._getStatusEmailHTML({
-        title: `KYC ${normalizedStatus}`,
-        intro: normalizedStatus === 'APPROVED'
-          ? 'Your KYC has been approved successfully. You can now access verified account features.'
-          : 'Your KYC submission needs attention before it can be approved.',
-        accentColor: normalizedStatus === 'APPROVED' ? '#16a34a' : '#dc2626',
-        rows: [
-          ['Status', normalizedStatus],
-          ['Reason', reason || (normalizedStatus === 'APPROVED' ? 'Verification completed successfully' : 'Additional review required')]
-        ]
-      }),
-      category: 'notification',
-      metadata: { type: 'kyc_status', status: normalizedStatus }
-    })
+    const reasonText = reason || (normalizedStatus === 'APPROVED' ? 'Verification completed successfully' : 'Additional review required')
+
+    try {
+      return await this.sendTemplateEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        templateSlug: 'kyc-status',
+        data: { status: normalizedStatus, reason: reasonText, user_name: user.firstName || 'Trader' },
+        category: 'notification',
+        metadata: { type: 'kyc_status', status: normalizedStatus }
+      })
+    } catch {
+      return this.sendEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        subject: `KYC ${normalizedStatus} - ${this.appName}`,
+        html: this._getStatusEmailHTML({
+          title: `KYC ${normalizedStatus}`,
+          intro: normalizedStatus === 'APPROVED'
+            ? 'Your KYC has been approved successfully. You can now access verified account features.'
+            : 'Your KYC submission needs attention before it can be approved.',
+          accentColor: normalizedStatus === 'APPROVED' ? '#16a34a' : '#dc2626',
+          rows: [
+            ['Status', normalizedStatus],
+            ['Reason', reasonText]
+          ]
+        }),
+        category: 'notification',
+        metadata: { type: 'kyc_status', status: normalizedStatus }
+      })
+    }
   }
 
   //Sanket v2.0 - Bank/UPI approval emails reduce support tickets around withdrawal setup status
@@ -403,28 +453,41 @@ class EmailService {
     const accountLabel = account.type === 'UPI'
       ? (account.upiId || 'UPI method')
       : `${account.bankName || 'Bank'} • ${String(account.accountNumber || '').slice(-4) || 'XXXX'}`
+    const reasonText = reason || (normalizedStatus === 'APPROVED' ? 'Verification completed successfully' : 'Please review and re-submit if needed')
 
-    return this.sendEmail({
-      to: user.email,
-      toName: user.firstName,
-      userId: user._id,
-      subject: `Withdrawal Method ${normalizedStatus} - ${this.appName}`,
-      html: this._getStatusEmailHTML({
-        title: `Withdrawal Method ${normalizedStatus}`,
-        intro: normalizedStatus === 'APPROVED'
-          ? 'Your withdrawal method is now verified and ready to use.'
-          : 'Your submitted withdrawal method was not approved in its current form.',
-        accentColor: normalizedStatus === 'APPROVED' ? '#16a34a' : '#dc2626',
-        rows: [
-          ['Method Type', account.type || 'Bank Transfer'],
-          ['Account', accountLabel],
-          ['Status', normalizedStatus],
-          ['Reason', reason || (normalizedStatus === 'APPROVED' ? 'Verification completed successfully' : 'Please review and re-submit if needed')]
-        ]
-      }),
-      category: 'notification',
-      metadata: { type: 'bank_status', status: normalizedStatus }
-    })
+    try {
+      return await this.sendTemplateEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        templateSlug: 'bank-status',
+        data: { status: normalizedStatus, method_type: account.type || 'Bank Transfer', account_label: accountLabel, reason: reasonText, user_name: user.firstName || 'Trader' },
+        category: 'notification',
+        metadata: { type: 'bank_status', status: normalizedStatus }
+      })
+    } catch {
+      return this.sendEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        subject: `Withdrawal Method ${normalizedStatus} - ${this.appName}`,
+        html: this._getStatusEmailHTML({
+          title: `Withdrawal Method ${normalizedStatus}`,
+          intro: normalizedStatus === 'APPROVED'
+            ? 'Your withdrawal method is now verified and ready to use.'
+            : 'Your submitted withdrawal method was not approved in its current form.',
+          accentColor: normalizedStatus === 'APPROVED' ? '#16a34a' : '#dc2626',
+          rows: [
+            ['Method Type', account.type || 'Bank Transfer'],
+            ['Account', accountLabel],
+            ['Status', normalizedStatus],
+            ['Reason', reasonText]
+          ]
+        }),
+        category: 'notification',
+        metadata: { type: 'bank_status', status: normalizedStatus }
+      })
+    }
   }
 
   //Sanket v2.0 - Support ticket emails keep traders informed whenever their ticket is created, updated, or resolved
@@ -433,31 +496,53 @@ class EmailService {
     if (!user?.email || !ticket) return { success: false, skipped: true }
 
     const normalizedUpdate = String(updateType || 'updated').toUpperCase()
-    const subjectMap = {
-      CREATED: `Support Ticket Created - ${ticket.ticketId}`,
-      REPLIED: `Support Reply - ${ticket.ticketId}`,
-      STATUS: `Support Ticket ${ticket.status || 'Updated'} - ${ticket.ticketId}`
-    }
+    const introText = message || 'There is an update on your support request.'
 
-    return this.sendEmail({
-      to: user.email,
-      toName: user.firstName,
-      userId: user._id,
-      subject: subjectMap[normalizedUpdate] || `Support Ticket Update - ${ticket.ticketId}`,
-      html: this._getStatusEmailHTML({
-        title: `Support Ticket ${normalizedUpdate === 'CREATED' ? 'Created' : 'Updated'}`,
-        intro: message || 'There is an update on your support request.',
-        accentColor: normalizedUpdate === 'CREATED' ? '#2563eb' : '#f97316',
-        rows: [
-          ['Ticket ID', ticket.ticketId || String(ticket._id || '')],
-          ['Subject', ticket.subject || 'Support Request'],
-          ['Category', ticket.category || 'GENERAL'],
-          ['Status', ticket.status || 'OPEN']
-        ]
-      }),
-      category: 'notification',
-      metadata: { type: 'support_ticket', ticketId: ticket.ticketId, updateType: normalizedUpdate }
-    })
+    try {
+      return await this.sendTemplateEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        templateSlug: 'support-ticket',
+        data: {
+          update_type: normalizedUpdate,
+          ticket_id: ticket.ticketId || String(ticket._id || ''),
+          ticket_subject: ticket.subject || 'Support Request',
+          ticket_category: ticket.category || 'GENERAL',
+          ticket_status: ticket.status || 'OPEN',
+          message: introText,
+          user_name: user.firstName || 'Trader'
+        },
+        category: 'notification',
+        metadata: { type: 'support_ticket', ticketId: ticket.ticketId, updateType: normalizedUpdate }
+      })
+    } catch {
+      const subjectMap = {
+        CREATED: `Support Ticket Created - ${ticket.ticketId}`,
+        REPLIED: `Support Reply - ${ticket.ticketId}`,
+        STATUS: `Support Ticket ${ticket.status || 'Updated'} - ${ticket.ticketId}`
+      }
+
+      return this.sendEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        subject: subjectMap[normalizedUpdate] || `Support Ticket Update - ${ticket.ticketId}`,
+        html: this._getStatusEmailHTML({
+          title: `Support Ticket ${normalizedUpdate === 'CREATED' ? 'Created' : 'Updated'}`,
+          intro: introText,
+          accentColor: normalizedUpdate === 'CREATED' ? '#2563eb' : '#f97316',
+          rows: [
+            ['Ticket ID', ticket.ticketId || String(ticket._id || '')],
+            ['Subject', ticket.subject || 'Support Request'],
+            ['Category', ticket.category || 'GENERAL'],
+            ['Status', ticket.status || 'OPEN']
+          ]
+        }),
+        category: 'notification',
+        metadata: { type: 'support_ticket', ticketId: ticket.ticketId, updateType: normalizedUpdate }
+      })
+    }
   }
 
   //Sanket v2.0 - IB lifecycle emails inform applicants when their broker-partner status changes
@@ -472,25 +557,39 @@ class EmailService {
       REJECTED: 'Your IB application was reviewed but could not be approved at this time.',
       BLOCKED: 'Your IB access has been restricted. Please contact support for assistance.'
     }
+    const introText = introMap[normalizedStatus] || 'Your IB profile has been updated.'
+    const reasonText = reason || (normalizedStatus === 'ACTIVE' ? 'Your IB dashboard is now available.' : 'Please contact support if you need more details.')
 
-    return this.sendEmail({
-      to: user.email,
-      toName: user.firstName,
-      userId: user._id,
-      subject: `IB Status ${normalizedStatus} - ${this.appName}`,
-      html: this._getStatusEmailHTML({
-        title: `IB Status ${normalizedStatus}`,
-        intro: introMap[normalizedStatus] || 'Your IB profile has been updated.',
-        accentColor: normalizedStatus === 'ACTIVE' ? '#16a34a' : normalizedStatus === 'PENDING' ? '#2563eb' : '#dc2626',
-        rows: [
-          ['Status', normalizedStatus],
-          ['Assigned Plan', planName || 'Will be assigned after review'],
-          ['Reason / Note', reason || (normalizedStatus === 'ACTIVE' ? 'Your IB dashboard is now available.' : 'Please contact support if you need more details.')]
-        ]
-      }),
-      category: 'notification',
-      metadata: { type: 'ib_status', status: normalizedStatus }
-    })
+    try {
+      return await this.sendTemplateEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        templateSlug: 'ib-status',
+        data: { status: normalizedStatus, intro: introText, plan_name: planName || 'Will be assigned after review', reason: reasonText, user_name: user.firstName || 'Trader' },
+        category: 'notification',
+        metadata: { type: 'ib_status', status: normalizedStatus }
+      })
+    } catch {
+      return this.sendEmail({
+        to: user.email,
+        toName: user.firstName,
+        userId: user._id,
+        subject: `IB Status ${normalizedStatus} - ${this.appName}`,
+        html: this._getStatusEmailHTML({
+          title: `IB Status ${normalizedStatus}`,
+          intro: introText,
+          accentColor: normalizedStatus === 'ACTIVE' ? '#16a34a' : normalizedStatus === 'PENDING' ? '#2563eb' : '#dc2626',
+          rows: [
+            ['Status', normalizedStatus],
+            ['Assigned Plan', planName || 'Will be assigned after review'],
+            ['Reason / Note', reasonText]
+          ]
+        }),
+        category: 'notification',
+        metadata: { type: 'ib_status', status: normalizedStatus }
+      })
+    }
   }
 
   _startRetryScheduler() {
