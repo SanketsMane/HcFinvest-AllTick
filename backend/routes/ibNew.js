@@ -7,6 +7,7 @@ import IBLevel from '../models/IBLevel.js'
 import ibEngine from '../services/ibEngineNew.js'
 import IBSettings from '../models/IBSettings.js'
 import mongoose from 'mongoose'
+import emailService from '../services/emailService.js'
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js'
 
 const router = express.Router()
@@ -36,6 +37,11 @@ router.post('/apply', authMiddleware, async (req, res) => {
     const userId = req.user?._id
 
     const user = await ibEngine.applyForIB(userId)
+
+    //Sanket v2.0 - Application acknowledgement email confirms the partner request is officially under review
+    emailService.sendIBStatusEmail({ user, status: 'PENDING' })
+      .catch((emailError) => console.error('IB pending email failed:', emailError.message))
+
     res.json({
       success: true,
       message: 'IB application submitted successfully',
@@ -298,6 +304,15 @@ router.put('/admin/approve/:userId', adminMiddleware, async (req, res) => {
     const { planId } = req.body
 
     const user = await ibEngine.approveIB(userId, planId)
+    const plan = planId ? await IBPlan.findById(planId).select('name') : null
+
+    //Sanket v2.0 - Approval email tells the user their IB dashboard is now active and which plan was assigned
+    emailService.sendIBStatusEmail({
+      user,
+      status: 'ACTIVE',
+      planName: plan?.name || user.ibPlanId?.name || ''
+    }).catch((emailError) => console.error('IB approved email failed:', emailError.message))
+
     res.json({
       success: true,
       message: 'IB approved successfully',
@@ -333,6 +348,12 @@ router.put('/admin/reject/:userId', adminMiddleware, async (req, res) => {
     user.ibRejectionReason = reason
     await user.save()
 
+    emailService.sendIBStatusEmail({
+      user,
+      status: 'REJECTED',
+      reason: reason || 'The application did not meet current approval requirements.'
+    }).catch((emailError) => console.error('IB rejected email failed:', emailError.message))
+
     res.json({
       success: true,
       message: 'IB application rejected',
@@ -358,6 +379,13 @@ router.put('/admin/block/:userId', adminMiddleware, async (req, res) => {
     const { reason } = req.body
 
     const user = await ibEngine.blockIB(userId, reason)
+
+    emailService.sendIBStatusEmail({
+      user,
+      status: 'BLOCKED',
+      reason: reason || 'Please contact support for more information.'
+    }).catch((emailError) => console.error('IB blocked email failed:', emailError.message))
+
     res.json({
       success: true,
       message: 'IB blocked successfully',

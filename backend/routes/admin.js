@@ -133,7 +133,8 @@ router.post('/users/create', async (req, res) => {
       email: email.toLowerCase(),
       phone: phone || '',
       password,
-      isEmailVerified: true // Admin-created users are pre-verified
+      emailVerified: true,
+      emailVerifiedAt: new Date() // Admin-created users are pre-verified
     })
     
     res.json({

@@ -1,30 +1,41 @@
 import express from "express";
-import sendCompetitionEmail from "../services/sendCompetitionEmail.js";
 import competitionJoinTemplate from "../services/CompetitionEmailTemplate.js";
+import emailService from "../services/emailService.js";
+import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/competition-join", async (req, res) => {
+router.post("/competition-join", authMiddleware, async (req, res) => {
   try {
-    const { email, name, competitionName, startDate } = req.body;
+    const { competitionName, startDate } = req.body;
+    const recipientEmail = req.user?.email;
+    const recipientName = req.user?.firstName || 'Trader';
+
+    if (!recipientEmail || !competitionName) {
+      return res.status(400).json({ success: false, message: "Missing email context or competition name" });
+    }
 
     const html = competitionJoinTemplate({
-      name,
+      name: recipientName,
       competitionName,
       startDate,
     });
 
-    await sendCompetitionEmail({
-      to: email,
+    await emailService.sendEmail({
+      to: recipientEmail,
+      toName: recipientName,
+      userId: req.user?._id,
       subject: "🎉 Competition Joined Successfully",
       html,
+      category: 'notification',
+      metadata: { type: 'competition_join', competitionName }
     });
 
     res.json({ success: true });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Email failed" });
+    res.status(500).json({ success: false, message: "Email failed" });
   }
 });
 

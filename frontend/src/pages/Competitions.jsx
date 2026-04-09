@@ -346,37 +346,6 @@ const [insufficientDialogOpen, setInsufficientDialogOpen] = useState(false);
       }
   
     };
-const sendCompetitionJoinEmail = async ({
-  email,
-  name,
-  competitionName,
-  startDate,
-}) => {
-  try {
-    const res = await axios.post(
-      `${API_URL}/competition-email/competition-join`,
-      {
-        email,
-        name,
-        competitionName,
-        startDate,
-      }
-    );
-
-    // âœ… optional success log
-    if (res.data?.success) {
-      // console.log("ðŸ“§ Email sent successfully");
-    }
-
-  } catch (error) {
-    console.error(
-      "âŒ Email sending failed:",
-      error.response?.data?.message || error.message
-    );
-
-    // â— DO NOT throw â†’ don't break main flow
-  }
-};
 
  const confirmJoinCompetition = async () => {
 
@@ -433,9 +402,7 @@ const sendCompetitionJoinEmail = async ({
         startDate: selectedComp.startDate
       });
 
-
-      await sendCompetitionJoinEmail({email: user.email, name: user.firstName, competitionName: selectedComp.competitionName, startDate: selectedComp.startDate});
-
+      //Sanket v2.0 - Competition confirmation email is now triggered from backend join flow to avoid duplicates/spam
       setSuccessDialogOpen(true);
       setOpenRules(false);
 

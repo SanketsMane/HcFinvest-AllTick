@@ -6,6 +6,7 @@ import Wallet from '../models/Wallet.js'
 import Transaction from '../models/Transaction.js'
 import TradingAccount from '../models/TradingAccount.js'
 import User from '../models/User.js'
+import emailService from '../services/emailService.js'
 import AdminWallet from '../models/AdminWallet.js'
 import AdminWalletTransaction from '../models/AdminWalletTransaction.js'
 import KYC from '../models/KYC.js'
@@ -72,6 +73,16 @@ router.post('/deposit', async (req, res) => {
     wallet.pendingDeposits += amount
     await wallet.save()
 
+    //Sanket v2.0 - Notify the user that the deposit request is recorded and awaiting review
+    const user = await User.findById(userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: 'Deposit Request Received',
+      message: 'Your deposit request has been created successfully and is now pending review.',
+      statusLabel: 'Pending'
+    }).catch((emailError) => console.error('Deposit request email failed:', emailError.message))
+
     res.status(201).json({ message: 'Deposit request submitted', transaction })
   } catch (error) {
     res.status(500).json({ message: 'Error creating deposit', error: error.message })
@@ -135,6 +146,16 @@ router.post('/withdraw', async (req, res) => {
     wallet.balance -= amount
     wallet.pendingWithdrawals += amount
     await wallet.save()
+
+    //Sanket v2.0 - Notify the user that the withdrawal request entered the approval queue
+    const user = await User.findById(userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: 'Withdrawal Request Received',
+      message: 'Your withdrawal request has been submitted and is pending admin approval.',
+      statusLabel: 'Pending'
+    }).catch((emailError) => console.error('Withdrawal request email failed:', emailError.message))
 
     res.status(201).json({ message: 'Withdrawal request submitted', transaction })
   } catch (error) {
@@ -314,24 +335,33 @@ router.put('/admin/approve/:id', async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' })
     }
 
-    if (transaction.status !== 'PENDING') {
+    if (transaction.status !== 'Pending') {
       return res.status(400).json({ message: 'Transaction already processed' })
     }
 
     const wallet = await Wallet.findById(transaction.walletId)
 
-    if (transaction.type === 'DEPOSIT') {
+    if (transaction.type === 'Deposit') {
       wallet.balance += transaction.amount
       if (wallet.pendingDeposits) wallet.pendingDeposits -= transaction.amount
     } else {
       if (wallet.pendingWithdrawals) wallet.pendingWithdrawals -= transaction.amount
     }
 
-    transaction.status = 'APPROVED'
+    transaction.status = 'Approved'
     transaction.processedAt = new Date()
 
     await wallet.save()
     await transaction.save()
+
+    const user = await User.findById(transaction.userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: `${transaction.type} Approved`,
+      message: `Your ${String(transaction.type || 'transaction').toLowerCase()} request has been approved successfully.`,
+      statusLabel: 'Approved'
+    }).catch((emailError) => console.error('Transaction approved email failed:', emailError.message))
 
     res.json({ message: 'Transaction approved', transaction })
   } catch (error) {
@@ -348,13 +378,13 @@ router.put('/admin/reject/:id', async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' })
     }
 
-    if (transaction.status !== 'PENDING') {
+    if (transaction.status !== 'Pending') {
       return res.status(400).json({ message: 'Transaction already processed' })
     }
 
     const wallet = await Wallet.findById(transaction.walletId)
 
-    if (transaction.type === 'DEPOSIT') {
+    if (transaction.type === 'Deposit') {
       if (wallet.pendingDeposits) wallet.pendingDeposits -= transaction.amount
     } else {
       // Refund withdrawal amount
@@ -362,11 +392,20 @@ router.put('/admin/reject/:id', async (req, res) => {
       if (wallet.pendingWithdrawals) wallet.pendingWithdrawals -= transaction.amount
     }
 
-    transaction.status = 'REJECTED'
+    transaction.status = 'Rejected'
     transaction.processedAt = new Date()
 
     await wallet.save()
     await transaction.save()
+
+    const user = await User.findById(transaction.userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: `${transaction.type} Rejected`,
+      message: `Your ${String(transaction.type || 'transaction').toLowerCase()} request was rejected. Please review the remarks or contact support.`,
+      statusLabel: 'Rejected'
+    }).catch((emailError) => console.error('Transaction rejected email failed:', emailError.message))
 
     res.json({ message: 'Transaction rejected', transaction })
   } catch (error) {
@@ -404,6 +443,15 @@ router.put('/transaction/:id/approve', async (req, res) => {
     await wallet.save()
     await transaction.save()
 
+    const user = await User.findById(transaction.userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: `${transaction.type} Approved`,
+      message: `Your ${String(transaction.type || 'transaction').toLowerCase()} request has been approved successfully.`,
+      statusLabel: 'Approved'
+    }).catch((emailError) => console.error('Transaction approved email failed:', emailError.message))
+
     res.json({ message: 'Transaction approved', transaction })
   } catch (error) {
     res.status(500).json({ message: 'Error approving transaction', error: error.message })
@@ -440,6 +488,15 @@ router.put('/transaction/:id/reject', async (req, res) => {
 
     await wallet.save()
     await transaction.save()
+
+    const user = await User.findById(transaction.userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: `${transaction.type} Rejected`,
+      message: `Your ${String(transaction.type || 'transaction').toLowerCase()} request was rejected. Please review the remarks or contact support.`,
+      statusLabel: 'Rejected'
+    }).catch((emailError) => console.error('Transaction rejected email failed:', emailError.message))
 
     res.json({ message: 'Transaction rejected', transaction })
   } catch (error) {

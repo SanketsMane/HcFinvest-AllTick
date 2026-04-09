@@ -4,6 +4,7 @@ import PaymentGateway from '../models/PaymentGateway.js'
 import CryptoTransaction from '../models/CryptoTransaction.js'
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js'
 import KYC from '../models/KYC.js'
+import emailService from '../services/emailService.js'
 
 const router = express.Router()
 
@@ -565,6 +566,15 @@ router.post('/admin/manual-credit/:transactionId', adminMiddleware, async (req, 
 
     console.log(`[Oxapay] Transaction ${transaction._id} manually credited by admin`)
 
+    const user = await User.findById(transaction.userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: 'Crypto Deposit Credited',
+      message: 'Your crypto deposit has been credited successfully to your account balance.',
+      statusLabel: 'Approved'
+    }).catch((emailError) => console.error('Oxapay credit email failed:', emailError.message))
+
     res.json({ success: true, message: 'Transaction credited successfully', result })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -658,6 +668,15 @@ router.post('/admin/approve-withdrawal/:id', adminMiddleware, async (req, res) =
 
       console.log(`[Oxapay] Withdrawal ${transaction._id} approved and sent to gateway`)
 
+      const user = await User.findById(transaction.userId).select('firstName email')
+      emailService.sendTransactionStatusEmail({
+        user,
+        transaction,
+        heading: 'Crypto Withdrawal Approved',
+        message: 'Your crypto withdrawal has been approved and is now being processed by the gateway.',
+        statusLabel: 'Processing'
+      }).catch((emailError) => console.error('Oxapay approve email failed:', emailError.message))
+
       res.json({ 
         success: true, 
         message: 'Withdrawal approved and processing',
@@ -718,6 +737,14 @@ router.post('/admin/reject-withdrawal/:id', adminMiddleware, async (req, res) =>
       try {
         await oxapayService.atomicRefundWithdrawal(transaction._id, reason || 'Rejected by admin')
         console.log(`[Oxapay] Withdrawal ${transaction._id} rejected and refunded`)
+        const user = await User.findById(transaction.userId).select('firstName email')
+        emailService.sendTransactionStatusEmail({
+          user,
+          transaction,
+          heading: 'Crypto Withdrawal Rejected',
+          message: `Your crypto withdrawal was rejected and any reserved amount has been returned. ${reason || ''}`.trim(),
+          statusLabel: 'Rejected'
+        }).catch((emailError) => console.error('Oxapay reject email failed:', emailError.message))
         return res.json({ success: true, message: 'Withdrawal rejected and user refunded' })
       } catch (refundError) {
         console.error(`[Oxapay] Refund failed for rejection ${transaction._id}:`, refundError.message)
@@ -733,6 +760,15 @@ router.post('/admin/reject-withdrawal/:id', adminMiddleware, async (req, res) =>
     transaction.errorMessage = reason || 'Rejected by admin'
     transaction.adminNotes = `Rejected: ${reason || 'No reason provided'}`
     await transaction.save()
+
+    const user = await User.findById(transaction.userId).select('firstName email')
+    emailService.sendTransactionStatusEmail({
+      user,
+      transaction,
+      heading: 'Crypto Withdrawal Rejected',
+      message: `Your crypto withdrawal request was rejected. ${reason || 'Please contact support for more information.'}`,
+      statusLabel: 'Rejected'
+    }).catch((emailError) => console.error('Oxapay reject email failed:', emailError.message))
 
     console.log(`[Oxapay] Withdrawal ${transaction._id} rejected (no refund needed - never debited)`)
     res.json({ success: true, message: 'Withdrawal request rejected' })

@@ -6,6 +6,8 @@ class EmailService {
   constructor() {
     this.transporter = null
     this.initialized = false
+    this.retryTimer = null
+    this.retryInProgress = false
   }
 
   _loadConfig() {
@@ -14,6 +16,10 @@ class EmailService {
     this.fromEmail = process.env.SMTP_FROM_EMAIL || 'support@heddgecapitals.com'
     this.fromName = process.env.SMTP_FROM_NAME || 'HC Finvest Support'
     this.resendApiKey = process.env.RESEND_API_KEY
+    this.retryEnabled = (process.env.EMAIL_RETRY_ENABLED || 'true').toLowerCase() !== 'false'
+    this.retryIntervalMs = Math.max(parseInt(process.env.EMAIL_RETRY_INTERVAL_MS || '300000', 10) || 300000, 60000)
+    this.retryBatchSize = Math.min(Math.max(parseInt(process.env.EMAIL_RETRY_BATCH_SIZE || '10', 10) || 10, 1), 50)
+    this.retryMaxAgeHours = Math.min(Math.max(parseInt(process.env.EMAIL_RETRY_MAX_AGE_HOURS || '24', 10) || 24, 1), 168)
   }
 
   async initialize() {
@@ -43,6 +49,7 @@ class EmailService {
     }
 
     this.initialized = true
+    this._startRetryScheduler()
     console.log(`✅ Email service initialized — provider: ${this.provider}`)
   }
 
@@ -170,6 +177,8 @@ class EmailService {
   // ─── High-level helpers ───────────────────────────────────────────────────
 
   async sendTemplateEmail(options) {
+    await this.initialize()
+
     const {
       to,
       toName,
@@ -216,6 +225,8 @@ class EmailService {
   }
 
   async sendOTPEmail(email, otp, purpose = 'signup') {
+    await this.initialize()
+
     const purposeTexts = {
       signup: 'complete your registration',
       login: 'log in to your account',
@@ -246,6 +257,8 @@ class EmailService {
   }
 
   async sendWelcomeEmail(user, password) {
+    await this.initialize()
+
     try {
       return await this.sendTemplateEmail({
         to: user.email,
@@ -272,6 +285,8 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(email, resetToken, resetUrl) {
+    await this.initialize()
+
     try {
       return await this.sendTemplateEmail({
         to: email,
@@ -286,6 +301,376 @@ class EmailService {
         html: this._getPasswordResetEmailHTML(resetUrl),
         category: 'transactional'
       })
+    }
+  }
+
+  //Sanket v2.0 - Competition emails now use the same provider + EmailLog pipeline as all core platform emails
+  async sendCompetitionJoinEmail({ to, toName, userId, competitionName, startDate }) {
+    await this.initialize()
+
+    const formattedStartDate = startDate ? new Date(startDate).toLocaleString() : 'To be announced'
+
+    return this.sendEmail({
+      to,
+      toName,
+      userId,
+      subject: `Competition Joined Successfully - ${competitionName || this.appName}`,
+      html: this._getStatusEmailHTML({
+        title: 'Competition Registration Confirmed',
+        intro: `Hi ${toName || 'Trader'}, your spot has been confirmed successfully.`,
+        accentColor: '#16a34a',
+        rows: [
+          ['Competition', competitionName || 'Trading Competition'],
+          ['Start Date', formattedStartDate],
+          ['Status', 'Joined']
+        ]
+      }),
+      category: 'notification',
+      metadata: { type: 'competition_join', competitionName }
+    })
+  }
+
+  //Sanket v2.0 - Centralized transaction notifications keep deposit/withdraw lifecycle emails consistent and logged
+  async sendTransactionStatusEmail({ user, transaction, heading, message, statusLabel }) {
+    await this.initialize()
+    if (!user?.email || !transaction) return { success: false, skipped: true }
+
+    const type = String(transaction.type || 'Transaction')
+    const amount = Number(transaction.amount || 0).toFixed(2)
+    const status = statusLabel || transaction.status || 'Updated'
+    const subject = `${type} ${status} - ${this.appName}`
+
+    return this.sendEmail({
+      to: user.email,
+      toName: user.firstName,
+      userId: user._id,
+      subject,
+      html: this._getStatusEmailHTML({
+        title: heading || `${type} ${status}`,
+        intro: message || `Your ${type.toLowerCase()} request has been updated.`,
+        accentColor: status.toLowerCase().includes('approved') ? '#16a34a' : status.toLowerCase().includes('rejected') ? '#dc2626' : '#f97316',
+        rows: [
+          ['Transaction ID', transaction.transactionId || String(transaction._id || 'Pending')],
+          ['Type', type],
+          ['Amount', `$${amount}`],
+          ['Status', status],
+          ['Processed At', transaction.processedAt ? new Date(transaction.processedAt).toLocaleString() : new Date().toLocaleString()]
+        ]
+      }),
+      category: 'transactional',
+      metadata: {
+        type: 'wallet_update',
+        transactionId: transaction.transactionId || String(transaction._id || ''),
+        transactionType: type,
+        status
+      }
+    })
+  }
+
+  //Sanket v2.0 - KYC status notifications ensure users know whether they can proceed with deposits/withdrawals
+  async sendKYCStatusEmail({ user, status, reason = '' }) {
+    await this.initialize()
+    if (!user?.email) return { success: false, skipped: true }
+
+    const normalizedStatus = String(status || 'updated').toUpperCase()
+    return this.sendEmail({
+      to: user.email,
+      toName: user.firstName,
+      userId: user._id,
+      subject: `KYC ${normalizedStatus} - ${this.appName}`,
+      html: this._getStatusEmailHTML({
+        title: `KYC ${normalizedStatus}`,
+        intro: normalizedStatus === 'APPROVED'
+          ? 'Your KYC has been approved successfully. You can now access verified account features.'
+          : 'Your KYC submission needs attention before it can be approved.',
+        accentColor: normalizedStatus === 'APPROVED' ? '#16a34a' : '#dc2626',
+        rows: [
+          ['Status', normalizedStatus],
+          ['Reason', reason || (normalizedStatus === 'APPROVED' ? 'Verification completed successfully' : 'Additional review required')]
+        ]
+      }),
+      category: 'notification',
+      metadata: { type: 'kyc_status', status: normalizedStatus }
+    })
+  }
+
+  //Sanket v2.0 - Bank/UPI approval emails reduce support tickets around withdrawal setup status
+  async sendBankStatusEmail({ user, account, status, reason = '' }) {
+    await this.initialize()
+    if (!user?.email || !account) return { success: false, skipped: true }
+
+    const normalizedStatus = String(status || account.status || 'updated').toUpperCase()
+    const accountLabel = account.type === 'UPI'
+      ? (account.upiId || 'UPI method')
+      : `${account.bankName || 'Bank'} • ${String(account.accountNumber || '').slice(-4) || 'XXXX'}`
+
+    return this.sendEmail({
+      to: user.email,
+      toName: user.firstName,
+      userId: user._id,
+      subject: `Withdrawal Method ${normalizedStatus} - ${this.appName}`,
+      html: this._getStatusEmailHTML({
+        title: `Withdrawal Method ${normalizedStatus}`,
+        intro: normalizedStatus === 'APPROVED'
+          ? 'Your withdrawal method is now verified and ready to use.'
+          : 'Your submitted withdrawal method was not approved in its current form.',
+        accentColor: normalizedStatus === 'APPROVED' ? '#16a34a' : '#dc2626',
+        rows: [
+          ['Method Type', account.type || 'Bank Transfer'],
+          ['Account', accountLabel],
+          ['Status', normalizedStatus],
+          ['Reason', reason || (normalizedStatus === 'APPROVED' ? 'Verification completed successfully' : 'Please review and re-submit if needed')]
+        ]
+      }),
+      category: 'notification',
+      metadata: { type: 'bank_status', status: normalizedStatus }
+    })
+  }
+
+  //Sanket v2.0 - Support ticket emails keep traders informed whenever their ticket is created, updated, or resolved
+  async sendSupportTicketEmail({ user, ticket, updateType = 'created', message = '' }) {
+    await this.initialize()
+    if (!user?.email || !ticket) return { success: false, skipped: true }
+
+    const normalizedUpdate = String(updateType || 'updated').toUpperCase()
+    const subjectMap = {
+      CREATED: `Support Ticket Created - ${ticket.ticketId}`,
+      REPLIED: `Support Reply - ${ticket.ticketId}`,
+      STATUS: `Support Ticket ${ticket.status || 'Updated'} - ${ticket.ticketId}`
+    }
+
+    return this.sendEmail({
+      to: user.email,
+      toName: user.firstName,
+      userId: user._id,
+      subject: subjectMap[normalizedUpdate] || `Support Ticket Update - ${ticket.ticketId}`,
+      html: this._getStatusEmailHTML({
+        title: `Support Ticket ${normalizedUpdate === 'CREATED' ? 'Created' : 'Updated'}`,
+        intro: message || 'There is an update on your support request.',
+        accentColor: normalizedUpdate === 'CREATED' ? '#2563eb' : '#f97316',
+        rows: [
+          ['Ticket ID', ticket.ticketId || String(ticket._id || '')],
+          ['Subject', ticket.subject || 'Support Request'],
+          ['Category', ticket.category || 'GENERAL'],
+          ['Status', ticket.status || 'OPEN']
+        ]
+      }),
+      category: 'notification',
+      metadata: { type: 'support_ticket', ticketId: ticket.ticketId, updateType: normalizedUpdate }
+    })
+  }
+
+  //Sanket v2.0 - IB lifecycle emails inform applicants when their broker-partner status changes
+  async sendIBStatusEmail({ user, status, planName = '', reason = '' }) {
+    await this.initialize()
+    if (!user?.email) return { success: false, skipped: true }
+
+    const normalizedStatus = String(status || user.ibStatus || 'updated').toUpperCase()
+    const introMap = {
+      PENDING: 'Your IB application has been received and is now under review.',
+      ACTIVE: 'Congratulations — your IB application has been approved and activated.',
+      REJECTED: 'Your IB application was reviewed but could not be approved at this time.',
+      BLOCKED: 'Your IB access has been restricted. Please contact support for assistance.'
+    }
+
+    return this.sendEmail({
+      to: user.email,
+      toName: user.firstName,
+      userId: user._id,
+      subject: `IB Status ${normalizedStatus} - ${this.appName}`,
+      html: this._getStatusEmailHTML({
+        title: `IB Status ${normalizedStatus}`,
+        intro: introMap[normalizedStatus] || 'Your IB profile has been updated.',
+        accentColor: normalizedStatus === 'ACTIVE' ? '#16a34a' : normalizedStatus === 'PENDING' ? '#2563eb' : '#dc2626',
+        rows: [
+          ['Status', normalizedStatus],
+          ['Assigned Plan', planName || 'Will be assigned after review'],
+          ['Reason / Note', reason || (normalizedStatus === 'ACTIVE' ? 'Your IB dashboard is now available.' : 'Please contact support if you need more details.')]
+        ]
+      }),
+      category: 'notification',
+      metadata: { type: 'ib_status', status: normalizedStatus }
+    })
+  }
+
+  _startRetryScheduler() {
+    if (!this.retryEnabled || this.retryTimer) return
+
+    //Sanket v2.0 - keep a lightweight background retry loop running so temporary provider/network failures can self-heal
+    this.retryTimer = setInterval(() => {
+      this.retryFailedEmails({
+        limit: this.retryBatchSize,
+        includePending: false,
+        source: 'scheduler'
+      }).catch((error) => {
+        console.error('Automatic email retry cycle failed:', error.message)
+      })
+    }, this.retryIntervalMs)
+
+    if (typeof this.retryTimer?.unref === 'function') {
+      this.retryTimer.unref()
+    }
+
+    console.log(`♻️ Email retry queue active — every ${Math.round(this.retryIntervalMs / 1000)}s, batch size ${this.retryBatchSize}`)
+  }
+
+  async retryEmailById(logId, { source = 'manual', adminId, ipAddress, userAgent } = {}) {
+    await this.initialize()
+
+    const log = await EmailLog.findById(logId)
+    if (!log) {
+      throw new Error('Email log not found')
+    }
+
+    return this._retrySingleEmailLog(log, { source, adminId, ipAddress, userAgent })
+  }
+
+  async retryFailedEmails({ limit = this.retryBatchSize, includePending = false, source = 'manual-batch', adminId } = {}) {
+    await this.initialize()
+
+    if (this.retryInProgress) {
+      return {
+        success: true,
+        skipped: true,
+        message: 'Email retry queue is already running',
+        processed: 0,
+        resent: 0,
+        failed: 0,
+        skippedCount: 0,
+        results: []
+      }
+    }
+
+    this.retryInProgress = true
+
+    try {
+      const normalizedLimit = Math.min(Math.max(parseInt(limit, 10) || this.retryBatchSize || 10, 1), 50)
+      const maxAgeDate = new Date(Date.now() - (this.retryMaxAgeHours * 60 * 60 * 1000))
+      const retryableStatuses = includePending ? ['failed', 'pending'] : ['failed']
+
+      //Sanket v2.0 - retry only unresolved primary logs so automatic recovery does not duplicate already-resolved resend attempts
+      const logs = await EmailLog.find({
+        status: { $in: retryableStatuses },
+        createdAt: { $gte: maxAgeDate },
+        'metadata.retryResolved': { $ne: true },
+        'metadata.disableAutoRetry': { $ne: true },
+        'metadata.isRetryAttempt': { $ne: true },
+        $expr: { $lt: ['$retryCount', '$maxRetries'] }
+      })
+        .sort({ createdAt: 1 })
+        .limit(normalizedLimit)
+
+      const results = []
+      for (const log of logs) {
+        const retryResult = await this._retrySingleEmailLog(log, { source, adminId })
+        results.push(retryResult)
+      }
+
+      return {
+        success: true,
+        processed: logs.length,
+        resent: results.filter((item) => item.status === 'resent').length,
+        failed: results.filter((item) => item.status === 'failed').length,
+        skippedCount: results.filter((item) => item.status === 'skipped').length,
+        results
+      }
+    } finally {
+      this.retryInProgress = false
+    }
+  }
+
+  async _retrySingleEmailLog(log, { source = 'manual', adminId, ipAddress, userAgent } = {}) {
+    if (!log) {
+      return { status: 'skipped', reason: 'Missing email log' }
+    }
+
+    if (!log.recipient?.email || !log.subject || (!log.htmlContent && !log.textContent)) {
+      await EmailLog.findByIdAndUpdate(log._id, {
+        $inc: { retryCount: 1 },
+        $set: {
+          'metadata.lastRetryAt': new Date(),
+          'metadata.lastRetrySource': source,
+          'metadata.lastRetryResult': 'skipped',
+          'metadata.lastRetryReason': 'Missing recipient or content'
+        }
+      })
+
+      return {
+        status: 'skipped',
+        logId: String(log._id),
+        reason: 'Missing recipient or content'
+      }
+    }
+
+    const retryMetadataUpdate = {
+      'metadata.lastRetryAt': new Date(),
+      'metadata.lastRetrySource': source
+    }
+
+    if (adminId) {
+      retryMetadataUpdate['metadata.lastRetryRequestedBy'] = String(adminId)
+    }
+
+    await EmailLog.findByIdAndUpdate(log._id, {
+      $inc: { retryCount: 1 },
+      $set: retryMetadataUpdate
+    })
+
+    try {
+      //Sanket v2.0 - preserve the original payload while tagging the new send as a retry attempt for clean audit history
+      const html = log.htmlContent || `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;">${String(log.textContent || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
+      const result = await this.sendEmail({
+        to: log.recipient.email,
+        toName: log.recipient?.name,
+        userId: log.recipient?.userId,
+        subject: log.subject,
+        html,
+        text: log.textContent,
+        templateSlug: log.templateSlug,
+        templateId: log.template,
+        category: log.category || 'transactional',
+        metadata: {
+          ...(log.metadata || {}),
+          originalLogId: String(log.metadata?.originalLogId || log._id),
+          retryOfLogId: String(log._id),
+          retryAttempt: (log.retryCount || 0) + 1,
+          retrySource: source,
+          isRetryAttempt: true,
+          disableAutoRetry: true
+        },
+        sentBy: adminId || log.sentBy,
+        ipAddress,
+        userAgent
+      })
+
+      await EmailLog.findByIdAndUpdate(log._id, {
+        $set: {
+          'metadata.retryResolved': true,
+          'metadata.lastRetryResult': 'sent',
+          'metadata.lastRetryLogId': String(result.logId || ''),
+          'metadata.lastRetryMessageId': result.messageId || ''
+        }
+      })
+
+      return {
+        status: 'resent',
+        logId: String(log._id),
+        resentLogId: String(result.logId || ''),
+        messageId: result.messageId || ''
+      }
+    } catch (error) {
+      await EmailLog.findByIdAndUpdate(log._id, {
+        $set: {
+          'metadata.lastRetryResult': 'failed',
+          'metadata.lastRetryError': error.message
+        }
+      })
+
+      return {
+        status: 'failed',
+        logId: String(log._id),
+        error: error.message
+      }
     }
   }
 
@@ -324,6 +709,42 @@ class EmailService {
 
   _stripHtml(html) {
     return (html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  }
+
+  //Sanket v2.0 - Shared production-style HTML shell for platform alerts and transactional status updates
+  _getStatusEmailHTML({ title, intro, rows = [], accentColor = '#f97316' }) {
+    const detailRows = rows.map(([label, value]) => `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:600;">${label}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#111827;font-size:13px;">${value || '-'}</td>
+      </tr>
+    `).join('')
+
+    return `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <tr><td style="background:${accentColor};padding:24px 32px;text-align:center;">
+          <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;letter-spacing:0.4px;">${this.appName}</h1>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <h2 style="margin:0 0 10px;color:#111827;font-size:22px;">${title}</h2>
+          <p style="margin:0 0 22px;color:#4b5563;font-size:14px;line-height:1.7;">${intro}</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#f9fafb;">
+            ${detailRows}
+          </table>
+        </td></tr>
+        <tr><td style="background:#111827;padding:20px 32px;text-align:center;">
+          <p style="margin:0;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
   }
 
   _getOTPEmailHTML(otp, purposeText) {

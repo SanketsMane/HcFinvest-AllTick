@@ -1,6 +1,7 @@
 import express from 'express'
 import SupportTicket from '../models/SupportTicket.js'
 import User from '../models/User.js'
+import emailService from '../services/emailService.js'
 
 const router = express.Router()
 
@@ -38,6 +39,14 @@ router.post('/create', async (req, res) => {
         message
       }]
     })
+
+    //Sanket v2.0 - Send immediate acknowledgement so the user has a logged email copy of the new support request
+    emailService.sendSupportTicketEmail({
+      user,
+      ticket,
+      updateType: 'created',
+      message: 'Your support ticket has been created successfully. Our team will review it shortly.'
+    }).catch((emailError) => console.error('Support ticket create email failed:', emailError.message))
 
     res.json({
       success: true,
@@ -150,6 +159,16 @@ router.post('/reply/:ticketId', async (req, res) => {
     const updatedTicket = await SupportTicket.findOne({ ticketId })
       .populate('userId', 'firstName lastName email')
 
+    if (senderType === 'ADMIN' && updatedTicket?.userId) {
+      //Sanket v2.0 - Notify users when support replies so they do not need to keep polling the ticket thread
+      emailService.sendSupportTicketEmail({
+        user: updatedTicket.userId,
+        ticket: updatedTicket,
+        updateType: 'replied',
+        message: `Our support team replied to your ticket: ${message}`
+      }).catch((emailError) => console.error('Support reply email failed:', emailError.message))
+    }
+
     res.json({
       success: true,
       message: 'Reply added successfully',
@@ -219,6 +238,17 @@ router.put('/admin/status/:ticketId', async (req, res) => {
     }
 
     await ticket.save()
+
+    const populatedTicket = await SupportTicket.findOne({ ticketId }).populate('userId', 'firstName email')
+    if (populatedTicket?.userId) {
+      //Sanket v2.0 - Status-change emails give traders clear closure on resolved/closed support cases
+      emailService.sendSupportTicketEmail({
+        user: populatedTicket.userId,
+        ticket: populatedTicket,
+        updateType: 'status',
+        message: `Your support ticket status is now ${status}.`
+      }).catch((emailError) => console.error('Support status email failed:', emailError.message))
+    }
 
     res.json({
       success: true,

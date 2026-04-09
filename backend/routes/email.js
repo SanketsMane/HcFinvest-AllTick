@@ -8,6 +8,29 @@ import { authMiddleware, adminMiddleware } from '../middleware/auth.js'
 
 const router = express.Router()
 
+const isValidEmailAddress = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const requireEmailAccess = (req, res, permissionKeys = []) => {
+  //Sanket v2.0 - enforce granular admin permissions before exposing sensitive email operations
+  const admin = req.admin
+  if (!admin) {
+    res.status(403).json({ success: false, message: 'Admin access required' })
+    return false
+  }
+  if (admin.role === 'SUPER_ADMIN') return true
+
+  const keys = Array.isArray(permissionKeys) ? permissionKeys : [permissionKeys]
+  const hasPermission = keys.length === 0 || keys.some((key) => !!admin.permissions?.[key])
+
+  if (!hasPermission) {
+    res.status(403).json({ success: false, message: 'Insufficient permission for email operations' })
+    return false
+  }
+
+  return true
+}
+
 // Rate limiting middleware for OTP requests
 const otpRateLimiter = async (req, res, next) => {
   const { email } = req.body
@@ -308,6 +331,8 @@ router.post('/templates/:id/preview', adminMiddleware, async (req, res) => {
 // Send email to user (manual trigger)
 router.post('/send', adminMiddleware, async (req, res) => {
   try {
+    if (!requireEmailAccess(req, res, ['canManageUsers', 'canViewReports'])) return
+
     const { 
       userId, 
       email, 
@@ -340,15 +365,27 @@ router.post('/send', adminMiddleware, async (req, res) => {
       })
     }
 
+    if (!isValidEmailAddress(recipientEmail)) {
+      return res.status(400).json({ success: false, message: 'A valid recipient email is required' })
+    }
+
     let result
 
     // If template provided, use template
     if (templateId || templateSlug) {
+      const resolvedTemplate = templateSlug
+        ? await EmailTemplate.getBySlug(templateSlug)
+        : await EmailTemplate.findById(templateId)
+
+      if (!resolvedTemplate) {
+        return res.status(404).json({ success: false, message: 'Email template not found or inactive' })
+      }
+
       result = await emailService.sendTemplateEmail({
         to: recipientEmail,
         toName: recipientName,
         userId: recipientUserId,
-        templateSlug: templateSlug || (await EmailTemplate.findById(templateId))?.slug,
+        templateSlug: resolvedTemplate.slug,
         data,
         category: 'manual',
         sentBy: req.admin?._id,
@@ -356,13 +393,28 @@ router.post('/send', adminMiddleware, async (req, res) => {
         userAgent: req.get('User-Agent')
       })
     } else if (subject && htmlContent) {
+      const safeSubject = String(subject || '').trim()
+      const safeHtmlContent = String(htmlContent || '').trim()
+
+      if (!safeSubject || !safeHtmlContent) {
+        return res.status(400).json({ success: false, message: 'Subject and HTML content are required' })
+      }
+
+      if (safeSubject.length > 200) {
+        return res.status(400).json({ success: false, message: 'Subject must be 200 characters or fewer' })
+      }
+
+      if (safeHtmlContent.length > 200000) {
+        return res.status(400).json({ success: false, message: 'HTML content is too large' })
+      }
+
       // Custom email
       result = await emailService.sendEmail({
         to: recipientEmail,
         toName: recipientName,
         userId: recipientUserId,
-        subject,
-        html: htmlContent,
+        subject: safeSubject,
+        html: safeHtmlContent,
         category: 'manual',
         sentBy: req.admin?._id,
         ipAddress: req.ip,
@@ -386,6 +438,8 @@ router.post('/send', adminMiddleware, async (req, res) => {
 // Get email logs
 router.get('/logs', adminMiddleware, async (req, res) => {
   try {
+    if (!requireEmailAccess(req, res, ['canViewReports', 'canManageUsers'])) return
+
     const { 
       page = 1, 
       limit = 20, 
@@ -397,11 +451,15 @@ router.get('/logs', adminMiddleware, async (req, res) => {
       endDate 
     } = req.query
 
+    const parsedPage = Math.max(parseInt(page) || 1, 1)
+    const parsedLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100)
+
     const filter = {}
     
+    //Sanket v2.0 - build server-side filters so email logs stay paginated and production-friendly even at higher volume
     if (status) filter.status = status
     if (category) filter.category = category
-    if (email) filter['recipient.email'] = new RegExp(email, 'i')
+    if (email) filter['recipient.email'] = new RegExp(escapeRegex(email), 'i')
     if (userId) filter['recipient.userId'] = userId
     if (startDate || endDate) {
       filter.createdAt = {}
@@ -409,15 +467,15 @@ router.get('/logs', adminMiddleware, async (req, res) => {
       if (endDate) filter.createdAt.$lte = new Date(endDate)
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit)
+    const skip = (parsedPage - 1) * parsedLimit
 
     const [logs, total] = await Promise.all([
       EmailLog.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(parsedLimit)
         .populate('template', 'name slug')
-        .populate('sentBy', 'email name'),
+        .populate('sentBy', 'email firstName lastName'),
       EmailLog.countDocuments(filter)
     ])
 
@@ -425,10 +483,10 @@ router.get('/logs', adminMiddleware, async (req, res) => {
       success: true,
       logs,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parsedPage,
+        limit: parsedLimit,
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        pages: Math.ceil(total / parsedLimit)
       }
     })
 
@@ -438,9 +496,82 @@ router.get('/logs', adminMiddleware, async (req, res) => {
   }
 })
 
+// Get single email log details
+router.get('/logs/:id', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireEmailAccess(req, res, ['canViewReports', 'canManageUsers'])) return
+
+    const log = await EmailLog.findById(req.params.id)
+      .populate('template', 'name slug')
+      .populate('sentBy', 'email firstName lastName')
+
+    if (!log) {
+      return res.status(404).json({ success: false, message: 'Email log not found' })
+    }
+
+    res.json({ success: true, log })
+  } catch (error) {
+    console.error('Get email log details error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// Resend an email from an existing failed/previous log record
+router.post('/logs/:id/resend', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireEmailAccess(req, res, ['canManageUsers', 'canViewReports'])) return
+
+    const result = await emailService.retryEmailById(req.params.id, {
+      source: 'admin-resend',
+      adminId: req.admin?._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    })
+
+    if (result.status === 'skipped') {
+      return res.status(400).json({
+        success: false,
+        message: result.reason || 'This email log is not eligible for retry',
+        ...result
+      })
+    }
+
+    res.json({ success: true, message: 'Email resent successfully', ...result })
+  } catch (error) {
+    console.error('Resend email log error:', error)
+    res.status(error.message === 'Email log not found' ? 404 : 500).json({ success: false, message: error.message })
+  }
+})
+
+// Retry a batch of failed email logs
+router.post('/retry-failed', adminMiddleware, async (req, res) => {
+  try {
+    if (!requireEmailAccess(req, res, ['canManageUsers', 'canViewReports'])) return
+
+    const { limit = 10, includePending = false } = req.body || {}
+    const result = await emailService.retryFailedEmails({
+      limit,
+      includePending,
+      source: 'admin-batch',
+      adminId: req.admin?._id
+    })
+
+    res.json({
+      success: true,
+      message: `Retry queue processed ${result.processed || 0} email log(s)`,
+      ...result
+    })
+  } catch (error) {
+    console.error('Batch retry email logs error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
 // Get email stats
 router.get('/stats', adminMiddleware, async (req, res) => {
   try {
+    if (!requireEmailAccess(req, res, ['canViewReports', 'canManageUsers'])) return
+
     const { startDate, endDate } = req.query
 
     const stats = await EmailLog.getStats(startDate, endDate)
@@ -468,31 +599,25 @@ router.get('/stats', adminMiddleware, async (req, res) => {
   }
 })
 
-// Verify SMTP connection (public endpoint for testing)
-router.get('/verify-connection', async (req, res) => {
+// Verify email provider connection (admin-only to avoid leaking infrastructure details)
+router.get('/verify-connection', adminMiddleware, async (req, res) => {
   try {
     const connectionStatus = await emailService.verifyConnection()
     
     if (connectionStatus.success) {
       res.json({ 
         success: true, 
-        message: 'SMTP connection verified successfully',
-        config: {
-          host: process.env.SMTP_HOST,
-          port: process.env.SMTP_PORT,
-          user: process.env.SMTP_USER,
-          from: process.env.SMTP_FROM_EMAIL
-        }
+        message: connectionStatus.message,
+        provider: process.env.EMAIL_PROVIDER || 'resend'
       })
     } else {
       res.status(500).json({ 
         success: false, 
         message: connectionStatus.message,
         troubleshooting: [
-          'Verify IMAP/SMTP is enabled in Zoho Mail settings',
-          'Ensure you are using an App Password (not regular password)',
-          'Check if the email address is correct',
-          'Try regenerating the App Password in Zoho'
+          'Verify the configured email provider credentials',
+          'Check if the sender domain/email is verified',
+          'Re-test after updating .env secrets on the server'
         ]
       })
     }
@@ -503,7 +628,7 @@ router.get('/verify-connection', async (req, res) => {
       message: error.message,
       troubleshooting: [
         'Check your .env file configuration',
-        'Verify SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS are set correctly'
+        'Verify RESEND_API_KEY or SMTP credentials are set correctly'
       ]
     })
   }

@@ -5,11 +5,9 @@ import { X, Mail, Check, AlertCircle } from 'lucide-react'
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('')
-  const [newEmail, setNewEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-  const [showEmailChange, setShowEmailChange] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -25,10 +23,7 @@ const ForgotPassword = () => {
       const res = await fetch(`${API_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email,
-          newEmail: showEmailChange ? newEmail : null
-        })
+        body: JSON.stringify({ email })
       })
       const data = await res.json()
 
@@ -64,8 +59,7 @@ const ForgotPassword = () => {
             </div>
             <h2 className="text-xl font-semibold text-white mb-2">Request Submitted</h2>
             <p className="text-gray-400 mb-6">
-              Your password reset request has been sent to the admin. 
-              You will receive a new password on your registered email shortly.
+              If your account exists, a secure password reset link has been sent to your registered email.
             </p>
             <Link 
               to="/user/login"
@@ -79,8 +73,7 @@ const ForgotPassword = () => {
             {/* Title */}
             <h1 className="text-2xl font-semibold text-white mb-2">Forgot Password</h1>
             <p className="text-gray-400 text-sm mb-6">
-              Enter your email address and we'll send your request to the admin. 
-              A new password will be sent to your email.
+              Enter your registered email address and we will send you a secure password reset link.
             </p>
 
             {/* Form */}
@@ -100,40 +93,10 @@ const ForgotPassword = () => {
                 </div>
               </div>
 
-              {/* Email change option */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="changeEmail"
-                  checked={showEmailChange}
-                  onChange={(e) => setShowEmailChange(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-600 bg-dark-600 text-blue-500 focus:ring-blue-500"
-                />
-                <label htmlFor="changeEmail" className="text-gray-400 text-sm">
-                  I want to change my email address
-                </label>
-              </div>
-
-              {/* New email field */}
-              {showEmailChange && (
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">New Email Address</label>
-                  <div className="relative">
-                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-                    <input
-                      type="email"
-                      placeholder="Enter new email address"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      className="w-full bg-dark-600 border border-gray-700 rounded-lg pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors"
-                    />
-                  </div>
-                  <p className="text-yellow-500 text-xs mt-2 flex items-start gap-1">
-                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                    If an account exists with this email, you will receive a password reset link shortly.
-                  </p>
-                </div>
-              )}
+              <p className="text-yellow-500 text-xs mt-1 flex items-start gap-1">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                For security, this form always shows a neutral success message when the request is submitted.
+              </p>
 
               {/* Error message */}
               {error && (

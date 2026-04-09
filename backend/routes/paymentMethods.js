@@ -2,6 +2,8 @@ import express from 'express'
 import PaymentMethod from '../models/PaymentMethod.js'
 import Currency from '../models/Currency.js'
 import UserBankAccount from '../models/UserBankAccount.js'
+import User from '../models/User.js'
+import emailService from '../services/emailService.js'
 
 const router = express.Router()
 
@@ -425,6 +427,11 @@ router.put('/admin/bank-requests/:id/approve', async (req, res) => {
     account.approvedAt = new Date()
     await account.save()
 
+    const user = await User.findById(account.userId).select('firstName email')
+    //Sanket v2.0 - Notify the user as soon as the withdrawal method becomes available for payouts
+    emailService.sendBankStatusEmail({ user, account, status: 'Approved' })
+      .catch((emailError) => console.error('Bank approved email failed:', emailError.message))
+
     res.json({ success: true, message: 'Bank account approved', account })
   } catch (error) {
     res.status(500).json({ message: 'Error approving bank request', error: error.message })
@@ -445,6 +452,11 @@ router.put('/admin/bank-requests/:id/reject', async (req, res) => {
     account.rejectedAt = new Date()
     account.rejectionReason = reason || 'Rejected by admin'
     await account.save()
+
+    const user = await User.findById(account.userId).select('firstName email')
+    //Sanket v2.0 - Rejection email gives the user the exact reason before they try withdrawing again
+    emailService.sendBankStatusEmail({ user, account, status: 'Rejected', reason: account.rejectionReason })
+      .catch((emailError) => console.error('Bank rejected email failed:', emailError.message))
 
     res.json({ success: true, message: 'Bank account rejected', account })
   } catch (error) {

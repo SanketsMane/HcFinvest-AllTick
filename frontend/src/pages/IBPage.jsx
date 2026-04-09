@@ -186,8 +186,10 @@ const IBPage = () => {
     try {
       const res = await fetch(`${API_URL}/ib/apply`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        headers: authHeaders(),
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({ userId: user._id }),
       });
       const data = await res.json();

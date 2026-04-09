@@ -3,6 +3,8 @@
 import express from "express";
 import Competition from "../models/Compitition.js";
 import CompetitionParticipant from "../models/competitionParticipantSchema.js";
+import User from "../models/User.js";
+import emailService from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -72,15 +74,42 @@ router.post("/join/:competitionId", async (req, res) => {
     const { competitionId } = req.params;
     const { userId } = req.body;
 
-    const competition = await Competition.findById(competitionId);
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required" });
+    }
+
+    const [competition, user] = await Promise.all([
+      Competition.findById(competitionId),
+      User.findById(userId).select("firstName email")
+    ]);
 
     if (!competition) {
-      return res.status(404).json({ message: "Competition not found" });
+      return res.status(404).json({ success: false, message: "Competition not found" });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    //Sanket v2.0 - Duplicate guard prevents double joins and duplicate confirmation emails on repeated clicks
+    const alreadyJoined = (competition.participants || []).some((participantId) => String(participantId) === String(userId));
+    if (alreadyJoined) {
+      return res.status(400).json({ success: false, message: "User already joined this competition" });
     }
 
     competition.participants.push(userId);
-
     await competition.save();
+
+    //Sanket v2.0 - Send the confirmation email from backend so join + email stay in one trusted flow
+    emailService.sendCompetitionJoinEmail({
+      to: user.email,
+      toName: user.firstName,
+      userId: user._id,
+      competitionName: competition.competitionName,
+      startDate: competition.startDate
+    }).catch((emailError) => {
+      console.error("Competition join email failed:", emailError.message);
+    });
 
     res.json({
       success: true,

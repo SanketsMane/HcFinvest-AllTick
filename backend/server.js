@@ -27,6 +27,7 @@ import adminManagementRoutes from './routes/adminManagement.js'
 import uploadRoutes from './routes/upload.js'
 import emailRoutes from './routes/email.js'
 import oxapayRoutes from './routes/oxapay.js'
+import emailService from './services/emailService.js'
 import bannerRoutes from './routes/banner.js'
 import carouselRoutes from './routes/carousel.js'
 import warmupService from './services/warmupService.js'
@@ -56,6 +57,11 @@ dotenv.config()
 
 const app = express()
 const httpServer = createServer(app)
+
+//Sanket v2.0 - initialize the email provider and retry scheduler as soon as the backend boots so failed sends can self-recover
+emailService.initialize().catch((error) => {
+  console.error('[Email] Initialization failed:', error.message)
+})
 // initLiveSocket(httpServer);
 
 // Socket.IO for real-time updates
@@ -504,7 +510,6 @@ app.use("/api/transfer", internalTransferRoutes);
 app.use("/api/admin", adminUserRoutes);
 app.use("/api/competitions", competitionRoutes);
 app.use("/api/competition", competitionLeaderboard);
-app.use("/api/email", emailRoutes);
 app.use("/api/competition-email", competitionEmailRoutes);
 app.use("/api/chart", chartRoutes);
 app.use('/api/announcement', announcementRoute);

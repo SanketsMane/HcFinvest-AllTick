@@ -1,6 +1,7 @@
 import express from 'express'
 import KYC from '../models/KYC.js'
 import User from '../models/User.js'
+import emailService from '../services/emailService.js'
 
 const router = express.Router()
 
@@ -200,7 +201,11 @@ router.put('/approve/:kycId', async (req, res) => {
     await kyc.save()
 
     // Update user's kycApproved status
-    await User.findByIdAndUpdate(kyc.userId, { kycApproved: true })
+    const user = await User.findByIdAndUpdate(kyc.userId, { kycApproved: true }, { new: true }).select('firstName email')
+
+    //Sanket v2.0 - KYC approval email gives users immediate confirmation they can proceed with verified flows
+    emailService.sendKYCStatusEmail({ user, status: 'Approved' })
+      .catch((emailError) => console.error('KYC approved email failed:', emailError.message))
 
     res.json({
       success: true,
@@ -241,6 +246,11 @@ router.put('/reject/:kycId', async (req, res) => {
     kyc.rejectionReason = reason || 'Documents not acceptable'
     kyc.reviewedAt = new Date()
     await kyc.save()
+
+    const user = await User.findById(kyc.userId).select('firstName email')
+    //Sanket v2.0 - KYC rejection email reduces confusion and tells the user why re-submission is needed
+    emailService.sendKYCStatusEmail({ user, status: 'Rejected', reason: kyc.rejectionReason })
+      .catch((emailError) => console.error('KYC rejected email failed:', emailError.message))
 
     res.json({
       success: true,

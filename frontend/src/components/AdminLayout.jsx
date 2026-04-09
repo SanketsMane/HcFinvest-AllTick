@@ -56,6 +56,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
     // { name: 'Carousel Management', icon: Images, path: '/admin/carousel' },
     { name: 'Competitions', icon: MdLeaderboard, path: '/admin/competition' },
     { name: 'Email Management', icon: Mail, path: '/admin/email' },
+    { name: 'Email Logs', icon: Mail, path: '/admin/email-logs' },
     { name: 'Oxapay Gateway', icon: Bitcoin, path: '/admin/oxapay' },
     { name: 'Admin Management', icon: Shield, path: '/admin/admin-management' },
     { name: 'KYC Verification', icon: FileCheck, path: '/admin/kyc' },

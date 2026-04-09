@@ -36,10 +36,12 @@ import ChallengeDashboardPage from './pages/ChallengeDashboardPage'
 import AdminPropTrading from './pages/AdminPropTrading'
 import AdminEarnings from './pages/AdminEarnings'
 import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import AdminThemeSettings from './pages/AdminThemeSettings'
 import BrandedLogin from './pages/BrandedLogin'
 import BrandedSignup from './pages/BrandedSignup'
 import AdminEmailManagement from './pages/AdminEmailManagement'
+import AdminEmailLogs from './pages/AdminEmailLogs'
 import AdminOxapay from './pages/AdminOxapay'
 import AdminBannerManagement from './pages/AdminBannerManagement'
 import AdminCarouselManagement from './pages/AdminCarouselManagement'
@@ -122,6 +124,8 @@ function App() {
         <Route path="/user/trial" element={<Trial />} />
         <Route path="/user/login" element={<Login />} />
         <Route path="/user/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/user/reset-password/:token" element={<ResetPassword />} />
         {/* <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="/dashboard" element={<New_Dashboard />} />
         <Route path="/competition" element={<Competitions />} />
@@ -162,6 +166,7 @@ function App() {
         <Route path="/admin/earnings" element={<AdminHostGuard><AdminEarnings /></AdminHostGuard>} />
         <Route path="/admin/theme" element={<AdminHostGuard><AdminThemeSettings /></AdminHostGuard>} />
         <Route path="/admin/email" element={<AdminHostGuard><AdminEmailManagement /></AdminHostGuard>} />
+        <Route path="/admin/email-logs" element={<AdminHostGuard><AdminEmailLogs /></AdminHostGuard>} />
         <Route path="/admin/oxapay" element={<AdminHostGuard><AdminOxapay /></AdminHostGuard>} />
         <Route path="/admin/banners" element={<AdminHostGuard><AdminBannerManagement /></AdminHostGuard>} />
         <Route path="/admin/carousel" element={<AdminHostGuard><AdminCarouselManagement /></AdminHostGuard>} />

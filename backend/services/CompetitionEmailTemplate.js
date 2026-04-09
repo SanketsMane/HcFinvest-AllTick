@@ -232,10 +232,7 @@
                                                                                                 <td>${name}</td>
                                                                                               </tr>
 
-                                                                                              // <tr>
-                                                                                              //   <td><strong>Email :</strong></td>
-                                                                                              //   <td>${email}</td>
-                                                                                              // </tr>
+                                                                                              <!-- Optional email row intentionally omitted -->
 
                                                                                               <tr>
                                                                                                 <td><strong>Competition Name :</strong></td>
@@ -247,10 +244,7 @@
                                                                                                 <td>${startDate}</td>
                                                                                               </tr>
 
-                                                                                              // <tr>
-                                                                                              //   <td><strong>End Date :</strong></td>
-                                                                                              //   <td>${endDate}</td>
-                                                                                              // </tr>
+                                                                                              <!-- Optional end-date row intentionally omitted -->
 
                                                                                               <tr>
                                                                                                 <td><strong>Status :</strong></td>
