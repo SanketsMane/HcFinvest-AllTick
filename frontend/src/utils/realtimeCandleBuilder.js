@@ -191,8 +191,10 @@ export const buildCandleFromTick = ({ currentBar, tickPrice, tickTime, resolutio
   const bars = [];
   const gapMs = bucketTime - currentBar.time;
   
-  // Fill gaps if missing for < 2 hours (Professional Interpolation)
-  if (gapMs > resolutionMs && gapMs < 2 * 60 * 60 * 1000) {
+  //Sanket v2.0 - Cap gap-fill to 5 minutes max (was 2 hours). Large gaps from tab inactivity
+  //Sanket v2.0 - were creating 60-120 flat doji candles pushed to TradingView at once, causing chart distortion.
+  //Sanket v2.0 - For gaps >5 min, the visibility handler in datafeed.js resets candle state entirely.
+  if (gapMs > resolutionMs && gapMs < 5 * 60 * 1000) {
     let fillTime = currentBar.time + resolutionMs;
     while (fillTime < bucketTime) {
       bars.push({

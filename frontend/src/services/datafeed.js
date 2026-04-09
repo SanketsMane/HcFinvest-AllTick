@@ -613,7 +613,37 @@ const Datafeed = {
     };
 
     bootstrapLiveBar();
+    //Sanket v2.0 - Tab recovery: re-bootstraps chart candle state when user returns from long tab inactivity
+    //Sanket v2.0 - Chrome freezes JS for inactive tabs after ~5min, causing stale candle state + gap-fill distortion
+    let _hiddenSince = null;
+    const handleTabVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        _hiddenSince = Date.now();
+      } else if (document.visibilityState === 'visible' && isActive) {
+        const hiddenMs = _hiddenSince ? Date.now() - _hiddenSince : 0;
+        _hiddenSince = null;
 
+        if (hiddenMs > 120000) {
+          //Sanket v2.0 - Tab hidden >2 min — full candle state reset to prevent buildCandleFromTick gap-fill distortion
+          //Sanket v2.0 - Without this, returning from a 1-2 hr idle creates 60-120 flat doji candles at the stale price
+          currentBar = null;
+          lastBarTime = -Infinity;
+          _priceWindow = [];
+          _consecutiveSpikes = 0;
+          displayClose = null;
+          targetClose = null;
+          prevRafTime = null;
+          lastTickTime = Date.now();
+          bootstrapLiveBar();
+        } else if (hiddenMs > 30000) {
+          //Sanket v2.0 - 30s-2min gap — just refresh current candle from backend, no full reset needed
+          prevRafTime = null;
+          lastTickTime = Date.now();
+          bootstrapLiveBar();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleTabVisibility);
     //Sanket v2.0 - RAF smooth interpolation loop: lerps displayClose â†’ targetClose at 60fps.
     //Sanket v2.0 - Feeds TradingView onRealtimeCallback every frame so the candle body glides
     //Sanket v2.0 - instead of snapping, matching the smoothness of the BUY/SELL price buttons.
@@ -660,14 +690,22 @@ const Datafeed = {
       const now = Date.now();
       if (lastTickTime > 0) {
         const timeSinceLastTick = now - lastTickTime;
-        if (timeSinceLastTick > 30000 && timeSinceLastTick < 300000) {
-          //Sanket v2.0 - Auto-recover candle state after connection gap â€” same as Bloomberg bar-resync on WS reconnect
-          //Sanket v2.0 - Re-fetch current candle from backend so chart doesn't show a frozen/stale body
-          // console.warn(`[DATAFEED] âš ï¸ DATA GAP ${symbolInfo.name} ${(timeSinceLastTick/1000).toFixed(0)}s â€” re-bootstrapping live bar`);
-          lastTickTime = now; // Reset so we don't spam bootstrap every 10s until next tick arrives
+        if (timeSinceLastTick > 120000) {
+          //Sanket v2.0 - Gap >2 min: full candle state reset + re-bootstrap to prevent stale flat-candle floods
+          //Sanket v2.0 - Old code had a 5-minute ceiling (300000ms) that silently ignored gaps >5 min
+          currentBar = null;
+          lastBarTime = -Infinity;
+          _priceWindow = [];
+          _consecutiveSpikes = 0;
+          displayClose = null;
+          targetClose = null;
+          prevRafTime = null;
+          lastTickTime = now;
           bootstrapLiveBar();
-        } else if (timeSinceLastTick > 15000) {
-          // console.warn(`[DATAFEED] âš ï¸ DATA GAP for ${symbolInfo.name} for ${(timeSinceLastTick/1000).toFixed(1)}s`);
+        } else if (timeSinceLastTick > 30000) {
+          //Sanket v2.0 - 30s-2min gap: just re-fetch current candle from backend
+          lastTickTime = now;
+          bootstrapLiveBar();
         }
       }
     }, 10000);
@@ -813,6 +851,7 @@ const Datafeed = {
       isActive = false;
       if (rafHandle) cancelAnimationFrame(rafHandle);
       clearInterval(dataGapMonitor);
+      document.removeEventListener('visibilitychange', handleTabVisibility);
       priceStreamService.unsubscribeBars(symbolInfo.name);
       getPriceEvents().removeEventListener("candleUpdate", handleCandleUpdate);
       getPriceEvents().removeEventListener("priceUpdate", handlePriceUpdate);

@@ -103,6 +103,40 @@ class PriceStreamService {
 
     this._emitStatus('connecting')
 
+    //Sanket v2.0 - Tab recovery: force socket reconnect when user returns from a long-hidden tab
+    //Sanket v2.0 - Chrome can silently kill/freeze WebSocket in background tabs after ~5 min
+    //Sanket v2.0 - Without this, the socket stays "dead" and no ticks flow to the chart on return
+    this._tabHiddenSince = null
+    this._visibilityHandler = () => {
+      if (document.visibilityState === 'hidden') {
+        this._tabHiddenSince = Date.now()
+      } else if (document.visibilityState === 'visible') {
+        const hiddenMs = this._tabHiddenSince ? Date.now() - this._tabHiddenSince : 0
+        this._tabHiddenSince = null
+
+        if (hiddenMs > 30000 && this.socket) {
+          //Sanket v2.0 - Clear stale spike-guard state so first real tick after return isn't rejected
+          this._lastAcceptedMidBySymbol.clear()
+          this._lastAcceptedTimeBySymbol.clear()
+          this._lastTickKeyBySymbol.clear()
+          this._lastTickTsBySymbol.clear()
+
+          if (!this.socket.connected) {
+            //Sanket v2.0 - Socket died during inactive period — force reconnect
+            this.socket.connect()
+            this._emitStatus('reconnecting')
+          } else {
+            //Sanket v2.0 - Socket alive but stale — re-subscribe to get fresh price batch
+            this.socket.emit('subscribePrices')
+            if (this.prioritySymbols.length > 0) {
+              this.socket.emit('setPrioritySymbols', { symbols: this.prioritySymbols })
+            }
+          }
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', this._visibilityHandler)
+
     this.socket.on('connect', () => {
       // v7.51 Silent
       this.isConnected = true
@@ -351,6 +385,11 @@ class PriceStreamService {
       }
       this.socket.disconnect()
       this.socket = null
+    }
+    //Sanket v2.0 - Clean up tab visibility listener to prevent leaks on disconnect
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler)
+      this._visibilityHandler = null
     }
     this.isConnected = false
     this._emitStatus('disconnected')
