@@ -850,9 +850,9 @@ const Datafeed = {
     //Sanket v2.0 - Kill ALL existing subscriptions for the same symbol, not just same UID
     //Sanket v2.0 - TV re-subscribes with different UIDs after layout load, creating ghost handlers
     //Sanket v2.0 - that fight over onRealtimeCallback and cause the live candle to freeze
-    const normalizedSym = normalizeRealtimeSymbol(symbolInfo.name);
+    const cleanupSym = normalizeRealtimeSymbol(symbolInfo.name);
     for (const [uid, sub] of Object.entries(Datafeed._subscribers)) {
-      if (sub.symbol && normalizeRealtimeSymbol(sub.symbol) === normalizedSym) {
+      if (sub.symbol && normalizeRealtimeSymbol(sub.symbol) === cleanupSym) {
         getPriceEvents().removeEventListener("priceUpdate", sub.priceUpdate);
         getPriceEvents().removeEventListener("candleUpdate", sub.candleUpdate);
         if (sub.dataGapMonitor) clearInterval(sub.dataGapMonitor);
