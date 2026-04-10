@@ -182,15 +182,51 @@ const Advance_Trading_View_Chart = ({
     const userId = getUserId();
 
     //Sanket v2.0 - Purge stale TradingView localStorage entries that cause schema errors on init
-    //Sanket v2.0 - TV stores internal chart state keyed by client_id; old corrupted state freezes the chart
     try {
       Object.keys(localStorage).filter(k =>
         k.startsWith('tradingview') || k.startsWith('tv.') || k.startsWith('chart')
       ).forEach(k => localStorage.removeItem(k));
     } catch (e) { /* private browsing or quota errors */ }
 
-    try {
-      const widget = new window.TradingView.widget({
+    //Sanket v2.0 - Fetch saved layout BEFORE creating widget, pass as saved_data in constructor
+    //Sanket v2.0 - This avoids widget.load() which triggers a destructive 2nd getBars→subscribeBars cycle
+    //Sanket v2.0 - The 2nd cycle causes TV to silently reject onRealtimeCallback bars (time conflict)
+    const initWidget = async () => {
+      let savedLayout = null;
+      try {
+        if (userId) {
+          const res = await fetch(`${API_URL}/chart/load/${userId}?symbol=GLOBAL`);
+          const data = await res.json();
+          if (data.success && data.layoutJson) {
+            savedLayout = data.layoutJson;
+            //Sanket v2.0 - Strip stale sources that cause TV schema errors
+            try {
+              if (savedLayout?.charts) {
+                savedLayout.charts.forEach(chart => {
+                  if (chart.panes) {
+                    chart.panes.forEach(pane => {
+                      if (pane.sources) {
+                        pane.sources = pane.sources.filter(s => {
+                          if (s.type === 'HorzLine' || s.type === 'PriceLine') return false;
+                          if (s.state && s.state.type === 'unknown') return false;
+                          return true;
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            } catch (e) { savedLayout = null; }
+          }
+        }
+      } catch (e) { /* non-fatal — widget starts fresh */ }
+
+      if (!containerRef.current || widgetRef.current) {
+        isInitializingRef.current = false;
+        return;
+      }
+
+      const widgetOptions = {
         symbol: normalizedSymbol,
         interval: "1",
         container: containerRef.current,
@@ -199,14 +235,11 @@ const Advance_Trading_View_Chart = ({
         theme: isDarkMode ? "dark" : "light",
         autosize: true,
         datafeed: Datafeed,
-        
-        //Sanket v2.0 - Changed from v1 to v2 to invalidate corrupted TV internal state in localStorage
         client_id: 'hcf_trading_v2',
         user_id: userId || 'anonymous',
-        
         disabled_features: [
           "header_saveload",
-          "use_localstorage_for_settings" // Disabled in favor of our backend system
+          "use_localstorage_for_settings"
         ],
         enabled_features: [
           "header_resolutions",
@@ -217,12 +250,21 @@ const Advance_Trading_View_Chart = ({
         overrides: {
           "paneProperties.background": isDarkMode ? "#0d0d0d" : "#ffffff"
         }
-      });
+      };
+
+      //Sanket v2.0 - Pass saved layout via saved_data so TV loads it during initial render
+      //Sanket v2.0 - No widget.load() call needed — single getBars→subscribeBars cycle only
+      if (savedLayout) {
+        widgetOptions.saved_data = savedLayout;
+      }
+
+    try {
+      const widget = new window.TradingView.widget(widgetOptions);
 
       widget.onChartReady(async () => {
         
-        // 1. Initial Load from Backend
-        await loadChartFromBackend(widget);
+        //Sanket v2.0 - Layout already loaded via saved_data constructor option (no widget.load() needed)
+        //Sanket v2.0 - widget.load() was causing a 2nd getBars→subscribeBars cycle that killed live candles
 
         // 2. State Setup
         chartReadyRef.current = true;
@@ -263,10 +305,7 @@ const Advance_Trading_View_Chart = ({
           (...args) => onTradeModify?.(...args)
         );
         managerRef.current.initialize(widget);
-        //Sanket v2.0 - Delay initial syncTrades by 600ms. widget.load() causes TV to internally
-        // re-process the chart layout. createShape called during this window returns null because
-        // TV is still applying the layout state. The 600ms delay lets TV finish before we create
-        // any managed shapes.
+        //Sanket v2.0 - Delay initial syncTrades by 600ms to let TV finish applying saved_data layout.
         // IMPORTANT: Read from tradesRef/symbolRef (not stale closure). The onChartReady callback
         // is inside useEffect([]) so trades/symbol captured here are the MOUNT-TIME values (empty
         // array). tradesRef.current is updated every render — always holds the latest trades.
@@ -280,25 +319,30 @@ const Advance_Trading_View_Chart = ({
 
         isInitializingRef.current = false;
       });
-
-      return () => {
-        isInitializingRef.current = false;
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        if (managerRef.current) {
-          managerRef.current.destroy();
-          managerRef.current = null;
-        }
-        if (widgetRef.current) {
-          widgetRef.current.remove();
-          widgetRef.current = null;
-          chartRef.current = null;
-          chartReadyRef.current = false;
-          setIsChartReady(false);
-        }
-      };
     } catch (err) {
       isInitializingRef.current = false;
     }
+    };
+
+    //Sanket v2.0 - Fire async init (fetches layout, then creates widget with saved_data)
+    initWidget();
+
+    //Sanket v2.0 - Cleanup returned synchronously to React; refs are set inside onChartReady
+    return () => {
+      isInitializingRef.current = false;
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (managerRef.current) {
+        managerRef.current.destroy();
+        managerRef.current = null;
+      }
+      if (widgetRef.current) {
+        widgetRef.current.remove();
+        widgetRef.current = null;
+        chartRef.current = null;
+        chartReadyRef.current = false;
+        setIsChartReady(false);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
