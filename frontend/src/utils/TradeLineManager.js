@@ -320,6 +320,8 @@ export class TradeLineManager {
 
   async syncTrades(trades, symbol = null) {
     if (this.activeDragId) return; // Locked during interaction
+    //Sanket v2.0 - Skip sync when offline to prevent createShape → ChunkLoadError → remove event → retry loop
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
     
     // â‰¡Æ’Â¢Ã­âˆ©â••Ã… v7.46 Instant Cleanup Bypass
     // If trade count decreased, someone closed a trade. We MUST bypass the 2.5s sync-lock
@@ -485,6 +487,8 @@ export class TradeLineManager {
   }
 
   async _createShape(tradeId, type, price, cfg) {
+    //Sanket v2.0 - Skip createShape when offline to prevent TV's internal chunk loader from retrying infinitely
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return null;
     const chart = this.widget.chart();
     try {
         const tvId = await chart.createShape(
