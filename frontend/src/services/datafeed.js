@@ -1,4 +1,4 @@
-﻿import { API_URL } from "../config/api";
+import { API_URL } from "../config/api";
 import { normalizeSymbol } from "../utils/symbolUtils";
 import priceStreamService from "./priceStream";
 import { getPriceEvents } from "./eventSystem";
@@ -447,16 +447,7 @@ const Datafeed = {
     let tickCount = 0;
     let lastTickTime = 0;
     let isActive = true;
-    //Sanket v2.0 - Removed 50ms render throttle: every tick now updates OHLC (high/low accuracy)
-    //Sanket v2.0 - RAF loop already drives rendering at 60fps â€” no separate throttle needed
 
-    //Sanket v2.0 - 60fps RAF smooth interpolation: mirrors useInterpolation so candle close glides like BUY/SELL buttons
-    let displayClose = null;  // what TradingView currently sees (lerped)
-    let targetClose  = null;  // latest accepted tick price (lerp target)
-    let rafHandle    = null;
-    let prevRafTime  = null;
-    const CHART_SMOOTH = 0.15; // same smoothing factor as AnimatedPrice / AnimatedTradeRow
-    const CHART_EPS    = 0.00001;
 
     //Sanket v2.0 - Rolling median spike guard: tracks last N accepted chart prices to detect outlier ticks
     //Sanket v2.0 - AllTick sends stale/cached quotes (e.g. session open price) that create spike wicks on chart
@@ -491,11 +482,6 @@ const Datafeed = {
       const _seedNowMs = Date.now() + (Datafeed._serverTimeOffsetMs || 0);
       if (Number.isFinite(seededBar.close) && seededBar.close > 0 && (_seedNowMs - seededBar.time) < 120000) {
         _priceWindow = Array(5).fill(seededBar.close);
-      }
-      //Sanket v2.0 - Seed smooth display from historical bar so RAF starts at the correct price
-      if (Number.isFinite(seededBar.close) && seededBar.close > 0) {
-        displayClose = seededBar.close;
-        targetClose  = seededBar.close;
       }
     }
 
@@ -556,9 +542,8 @@ const Datafeed = {
             if (liveCandle.close > 0 && _priceWindow.length < 5) {
               _priceWindow = Array(5).fill(liveCandle.close);
             }
-            //Sanket v2.0 - Seed smooth display from bootstrapped live bar
-            displayClose = currentBar.close;
-            targetClose  = currentBar.close;
+            //Sanket v2.0 - Don't overwrite live state if ticks already advanced past this bar
+            if (liveCandle.time < lastBarTime) return;
             pushBar(currentBar);
             console.log(`[CHART-DEBUG] ${symbolInfo.name} bootstrapLiveBar SEEDED time=${new Date(liveCandle.time).toISOString()} close=${liveCandle.close} windowLen=${_priceWindow.length}`);
             return; // Done — live bar fully seeded
@@ -592,9 +577,8 @@ const Datafeed = {
           lastBarTime = latest.time;
           Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
           Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
-          //Sanket v2.0 - Seed smooth display from phase-2 fallback live bar
-          displayClose = currentBar.close;
-          targetClose  = currentBar.close;
+          //Sanket v2.0 - Don't overwrite live state if ticks already advanced past this bar
+          if (latest.time < lastBarTime) return;
           pushBar(currentBar);
           return;
         }
@@ -630,57 +614,20 @@ const Datafeed = {
 
         if (hiddenMs > 60000) {
           //Sanket v2.0 - Tab hidden >1 min — full candle state reset to prevent buildCandleFromTick gap-fill distortion
-          //Sanket v2.0 - Reduced from 2 min to match data gap monitor threshold
           currentBar = null;
           lastBarTime = -Infinity;
           _priceWindow = [];
           _consecutiveSpikes = 0;
-          displayClose = null;
-          targetClose = null;
-          prevRafTime = null;
           lastTickTime = Date.now();
           bootstrapLiveBar();
         } else if (hiddenMs > 10000) {
           //Sanket v2.0 - 10s-1min gap — just refresh current candle from backend, no full reset needed
-          prevRafTime = null;
           lastTickTime = Date.now();
           bootstrapLiveBar();
         }
       }
     };
     document.addEventListener('visibilitychange', handleTabVisibility);
-    //Sanket v2.0 - RAF smooth interpolation loop: lerps displayClose â†’ targetClose at 60fps.
-    //Sanket v2.0 - Feeds TradingView onRealtimeCallback every frame so the candle body glides
-    //Sanket v2.0 - instead of snapping, matching the smoothness of the BUY/SELL price buttons.
-    const rafLoop = (time) => {
-      if (!isActive) return;
-      //Sanket v2.0 - Pause lerp when browser tab is hidden: saves CPU, prevents dt accumulation on re-focus
-      //Sanket v2.0 - Mirrors the visibilitychange pausing pattern in useInterpolation.js
-      if (document.visibilityState === 'hidden') {
-        prevRafTime = null;
-        rafHandle = requestAnimationFrame(rafLoop);
-        return;
-      }
-      if (displayClose !== null && targetClose !== null && currentBar) {
-        const dt = prevRafTime !== null ? (time - prevRafTime) / 1000 : 1 / 60;
-        const lerpFactor = Math.min(1, CHART_SMOOTH * 60 * dt);
-        const diff = targetClose - displayClose;
-        if (Math.abs(diff) > CHART_EPS) {
-          displayClose = displayClose + diff * lerpFactor;
-          //Sanket v2.0 - open/high/low stay tick-accurate; only close is interpolated for smooth display
-          const displayBar = {
-            ...currentBar,
-            close: displayClose,
-            high: Math.max(currentBar.high, displayClose),
-            low:  Math.min(currentBar.low,  displayClose),
-          };
-          onRealtimeCallback(displayBar);
-        }
-      }
-      prevRafTime = time;
-      rafHandle = requestAnimationFrame(rafLoop);
-    };
-    rafHandle = requestAnimationFrame(rafLoop);
 
     priceStreamService.subscribeBars(symbolInfo.name);
     
@@ -702,9 +649,6 @@ const Datafeed = {
           lastBarTime = -Infinity;
           _priceWindow = [];
           _consecutiveSpikes = 0;
-          displayClose = null;
-          targetClose = null;
-          prevRafTime = null;
           lastTickTime = now;
           bootstrapLiveBar();
         } else if (timeSinceLastTick > 10000) {
@@ -750,9 +694,6 @@ const Datafeed = {
         Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
       }
 
-      //Sanket v2.0 - Closed candle from backend authority: teleport display instantly (no lerp across candle boundary)
-      displayClose = authoritativeBar.close;
-      targetClose  = authoritativeBar.close;
       pushBar(currentBar);
     };
     
@@ -810,8 +751,6 @@ const Datafeed = {
           currentBar.high = Math.max(currentBar.high, price);
           currentBar.low = Math.min(currentBar.low, price);
           currentBar.close = price;
-          targetClose = price;
-          if (displayClose === null) displayClose = price;
           _priceWindow.push(price);
           if (_priceWindow.length > SPIKE_WINDOW_SIZE) _priceWindow.shift();
           onRealtimeCallback({ ...currentBar });
@@ -826,46 +765,21 @@ const Datafeed = {
       _priceWindow.push(price);
       if (_priceWindow.length > SPIKE_WINDOW_SIZE) _priceWindow.shift();
 
-      //Sanket v2.0 - Closed candles (minute boundary cross): push raw + teleport display
-      //Sanket v2.0 - Current open candle: only update targetClose; RAF loop lerps displayClose toward it at 60fps
+      //Sanket v2.0 - Single path: push ALL bars directly to onRealtimeCallback via pushBar
+      //Sanket v2.0 - No RAF interpolation, no conflicting push paths
       for (let i = 0; i < result.bars.length; i++) {
-        const bar = result.bars[i];
-        if (i < result.bars.length - 1) {
-          pushBar(bar);
-          displayClose = bar.close;
-          targetClose  = bar.close;
-        } else {
-          if (displayClose === null) {
-            displayClose = bar.close;
-          } else {
-            const jumpPct = Math.abs(bar.close - displayClose) / (displayClose || 1) * 100;
-            if (jumpPct > 1) displayClose = bar.close;
-          }
-          targetClose = bar.close;
-        }
+        pushBar(result.bars[i]);
       }
       currentBar = result.bars[result.bars.length - 1];
       lastBarTime = currentBar.time;
 
       //Sanket v2.0 - Keep _lastHistoryBars fresh on every accepted tick so re-subscriptions seed correctly
-      //Sanket v2.0 - Without this, TV re-subscribe gets stale getBars data and pushBar blocks with time violation
       Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
       Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
 
-      //Sanket v2.0 - Push current bar to TV on every accepted tick â€” ensures TV treats it as live
-      //Sanket v2.0 - Since the current candle is NEVER in getBars history, TV fully accepts these updates
-      if (currentBar) {
-        const _liveClose = displayClose ?? currentBar.close;
-        const _pushBar = {
-          ...currentBar,
-          close: _liveClose,
-          high: Math.max(currentBar.high, _liveClose),
-          low:  Math.min(currentBar.low,  _liveClose),
-        };
-        onRealtimeCallback(_pushBar);
-        if (tickCount <= 5 || tickCount % 200 === 0) console.log(`[CHART-DEBUG] ${symbolInfo.name} TV-PUSH tick#${tickCount} time=${_pushBar.time} close=${_pushBar.close.toFixed(2)}`);
-      }
+      if (tickCount <= 5 || tickCount % 200 === 0) console.log(`[CHART-DEBUG] ${symbolInfo.name} TV-PUSH tick#${tickCount} time=${currentBar.time} close=${currentBar.close.toFixed(2)}`);
     };
+
 
     Datafeed._subscribers = Datafeed._subscribers || {};
     //Sanket v2.0 - Kill ALL existing subscriptions for the same symbol, not just same UID
@@ -887,7 +801,6 @@ const Datafeed = {
       candleUpdate: handleCandleUpdate,
       symbol: symbolInfo.name,
       dataGapMonitor,
-      rafHandle,
       deactivate: () => { isActive = false; }
     };
 
@@ -896,7 +809,6 @@ const Datafeed = {
     
     return function cleanup() {
       isActive = false;
-      if (rafHandle) cancelAnimationFrame(rafHandle);
       clearInterval(dataGapMonitor);
       document.removeEventListener('visibilitychange', handleTabVisibility);
       priceStreamService.unsubscribeBars(symbolInfo.name);
