@@ -64,7 +64,7 @@ const Login = () => {
       <div className="relative bg-dark-700 rounded-2xl p-8 w-full max-w-md border border-gray-800">
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <img src="/hcfinvest_orange_logo.png" alt="hcfinvest" className="h-20 w-auto" />
+          <img src="/hcfinvestlogolight.png" alt="hcfinvest" className="h-20 w-auto" />
         </div>
         
 
