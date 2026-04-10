@@ -93,24 +93,28 @@ const getChartExecutionPrice = (bid, ask, symbol, adminSpreads, side = 'MID') =>
 
 //Sanket v2.0 - All symbols without .i suffix
 //Sanket v2.0 - Canonical Symbol Registry (Shared logic with Backend)
+//Sanket v2.0 - All sessions set to 24x7 so TradingView never silently rejects onRealtimeCallback bars
+//Sanket v2.0 - The previous session '2200-2200:12345' excluded Friday (day 6) causing TV to treat
+//Sanket v2.0 - ALL bars after ~22:00 UTC Thursday as "outside session" and silently drop them.
+//Sanket v2.0 - AllTick handles real market hours — TV should always accept and render incoming data.
 const SYMBOL_REGISTRY_FE = {
-  'EURUSD': { pricescale: 100000, session: '2200-2200:12345' },
-  'GBPUSD': { pricescale: 100000, session: '2200-2200:12345' },
-  'USDJPY': { pricescale: 100,    session: '2200-2200:12345' },
-  'USDCHF': { pricescale: 100000, session: '2200-2200:12345' },
-  'AUDUSD': { pricescale: 100000, session: '2200-2200:12345' },
-  'NZDUSD': { pricescale: 100000, session: '2200-2200:12345' },
-  'USDCAD': { pricescale: 100000, session: '2200-2200:12345' },
-  'XAUUSD': { pricescale: 100,    session: '2200-2200:12345' },
-  'XAGUSD': { pricescale: 1000,   session: '2200-2200:12345' },
+  'EURUSD': { pricescale: 100000, session: '24x7' },
+  'GBPUSD': { pricescale: 100000, session: '24x7' },
+  'USDJPY': { pricescale: 100,    session: '24x7' },
+  'USDCHF': { pricescale: 100000, session: '24x7' },
+  'AUDUSD': { pricescale: 100000, session: '24x7' },
+  'NZDUSD': { pricescale: 100000, session: '24x7' },
+  'USDCAD': { pricescale: 100000, session: '24x7' },
+  'XAUUSD': { pricescale: 100,    session: '24x7' },
+  'XAGUSD': { pricescale: 1000,   session: '24x7' },
   'BTCUSD': { pricescale: 100,    session: '24x7' },
   'ETHUSD': { pricescale: 100,    session: '24x7' },
   'BNBUSD': { pricescale: 100,    session: '24x7' },
   'SOLUSD': { pricescale: 100,    session: '24x7' },
-  'US30':   { pricescale: 10,     session: '2200-2200:12345' },
-  'US500':  { pricescale: 100,    session: '2200-2200:12345' },
-  'US100':  { pricescale: 10,     session: '2200-2200:12345' },
-  'UK100':  { pricescale: 10,     session: '2200-2200:12345' },
+  'US30':   { pricescale: 10,     session: '24x7' },
+  'US500':  { pricescale: 100,    session: '24x7' },
+  'US100':  { pricescale: 10,     session: '24x7' },
+  'UK100':  { pricescale: 10,     session: '24x7' },
 };
 
 const ALL_SYMBOLS = [
