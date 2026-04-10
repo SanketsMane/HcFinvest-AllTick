@@ -181,6 +181,14 @@ const Advance_Trading_View_Chart = ({
     isInitializingRef.current = true;
     const userId = getUserId();
 
+    //Sanket v2.0 - Purge stale TradingView localStorage entries that cause schema errors on init
+    //Sanket v2.0 - TV stores internal chart state keyed by client_id; old corrupted state freezes the chart
+    try {
+      Object.keys(localStorage).filter(k =>
+        k.startsWith('tradingview') || k.startsWith('tv.') || k.startsWith('chart')
+      ).forEach(k => localStorage.removeItem(k));
+    } catch (e) { /* private browsing or quota errors */ }
+
     try {
       const widget = new window.TradingView.widget({
         symbol: normalizedSymbol,
@@ -192,8 +200,8 @@ const Advance_Trading_View_Chart = ({
         autosize: true,
         datafeed: Datafeed,
         
-        // Use client credentials to enable internal storage hooks if needed
-        client_id: 'hcf_trading_v1',
+        //Sanket v2.0 - Changed from v1 to v2 to invalidate corrupted TV internal state in localStorage
+        client_id: 'hcf_trading_v2',
         user_id: userId || 'anonymous',
         
         disabled_features: [

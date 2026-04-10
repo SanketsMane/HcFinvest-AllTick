@@ -830,16 +830,26 @@ const Datafeed = {
       //Sanket v2.0 - Since the current candle is NEVER in getBars history, TV fully accepts these updates
       if (currentBar) {
         const _liveClose = displayClose ?? currentBar.close;
-        onRealtimeCallback({
+        const _pushBar = {
           ...currentBar,
           close: _liveClose,
           high: Math.max(currentBar.high, _liveClose),
           low:  Math.min(currentBar.low,  _liveClose),
-        });
+        };
+        onRealtimeCallback(_pushBar);
+        if (tickCount <= 5 || tickCount % 200 === 0) console.log(`[CHART-DEBUG] ${symbolInfo.name} TV-PUSH tick#${tickCount} time=${_pushBar.time} close=${_pushBar.close.toFixed(2)}`);
       }
     };
 
     Datafeed._subscribers = Datafeed._subscribers || {};
+    //Sanket v2.0 - Clean up any existing subscription with same UID before registering new one
+    //Sanket v2.0 - Prevents ghost event listeners when TV re-subscribes (e.g. after layout load)
+    const oldSub = Datafeed._subscribers[subscriberUID];
+    if (oldSub) {
+      getPriceEvents().removeEventListener("priceUpdate", oldSub.priceUpdate);
+      getPriceEvents().removeEventListener("candleUpdate", oldSub.candleUpdate);
+      if (oldSub.dataGapMonitor) clearInterval(oldSub.dataGapMonitor);
+    }
     Datafeed._subscribers[subscriberUID] = {
       priceUpdate: handlePriceUpdate,
       candleUpdate: handleCandleUpdate,
