@@ -112,7 +112,16 @@ class AllTickApiService {
       const data = await redisClient.hgetall('live_prices');
       if (!data || Object.keys(data).length === 0) return;
       let seeded = 0;
+      //Sanket v2.0 - Purge legacy .i suffix keys from Redis on startup to prevent stale duplicate broadcasts
+      const staleKeys = Object.keys(data).filter(k => /\.i$/i.test(k));
+      if (staleKeys.length > 0) {
+        for (const k of staleKeys) {
+          try { await redisClient.hdel('live_prices', k); } catch {}
+        }
+        console.log(`[AllTick] Purged ${staleKeys.length} stale .i keys from Redis`);
+      }
       for (const [sym, val] of Object.entries(data)) {
+        if (/\.i$/i.test(sym)) continue;
         try {
           const parsed = JSON.parse(val);
           const mid = (parsed.bid + parsed.ask) / 2;
@@ -722,6 +731,8 @@ class AllTickApiService {
       const data = await redisClient.hgetall('live_prices');
       const parsed = {};
       for (const [sym, val] of Object.entries(data)) {
+        //Sanket v2.0 - Skip legacy .i suffix keys that create stale duplicate prices
+        if (/\.i$/i.test(sym)) continue;
         parsed[sym] = JSON.parse(val);
       }
       return parsed;

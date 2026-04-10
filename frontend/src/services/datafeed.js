@@ -773,7 +773,8 @@ const Datafeed = {
       if (_isChartSpike(price, symbolInfo.name)) {
         if (_consecutiveSpikes < MAX_CONSECUTIVE_SPIKES) {
           _consecutiveSpikes++;
-          if (_consecutiveSpikes <= 3) console.warn(`[CHART-DEBUG] ${symbolInfo.name} SPIKE-REJECTED price=${price} spikes=${_consecutiveSpikes} window=${JSON.stringify(_priceWindow.slice(-3))}`);
+          //Sanket v2.0 - Only log first spike rejection, then every 200th to prevent console flood
+          if (_consecutiveSpikes === 1 && (tickCount <= 10 || tickCount % 200 === 0)) console.warn(`[CHART-DEBUG] ${symbolInfo.name} SPIKE-REJECTED price=${price} spikes=${_consecutiveSpikes} window=${JSON.stringify(_priceWindow.slice(-3))}`);
           return;
         }
         // Too many consecutive rejections â†’ real market move, accept and reset
@@ -797,7 +798,7 @@ const Datafeed = {
       });
 
       if (!result.accepted) {
-        if (tickCount % 50 === 1) console.warn(`[CHART-DEBUG] ${symbolInfo.name} REJECTED reason=${result.reason} price=${price} barTime=${currentBar?.time} bucket=${result.bucketTime}`);
+        if (tickCount % 500 === 1) console.warn(`[CHART-DEBUG] ${symbolInfo.name} REJECTED reason=${result.reason} price=${price} barTime=${currentBar?.time} bucket=${result.bucketTime}`);
         return;
       }
 
