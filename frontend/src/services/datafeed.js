@@ -93,29 +93,28 @@ const getChartExecutionPrice = (bid, ask, symbol, adminSpreads, side = 'MID') =>
 
 //Sanket v2.0 - All symbols without .i suffix
 //Sanket v2.0 - Canonical Symbol Registry (Shared logic with Backend)
-//Sanket v2.0 - Session '2200-2100:12345' = Sun 22:00 → Fri 21:00 UTC, 23h/day with 1h daily close gap
-//Sanket v2.0 - Uses DIFFERENT start/end times (2200 vs 2100) to avoid TV CL v30 same-time parse bug
-//Sanket v2.0 - The 21:00-22:00 UTC gap hides the daily maintenance break (flat candles)
-//Sanket v2.0 - Day codes 1-5 = Sun-Thu nights covering full forex week: Sun 22:00 → Fri 21:00
-//Sanket v2.0 - Crypto stays 24x7 since they trade non-stop
+//Sanket v2.0 - Session must be '24x7' for ALL symbols — TV CL v30 silently rejects onRealtimeCallback
+//Sanket v2.0 - bars that fall outside declared session hours. Both '2200-2200:12345' and '2200-2100:12345'
+//Sanket v2.0 - caused chart freezes at session boundaries. AllTick handles real market hours.
+//Sanket v2.0 - Flat candles during market close are handled by stopping interpolation when no ticks arrive.
 const SYMBOL_REGISTRY_FE = {
-  'EURUSD': { pricescale: 100000, session: '2200-2100:12345' },
-  'GBPUSD': { pricescale: 100000, session: '2200-2100:12345' },
-  'USDJPY': { pricescale: 100,    session: '2200-2100:12345' },
-  'USDCHF': { pricescale: 100000, session: '2200-2100:12345' },
-  'AUDUSD': { pricescale: 100000, session: '2200-2100:12345' },
-  'NZDUSD': { pricescale: 100000, session: '2200-2100:12345' },
-  'USDCAD': { pricescale: 100000, session: '2200-2100:12345' },
-  'XAUUSD': { pricescale: 100,    session: '2200-2100:12345' },
-  'XAGUSD': { pricescale: 1000,   session: '2200-2100:12345' },
+  'EURUSD': { pricescale: 100000, session: '24x7' },
+  'GBPUSD': { pricescale: 100000, session: '24x7' },
+  'USDJPY': { pricescale: 100,    session: '24x7' },
+  'USDCHF': { pricescale: 100000, session: '24x7' },
+  'AUDUSD': { pricescale: 100000, session: '24x7' },
+  'NZDUSD': { pricescale: 100000, session: '24x7' },
+  'USDCAD': { pricescale: 100000, session: '24x7' },
+  'XAUUSD': { pricescale: 100,    session: '24x7' },
+  'XAGUSD': { pricescale: 1000,   session: '24x7' },
   'BTCUSD': { pricescale: 100,    session: '24x7' },
   'ETHUSD': { pricescale: 100,    session: '24x7' },
   'BNBUSD': { pricescale: 100,    session: '24x7' },
   'SOLUSD': { pricescale: 100,    session: '24x7' },
-  'US30':   { pricescale: 10,     session: '2200-2100:12345' },
-  'US500':  { pricescale: 100,    session: '2200-2100:12345' },
-  'US100':  { pricescale: 10,     session: '2200-2100:12345' },
-  'UK100':  { pricescale: 10,     session: '2200-2100:12345' },
+  'US30':   { pricescale: 10,     session: '24x7' },
+  'US500':  { pricescale: 100,    session: '24x7' },
+  'US100':  { pricescale: 10,     session: '24x7' },
+  'UK100':  { pricescale: 10,     session: '24x7' },
 };
 
 const ALL_SYMBOLS = [
@@ -459,12 +458,19 @@ const Datafeed = {
     };
     //Sanket v2.0 - Use wrapped callback everywhere instead of raw onRealtimeCallback
     let _pushCount = 0;
+    //Sanket v2.0 - Interpolation state — declared here so bootstrap and tick handler can seed them
+    let _lastInterpolatedClose = 0;
+    let _targetPrice = 0;
+    const INTERPOLATION_SPEED = 0.3;
     const pushBar = (bar) => {
       _pushCount++;
+      //Sanket v2.0 - CRITICAL: always push a fresh copy — TV mutates the object (adds isLastBar, isBarClosed)
+      //Sanket v2.0 - Pushing the same reference causes TV to see stale flags and reject updates
+      const clean = { time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume || 0 };
       if (_pushCount <= 5) {
-        console.log(`[CHART-DIAG] pushBar#${_pushCount} sym="${symbolInfo.name}" bar=`, JSON.stringify(bar));
+        console.log(`[CHART-DIAG] pushBar#${_pushCount} sym="${symbolInfo.name}" bar=`, JSON.stringify(clean));
       }
-      _wrappedCallback(bar);
+      _wrappedCallback(clean);
     };
     //Sanket v2.0 - Bootstrap: fetch current running candle from backend so chart doesn't start empty
     const bootstrapLiveBar = async () => {
@@ -558,16 +564,14 @@ const Datafeed = {
     };
 
     //Sanket v2.0 - Smooth chart interpolation: re-push currentBar every 200ms so candle moves fluidly
-    //Sanket v2.0 - Without this, candle only jumps when a real tick arrives (~500ms-2s from AllTick)
-    //Sanket v2.0 - This matches the smooth bid/ask interpolation behaviour the user expects on chart
-    let _lastInterpolatedClose = 0;
-    let _targetPrice = 0;
-    const INTERPOLATION_SPEED = 0.3; // 30% of remaining distance per frame
+    //Sanket v2.0 - Only interpolates when fresh ticks have arrived (stops during market close)
+    //Sanket v2.0 - Always pushes a fresh bar copy to avoid TV's isLastBar/isBarClosed mutation issue
     const interpolationInterval = setInterval(() => {
       if (!isActive || !currentBar || _targetPrice <= 0) return;
-      // Interpolate close toward the latest tick price
+      //Sanket v2.0 - Stop interpolation if no ticks for 30s (market likely closed)
+      if (lastTickTime > 0 && Date.now() - lastTickTime > 30000) return;
       const diff = _targetPrice - _lastInterpolatedClose;
-      if (Math.abs(diff) < 0.0001) return; // Already at target
+      if (Math.abs(diff) < 0.0001) return;
       _lastInterpolatedClose += diff * INTERPOLATION_SPEED;
       const interpolated = {
         ...currentBar,
