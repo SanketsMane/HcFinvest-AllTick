@@ -847,19 +847,27 @@ const Datafeed = {
     };
 
     Datafeed._subscribers = Datafeed._subscribers || {};
-    //Sanket v2.0 - Clean up any existing subscription with same UID before registering new one
-    //Sanket v2.0 - Prevents ghost event listeners when TV re-subscribes (e.g. after layout load)
-    const oldSub = Datafeed._subscribers[subscriberUID];
-    if (oldSub) {
-      getPriceEvents().removeEventListener("priceUpdate", oldSub.priceUpdate);
-      getPriceEvents().removeEventListener("candleUpdate", oldSub.candleUpdate);
-      if (oldSub.dataGapMonitor) clearInterval(oldSub.dataGapMonitor);
+    //Sanket v2.0 - Kill ALL existing subscriptions for the same symbol, not just same UID
+    //Sanket v2.0 - TV re-subscribes with different UIDs after layout load, creating ghost handlers
+    //Sanket v2.0 - that fight over onRealtimeCallback and cause the live candle to freeze
+    const normalizedSym = normalizeRealtimeSymbol(symbolInfo.name);
+    for (const [uid, sub] of Object.entries(Datafeed._subscribers)) {
+      if (sub.symbol && normalizeRealtimeSymbol(sub.symbol) === normalizedSym) {
+        getPriceEvents().removeEventListener("priceUpdate", sub.priceUpdate);
+        getPriceEvents().removeEventListener("candleUpdate", sub.candleUpdate);
+        if (sub.dataGapMonitor) clearInterval(sub.dataGapMonitor);
+        if (sub.rafHandle) cancelAnimationFrame(sub.rafHandle);
+        if (sub.deactivate) sub.deactivate();
+        delete Datafeed._subscribers[uid];
+      }
     }
     Datafeed._subscribers[subscriberUID] = {
       priceUpdate: handlePriceUpdate,
       candleUpdate: handleCandleUpdate,
       symbol: symbolInfo.name,
-      dataGapMonitor
+      dataGapMonitor,
+      rafHandle,
+      deactivate: () => { isActive = false; }
     };
 
     getPriceEvents().addEventListener("candleUpdate", handleCandleUpdate);
