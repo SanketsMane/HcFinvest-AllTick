@@ -181,13 +181,24 @@ const Advance_Trading_View_Chart = ({
     isInitializingRef.current = true;
     const userId = getUserId();
 
-    //Sanket v2.0 - Purge stale TradingView localStorage entries that cause schema errors on init
-    //Sanket v2.0 - TV stores internal chart state keyed by client_id; old corrupted state freezes the chart
+    //Sanket v2.0 - Purge ALL stale TradingView state across localStorage, sessionStorage, and IndexedDB
+    //Sanket v2.0 - TV stores internal chart state in IndexedDB (LocalDatabase) and sessionStorage
+    //Sanket v2.0 - that survives localStorage cleanup — old corrupted state causes schema errors on init
     try {
-      Object.keys(localStorage).filter(k =>
-        k.startsWith('tradingview') || k.startsWith('tv.') || k.startsWith('chart')
-      ).forEach(k => localStorage.removeItem(k));
+      [localStorage, sessionStorage].forEach(store => {
+        Object.keys(store).filter(k =>
+          k.startsWith('tradingview') || k.startsWith('tv.') || k.startsWith('chart')
+        ).forEach(k => store.removeItem(k));
+      });
     } catch (e) { /* private browsing or quota errors */ }
+    //Sanket v2.0 - Clear TradingView IndexedDB databases that persist stale chart state across sessions
+    try {
+      if (window.indexedDB) {
+        ['tradingview', 'LocalDatabase', 'TradingView', 'tv-local-storage'].forEach(dbName => {
+          try { window.indexedDB.deleteDatabase(dbName); } catch (e) {}
+        });
+      }
+    } catch (e) {}
 
     try {
       const widget = new window.TradingView.widget({

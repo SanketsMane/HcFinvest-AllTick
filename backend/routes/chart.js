@@ -59,7 +59,8 @@ router.get('/load/:userId', async (req, res) => {
     }
 
     if (!layout) {
-      return res.status(404).json({ success: false, message: 'No saved layout found' });
+      //Sanket v2.0 - Return 200 with success:false instead of 404 to avoid red console errors in DevTools
+      return res.json({ success: false, message: 'No saved layout found' });
     }
 
     res.json({ success: true, layoutJson: layout.layoutJson, timestamp: layout.timestamp });
