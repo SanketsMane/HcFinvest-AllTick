@@ -387,7 +387,7 @@ const Datafeed = {
               _stripped++;
             }
             if (_stripped > 0) {
-              // console.log(`[DATAFEED] ðŸ”’ Stripped ${_stripped} current-bucket bar(s) (bucket=${_currentBucket}) â€” live candle handled by subscribeBars`);
+              console.log(`[CHART-DEBUG] getBars STRIPPED ${_stripped} bars, bucket=${_currentBucket} nowMs=${_nowMs}`);
             }
           }
 
@@ -405,7 +405,7 @@ const Datafeed = {
             if (!Datafeed._lastHistoryBars[historyKey] || candidateBar.time > Datafeed._lastHistoryBars[historyKey].time) {
               Datafeed._lastHistoryBars[historyKey] = { ...candidateBar };
             }
-            // console.log(`[DATAFEED] âœ… Returning ${bars.length} bars, lastBar.time=${candidateBar.time}`);
+            console.log(`[CHART-DEBUG] getBars DONE ${symbolInfo.name} bars=${bars.length} lastBar.time=${candidateBar.time} (${new Date(candidateBar.time).toISOString()}) lastBar.close=${candidateBar.close}`);
             onHistoryCallback(bars, { noData: false });
           }
       }
@@ -500,9 +500,13 @@ const Datafeed = {
     }
 
     let lastPushedBarTime = seededBar ? seededBar.time : -Infinity;
+    console.log(`[CHART-DEBUG] subscribeBars ${symbolInfo.name} seededBar.time=${seededBar?.time} (${seededBar ? new Date(seededBar.time).toISOString() : 'null'}) lastPushedBarTime=${lastPushedBarTime}`);
     const pushBar = (bar) => {
       if (!bar || !Number.isFinite(bar.time)) return;
-      if (bar.time < lastPushedBarTime) return;
+      if (bar.time < lastPushedBarTime) {
+        console.warn(`[CHART-DEBUG] pushBar BLOCKED bar.time=${bar.time} (${new Date(bar.time).toISOString()}) < lastPushedBarTime=${lastPushedBarTime} (${new Date(lastPushedBarTime).toISOString()})`);
+        return;
+      }
       lastPushedBarTime = bar.time;
       onRealtimeCallback(bar);
       try {
