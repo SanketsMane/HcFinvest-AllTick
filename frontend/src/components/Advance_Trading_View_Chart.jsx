@@ -94,9 +94,13 @@ const Advance_Trading_View_Chart = ({
               if (chart.panes) {
                 chart.panes.forEach(pane => {
                   if (pane.sources) {
-                    pane.sources = pane.sources.filter(s =>
-                      s.type !== 'HorzLine' && s.type !== 'PriceLine'
-                    );
+                    //Sanket v2.0 - Strip managed trade lines + unknown state types from saved layouts
+                    //Sanket v2.0 - Prevents "data type: unknown does not match schema" on next load
+                    pane.sources = pane.sources.filter(s => {
+                      if (s.type === 'HorzLine' || s.type === 'PriceLine') return false;
+                      if (s.state && s.state.type === 'unknown') return false;
+                      return true;
+                    });
                   }
                 });
               }
@@ -145,9 +149,13 @@ const Advance_Trading_View_Chart = ({
               if (chart.panes) {
                 chart.panes.forEach(pane => {
                   if (pane.sources) {
-                    pane.sources = pane.sources.filter(s =>
-                      s.type !== 'HorzLine' && s.type !== 'PriceLine'
-                    );
+                    //Sanket v2.0 - Strip ALL sources with unknown/invalid state types that cause TV schema errors
+                    //Sanket v2.0 - "The state with a data type: unknown does not match a schema" crashes chart init
+                    pane.sources = pane.sources.filter(s => {
+                      if (s.type === 'HorzLine' || s.type === 'PriceLine') return false;
+                      if (s.state && s.state.type === 'unknown') return false;
+                      return true;
+                    });
                   }
                 });
               }
@@ -155,7 +163,9 @@ const Advance_Trading_View_Chart = ({
           }
           widget.load(layout);
         } catch (e) {
-          widget.load(data.layoutJson);
+          //Sanket v2.0 - If layout stripping fails, skip loading entirely rather than loading corrupted state
+          //Sanket v2.0 - Chart will start fresh with default settings — better than a broken/stuck chart
+          console.warn('[Chart] Failed to load saved layout, starting fresh:', e.message);
         }
       } else {
       }
