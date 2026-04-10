@@ -556,7 +556,8 @@ const Datafeed = {
             displayClose = currentBar.close;
             targetClose  = currentBar.close;
             pushBar(currentBar);
-            return; // Done â€” live bar fully seeded
+            console.log(`[CHART-DEBUG] ${symbolInfo.name} bootstrapLiveBar SEEDED time=${new Date(liveCandle.time).toISOString()} close=${liveCandle.close} windowLen=${_priceWindow.length}`);
+            return; // Done — live bar fully seeded
           }
         }
 
@@ -752,6 +753,7 @@ const Datafeed = {
     
     const handlePriceUpdate = (e) => {
       tickCount++;
+      if (tickCount === 1) console.log(`[CHART-DEBUG] ${symbolInfo.name} FIRST TICK received normalizedSym=${normalizedSym} isActive=${isActive} currentBar=${JSON.stringify(currentBar ? {time:currentBar.time,close:currentBar.close} : null)}`);
       if (!isActive) return;
       //Sanket v2.0 - No 50ms throttle: every tick updates OHLC so high/low wicks are always tick-accurate
       //Sanket v2.0 - RAF loop already drives rendering at 60fps â€” no separate throttle needed
@@ -762,7 +764,7 @@ const Datafeed = {
 
       const price = getChartExecutionPrice(bid, ask, symbolInfo.name, Datafeed._adminSpreads, Datafeed._chartPriceSide);
       if (!isFinite(price) || price <= 0) {
-        // console.warn(`[CHART-INVALID-PRICE] ${symbol} price=${price} from bid=${bid} ask=${ask}`);
+        console.warn(`[CHART-DEBUG] ${symbolInfo.name} INVALID price=${price} bid=${bid} ask=${ask}`);
         return;
       }
 
@@ -771,7 +773,7 @@ const Datafeed = {
       if (_isChartSpike(price, symbolInfo.name)) {
         if (_consecutiveSpikes < MAX_CONSECUTIVE_SPIKES) {
           _consecutiveSpikes++;
-          // console.warn(`[CHART-SPIKE-GUARD] ${symbol} price=${price} rejected (consecutive=${_consecutiveSpikes}) vs window median`);
+          if (_consecutiveSpikes <= 3) console.warn(`[CHART-DEBUG] ${symbolInfo.name} SPIKE-REJECTED price=${price} spikes=${_consecutiveSpikes} window=${JSON.stringify(_priceWindow.slice(-3))}`);
           return;
         }
         // Too many consecutive rejections â†’ real market move, accept and reset
@@ -795,6 +797,7 @@ const Datafeed = {
       });
 
       if (!result.accepted) {
+        if (tickCount % 50 === 1) console.warn(`[CHART-DEBUG] ${symbolInfo.name} REJECTED reason=${result.reason} price=${price} barTime=${currentBar?.time} bucket=${result.bucketTime}`);
         return;
       }
 

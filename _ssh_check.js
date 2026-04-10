@@ -2,18 +2,22 @@ const { Client } = require('ssh2');
 const c = new Client();
 
 const CMDS = [
-  // 1. Add no-cache for index.html on trade.hcfinvest.com (requires sudo)
-  `sudo sed -i '/server_name trade.hcfinvest.com;/,/listen 443 ssl;/{
-    /location \\/ {/a\\        # Sanket v2.0 - Never cache index.html so new builds are served immediately\\n        add_header Cache-Control "no-cache, no-store, must-revalidate" always;\\n        add_header Pragma "no-cache" always;
-  }' /etc/nginx/sites-available/hcfinvest 2>&1 || echo "Need root access for nginx"`,
-  // 2. Test nginx config
-  'sudo nginx -t 2>&1 || echo "nginx test failed or no sudo"',
-  // 3. Reload nginx
-  'sudo systemctl reload nginx 2>&1 || echo "nginx reload failed or no sudo"',
-  // 4. Verify chart layouts actually deleted
-  'cd ~/hcfinvest/backend && node -e "import mongoose from \'mongoose\'; import ChartLayout from \'./models/ChartLayout.js\'; mongoose.connect(process.env.MONGODB_URI || \'mongodb://127.0.0.1:27017/hcf\').then(async()=>{const count=await ChartLayout.countDocuments(); console.log(\'Remaining chart layouts:\',count); process.exit(0)}).catch(e=>{console.log(e.message); process.exit(1)})" 2>&1',
-  // 5. Check ETag for current trade.hcfinvest.com
-  'curl -sI "https://trade.hcfinvest.com" 2>/dev/null | grep -iE "cache|etag|content-type" || echo "cant-reach-trade-domain"',
+  // 1. Check if the backend is currently emitting ticks — grab last 5 lines of out log
+  'tail -5 /home/hcfinvest/.pm2/logs/hcfinvest-backend-out.log',
+  // 2. Check recent errors
+  'tail -10 /home/hcfinvest/.pm2/logs/hcfinvest-backend-error.log',
+  // 3. Check how many Socket.IO rooms/clients are connected right now
+  'cd ~/hcfinvest && node -e "import http from \'http\'; const req=http.get(\'http://localhost:5001/api/prices/time\',res=>{let d=\'\';res.on(\'data\',c=>d+=c);res.on(\'end\',()=>{console.log(d);process.exit(0)})}); req.on(\'error\',e=>{console.log(e.message);process.exit(1)})" 2>&1',
+  // 4. Check server.js around line 190 to see how tickUpdate is emitted
+  'cd ~/hcfinvest && sed -n "170,196p" backend/server.js',
+  // 5. Check if priceSubscribers is populated — search for relevant logs
+  'grep "subscribed to price\\|priceSubscribers" /home/hcfinvest/.pm2/logs/hcfinvest-backend-out.log | tail -5',
+  // 6. Check the deployed frontend priceStream.js to see if our fix is actually in the build
+  'cd ~/hcfinvest && grep -c "_visibilityHandler\\|_tabHiddenSince\\|handleTabVisibility" frontend/dist/assets/index-*.js',
+  // 7. Check for any uncaught errors in PM2
+  'pm2 show 0 2>&1 | grep -i "restart\\|unstable\\|error\\|status"',
+  // 8. Check server.js — how are candle rooms subscribed?
+  'cd ~/hcfinvest && grep -n "subscribeCand\\|candles:" backend/server.js | head -10',
 ];
 
 c.on('error', e => { console.log('SSH Error:', e.message); process.exit(1); });
