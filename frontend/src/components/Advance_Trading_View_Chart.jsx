@@ -200,6 +200,21 @@ const Advance_Trading_View_Chart = ({
       }
     } catch (e) {}
 
+    //Sanket v2.0 - Suppress TradingView internal schema warnings that fire during widget init
+    //Sanket v2.0 - These come from library.*.js _createChartWidget → merge and _makeDefaultModel
+    //Sanket v2.0 - They are non-fatal TV internal state warnings we cannot fix (third-party code)
+    const _origConsoleLog = console.log;
+    const _origConsoleWarn = console.warn;
+    const _origConsoleError = console.error;
+    const _tvSchemaFilter = (...args) => {
+      const msg = args[0];
+      if (typeof msg === 'string' && msg.includes('does not match a schema')) return;
+      return true;
+    };
+    console.log = (...args) => { if (_tvSchemaFilter(...args)) _origConsoleLog.apply(console, args); };
+    console.warn = (...args) => { if (_tvSchemaFilter(...args)) _origConsoleWarn.apply(console, args); };
+    console.error = (...args) => { if (_tvSchemaFilter(...args)) _origConsoleError.apply(console, args); };
+
     try {
       const widget = new window.TradingView.widget({
         symbol: normalizedSymbol,
@@ -231,6 +246,10 @@ const Advance_Trading_View_Chart = ({
       });
 
       widget.onChartReady(async () => {
+        //Sanket v2.0 - Restore original console methods now that TV init schema warnings have passed
+        console.log = _origConsoleLog;
+        console.warn = _origConsoleWarn;
+        console.error = _origConsoleError;
         
         // 1. Initial Load from Backend
         await loadChartFromBackend(widget);
