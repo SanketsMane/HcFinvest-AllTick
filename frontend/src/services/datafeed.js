@@ -628,9 +628,9 @@ const Datafeed = {
         const hiddenMs = _hiddenSince ? Date.now() - _hiddenSince : 0;
         _hiddenSince = null;
 
-        if (hiddenMs > 120000) {
-          //Sanket v2.0 - Tab hidden >2 min — full candle state reset to prevent buildCandleFromTick gap-fill distortion
-          //Sanket v2.0 - Without this, returning from a 1-2 hr idle creates 60-120 flat doji candles at the stale price
+        if (hiddenMs > 60000) {
+          //Sanket v2.0 - Tab hidden >1 min — full candle state reset to prevent buildCandleFromTick gap-fill distortion
+          //Sanket v2.0 - Reduced from 2 min to match data gap monitor threshold
           currentBar = null;
           lastBarTime = -Infinity;
           _priceWindow = [];
@@ -640,8 +640,8 @@ const Datafeed = {
           prevRafTime = null;
           lastTickTime = Date.now();
           bootstrapLiveBar();
-        } else if (hiddenMs > 30000) {
-          //Sanket v2.0 - 30s-2min gap — just refresh current candle from backend, no full reset needed
+        } else if (hiddenMs > 10000) {
+          //Sanket v2.0 - 10s-1min gap — just refresh current candle from backend, no full reset needed
           prevRafTime = null;
           lastTickTime = Date.now();
           bootstrapLiveBar();
@@ -695,9 +695,9 @@ const Datafeed = {
       const now = Date.now();
       if (lastTickTime > 0) {
         const timeSinceLastTick = now - lastTickTime;
-        if (timeSinceLastTick > 120000) {
-          //Sanket v2.0 - Gap >2 min: full candle state reset + re-bootstrap to prevent stale flat-candle floods
-          //Sanket v2.0 - Old code had a 5-minute ceiling (300000ms) that silently ignored gaps >5 min
+        if (timeSinceLastTick > 60000) {
+          //Sanket v2.0 - Gap >1 min: full candle state reset + re-bootstrap to prevent stale flat-candle floods
+          //Sanket v2.0 - Reduced from 2 min: faster recovery means chart resumes sooner after network blips
           currentBar = null;
           lastBarTime = -Infinity;
           _priceWindow = [];
@@ -707,8 +707,9 @@ const Datafeed = {
           prevRafTime = null;
           lastTickTime = now;
           bootstrapLiveBar();
-        } else if (timeSinceLastTick > 30000) {
-          //Sanket v2.0 - 30s-2min gap: just re-fetch current candle from backend
+        } else if (timeSinceLastTick > 10000) {
+          //Sanket v2.0 - 10s-1min gap: re-fetch current candle from backend for quick recovery
+          //Sanket v2.0 - Reduced from 30s: user expects chart to recover within 5-10s of inactivity
           lastTickTime = now;
           bootstrapLiveBar();
         }
@@ -802,7 +803,22 @@ const Datafeed = {
       });
 
       if (!result.accepted) {
-        if (tickCount % 500 === 1) console.warn(`[CHART-DEBUG] ${symbolInfo.name} REJECTED reason=${result.reason} price=${price} barTime=${currentBar?.time} bucket=${result.bucketTime}`);
+        //Sanket v2.0 - Fallback for out_of_order_bucket: still update current bar close so chart NEVER freezes
+        //Sanket v2.0 - When client-server clock drift exceeds tolerance, buildCandleFromTick rejects every tick
+        //Sanket v2.0 - Without this fallback the chart silently freezes while bid/ask keeps updating
+        if (result.reason === 'out_of_order_bucket' && currentBar && Number.isFinite(price) && price > 0) {
+          currentBar.high = Math.max(currentBar.high, price);
+          currentBar.low = Math.min(currentBar.low, price);
+          currentBar.close = price;
+          targetClose = price;
+          if (displayClose === null) displayClose = price;
+          _priceWindow.push(price);
+          if (_priceWindow.length > SPIKE_WINDOW_SIZE) _priceWindow.shift();
+          onRealtimeCallback({ ...currentBar });
+          if (tickCount <= 5 || tickCount % 200 === 0) console.log(`[CHART-DEBUG] ${symbolInfo.name} FALLBACK-PUSH tick#${tickCount} (out_of_order clamped to bar ${currentBar.time})`);
+        } else if (tickCount % 500 === 1) {
+          console.warn(`[CHART-DEBUG] ${symbolInfo.name} REJECTED reason=${result.reason} price=${price} barTime=${currentBar?.time} bucket=${result.bucketTime}`);
+        }
         return;
       }
 
@@ -830,6 +846,11 @@ const Datafeed = {
       }
       currentBar = result.bars[result.bars.length - 1];
       lastBarTime = currentBar.time;
+
+      //Sanket v2.0 - Keep _lastHistoryBars fresh on every accepted tick so re-subscriptions seed correctly
+      //Sanket v2.0 - Without this, TV re-subscribe gets stale getBars data and pushBar blocks with time violation
+      Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
+      Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
 
       //Sanket v2.0 - Push current bar to TV on every accepted tick â€” ensures TV treats it as live
       //Sanket v2.0 - Since the current candle is NEVER in getBars history, TV fully accepts these updates

@@ -1,9 +1,9 @@
 const LONG_GAP_MS = 45 * 60 * 1000;
 const ALLOWED_TIME_SKEW_MS = 5000;
-//Sanket v2.0 - Industry-standard stale-tick tolerance (Bloomberg=5s, TradingView=5s, MT4=3s)
-//Sanket v2.0 - Ticks arriving within this window of a bucket boundary are clamped to the current open candle
-//Sanket v2.0 - rather than hard-rejected — prevents frozen candles caused by feed clock skew
-const STALE_TICK_TOLERANCE_MS = 3000;
+//Sanket v2.0 - Increased from 3s to 10s: client-server clock drift >3s was causing ALL ticks to be
+//Sanket v2.0 - rejected as out_of_order_bucket, silently freezing the chart. 10s tolerance covers
+//Sanket v2.0 - realistic clock skew without misassigning ticks across candle boundaries.
+const STALE_TICK_TOLERANCE_MS = 10000;
 
 export const toEventTimeMs = (rawTime) => {
   if (typeof rawTime === 'number') {
