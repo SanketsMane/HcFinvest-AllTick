@@ -181,39 +181,13 @@ const Advance_Trading_View_Chart = ({
     isInitializingRef.current = true;
     const userId = getUserId();
 
-    //Sanket v2.0 - Purge ALL stale TradingView state across localStorage, sessionStorage, and IndexedDB
-    //Sanket v2.0 - TV stores internal chart state in IndexedDB (LocalDatabase) and sessionStorage
-    //Sanket v2.0 - that survives localStorage cleanup — old corrupted state causes schema errors on init
+    //Sanket v2.0 - Purge stale TradingView localStorage entries that cause schema errors on init
+    //Sanket v2.0 - TV stores internal chart state keyed by client_id; old corrupted state freezes the chart
     try {
-      [localStorage, sessionStorage].forEach(store => {
-        Object.keys(store).filter(k =>
-          k.startsWith('tradingview') || k.startsWith('tv.') || k.startsWith('chart')
-        ).forEach(k => store.removeItem(k));
-      });
+      Object.keys(localStorage).filter(k =>
+        k.startsWith('tradingview') || k.startsWith('tv.') || k.startsWith('chart')
+      ).forEach(k => localStorage.removeItem(k));
     } catch (e) { /* private browsing or quota errors */ }
-    //Sanket v2.0 - Clear TradingView IndexedDB databases that persist stale chart state across sessions
-    try {
-      if (window.indexedDB) {
-        ['tradingview', 'LocalDatabase', 'TradingView', 'tv-local-storage'].forEach(dbName => {
-          try { window.indexedDB.deleteDatabase(dbName); } catch (e) {}
-        });
-      }
-    } catch (e) {}
-
-    //Sanket v2.0 - Suppress TradingView internal schema warnings that fire during widget init
-    //Sanket v2.0 - These come from library.*.js _createChartWidget → merge and _makeDefaultModel
-    //Sanket v2.0 - They are non-fatal TV internal state warnings we cannot fix (third-party code)
-    const _origConsoleLog = console.log;
-    const _origConsoleWarn = console.warn;
-    const _origConsoleError = console.error;
-    const _tvSchemaFilter = (...args) => {
-      const msg = args[0];
-      if (typeof msg === 'string' && msg.includes('does not match a schema')) return;
-      return true;
-    };
-    console.log = (...args) => { if (_tvSchemaFilter(...args)) _origConsoleLog.apply(console, args); };
-    console.warn = (...args) => { if (_tvSchemaFilter(...args)) _origConsoleWarn.apply(console, args); };
-    console.error = (...args) => { if (_tvSchemaFilter(...args)) _origConsoleError.apply(console, args); };
 
     try {
       const widget = new window.TradingView.widget({
@@ -246,10 +220,6 @@ const Advance_Trading_View_Chart = ({
       });
 
       widget.onChartReady(async () => {
-        //Sanket v2.0 - Restore original console methods now that TV init schema warnings have passed
-        console.log = _origConsoleLog;
-        console.warn = _origConsoleWarn;
-        console.error = _origConsoleError;
         
         // 1. Initial Load from Backend
         await loadChartFromBackend(widget);
