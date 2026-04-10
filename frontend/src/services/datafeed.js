@@ -248,6 +248,7 @@ const Datafeed = {
         data_status: 'streaming'
       };
       // console.log(`[v7.77] resolveSymbol: ${symbolName} using session ${session} and pricescale ${pricescale}`);
+      console.log(`[CHART-DIAG] resolveSymbol: name="${symbolInfo.name}" ticker="${symbolInfo.ticker}" pricescale=${pricescale}`);
       setTimeout(() => onSymbolResolvedCallback(symbolInfo), 0);
     } catch (err) {
       console.error(`[DATAFEED] resolveSymbol failed for ${symbolName}:`, err.message);
@@ -442,6 +443,24 @@ const Datafeed = {
     }
     console.log(`[CHART] subscribeBars ${symbolInfo.name} res=${resolution} seeded=${currentBar ? new Date(currentBar.time).toISOString() : 'null'}`);
 
+    //Sanket v2.0 - Diagnostic: wrap TV's onRealtimeCallback to detect silent rejections
+    const _origCallback = onRealtimeCallback;
+    const _wrappedCallback = (bar) => {
+      try {
+        _origCallback(bar);
+      } catch (err) {
+        console.error(`[CHART] onRealtimeCallback THREW:`, err.message, bar);
+      }
+    };
+    //Sanket v2.0 - Use wrapped callback everywhere instead of raw onRealtimeCallback
+    let _pushCount = 0;
+    const pushBar = (bar) => {
+      _pushCount++;
+      if (_pushCount <= 5) {
+        console.log(`[CHART-DIAG] pushBar#${_pushCount} sym="${symbolInfo.name}" bar=`, JSON.stringify(bar));
+      }
+      _wrappedCallback(bar);
+    };
     //Sanket v2.0 - Bootstrap: fetch current running candle from backend so chart doesn't start empty
     const bootstrapLiveBar = async () => {
       try {
@@ -465,7 +484,7 @@ const Datafeed = {
             currentBar = bar;
             Datafeed._lastHistoryBars = Datafeed._lastHistoryBars || {};
             Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
-            onRealtimeCallback(currentBar);
+            pushBar(currentBar);
             console.log(`[CHART] ${symbolInfo.name} bootstrap time=${new Date(bar.time).toISOString()} close=${bar.close}`);
           }
         }
@@ -519,7 +538,7 @@ const Datafeed = {
       Datafeed._lastHistoryBars[historyKey] = { ...currentBar };
 
       //Sanket v2.0 - Push to TradingView on EVERY tick - single path, no intermediaries
-      onRealtimeCallback(currentBar);
+      pushBar(currentBar);
 
       if (tickCount <= 3 || tickCount % 200 === 0) {
         console.log(`[CHART] ${symbolInfo.name} tick#${tickCount} time=${currentBar.time} close=${currentBar.close.toFixed(2)} bucket=${bucketTime}`);
