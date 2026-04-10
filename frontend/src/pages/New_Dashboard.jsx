@@ -7,6 +7,7 @@ import {
   BarChart2,
   ArrowLeft,
   CircleDollarSign,
+  TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../config/api";
@@ -428,7 +429,7 @@ const defaultBanner = [
         onClick={() => navigate("/account")}
         className="mt-4 bg-white text-black px-5 py-2 rounded-lg font-medium hover:bg-gray-200"
       >
-        Get Started â†’
+        Get Started →
       </button>
     </div>
 
@@ -496,7 +497,7 @@ const defaultBanner = [
                   onClick={() => navigate("/wallet?action=deposit")}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-green-100 text-green-600">
-                    â†“
+                     ↓
                   </div>
                   <p className="text-sm font-bold text-slate-800">Deposit</p>
                   <p className="text-xs text-slate-500 font-medium">Add funds instantly</p>
@@ -508,7 +509,7 @@ const defaultBanner = [
                   onClick={() => navigate("/wallet?action=withdraw")}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-blue-100 text-blue-600">
-                    â†‘
+                    ↑
                   </div>
                   <p className="text-sm font-bold text-slate-800">Withdraw</p>
                   <p className="text-xs text-slate-500 font-medium">Cash out your profits</p>
@@ -520,7 +521,7 @@ const defaultBanner = [
                   onClick={() => setShowTransferModal(true)}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-orange-100 text-orange-600">
-                    â‡„
+                    ⇄
                   </div>
                   <p className="text-sm font-bold text-slate-800">Transfer</p>
                   <p className="text-xs text-slate-500 font-medium">Between accounts</p>
@@ -537,7 +538,7 @@ const defaultBanner = [
                   onClick={() => navigate("/account")}
                 >
                   <div className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg mb-2 bg-purple-100 text-purple-600">
-                    ðŸ‘¤
+                    👤
                   </div>
                   <p className="text-sm font-bold text-slate-800">Account</p>
                   <p className="text-xs text-slate-500 font-medium">Manage your accounts</p>
@@ -557,7 +558,7 @@ const defaultBanner = [
                     onClick={() => navigate("/account")}
                     className="text-blue-500 text-sm hover:underline"
                   >
-                    See All â†’
+                    See All →
                   </button>
                 </div>
 
@@ -587,7 +588,7 @@ const defaultBanner = [
                     onClick={() => navigate("/account")}
                     className="text-blue-500 text-sm hover:underline"
                   >
-                    See All â†’
+                    See All →
                   </button>
                 </div>
 
@@ -620,7 +621,7 @@ const defaultBanner = [
                     onClick={() => navigate("/orders")}
                     className="text-blue-500 text-sm cursor-pointer"
                   >
-                    View All â†’
+                    View All →
                   </span>
                 </div>
 
@@ -710,7 +711,7 @@ const defaultBanner = [
                 onClick={() => navigate("/orders")}
                 className="text-blue-500 text-sm cursor-pointer"
               >
-                View All â†’
+                View All →
               </span>
             </div>
 

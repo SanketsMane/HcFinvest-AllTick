@@ -903,13 +903,13 @@ const sendCompetitionJoinEmail = async ({
 
                       {top3[2] && (
                         <p className="text-sm font-semibold text-slate-100">
-                          {top3[2].name}
+                          {top3[1].name}
                         </p>
                       )}
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          ðŸ’° 5k season reward
+                          💰 5k season reward
                         </span>
                       </div>
                     </div>
@@ -965,7 +965,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          ðŸ’° 10k season reward
+                          💰 10k season reward
                         </span>
                       </div>
                     </div>
@@ -1015,7 +1015,7 @@ const sendCompetitionJoinEmail = async ({
 
                       <div className="mt-3 rounded-md border border-[#345a87] bg-[linear-gradient(180deg,rgba(19,42,75,0.98),rgba(9,24,46,0.98))] px-2 py-1 text-[12px] font-semibold text-amber-200 shadow-[0_8px_22px_rgba(4,10,24,0.55)]">
                         <span className="inline-flex items-center gap-1">
-                          ðŸª™ 2.5k season reward
+                          🪙 2.5k season reward
                         </span>
                       </div>
                     </div>
