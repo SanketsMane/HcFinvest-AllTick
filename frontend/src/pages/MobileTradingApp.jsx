@@ -761,8 +761,8 @@ const MobileTradingApp = () => {
                 <p className="text-white font-medium text-sm">{selectedAccount.accountId}</p>
                 <div className="flex items-center gap-1">
                   {selectedAccount.isCompetition && (
-                    <span className="bg-amber-500/20 text-amber-500 text-[9px] px-1 py-0.5 rounded border border-amber-500/30 font-bold">
-                      🏆 COMPETITION
+                    <span className="bg-gradient-to-r from-amber-500/20 to-amber-500/10 text-amber-500 text-[8px] px-1.5 py-0.5 rounded-full border border-amber-500/30 font-bold tracking-tight">
+                      🏆 COMP
                     </span>
                   )}
                   <p className="text-gray-400 text-xs">{selectedAccount.accountTypeId?.name || 'Standard'}</p>
@@ -789,9 +789,7 @@ const MobileTradingApp = () => {
                       <span className="text-white text-sm block">{acc.accountId}</span>
                       <div className="flex items-center gap-1">
                         {acc.isCompetition && (
-                          <span className="bg-amber-500/20 text-amber-500 text-[9px] px-1 py-0.5 rounded border border-amber-500/30 font-bold">
-                            🏆 COMP
-                          </span>
+                          <span className="bg-gradient-to-r from-amber-500/20 to-amber-500/10 text-amber-500 text-[8px] px-2 py-0.5 rounded-full border border-amber-500/30 font-bold uppercase tracking-tight">🏆 COMP</span>
                         )}
                         <span className="text-gray-500 text-xs">{acc.accountTypeId?.name || 'Standard'}</span>
                       </div>

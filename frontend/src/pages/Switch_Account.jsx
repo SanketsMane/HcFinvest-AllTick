@@ -1117,9 +1117,7 @@ const Switch_Account = () => {
                                     </h3>
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       {account.isCompetition && (
-                                        <span className="bg-amber-100 text-amber-600 text-[9px] px-1.5 py-0.5 rounded border border-amber-200 font-bold flex items-center gap-1">
-                                          🏆 COMPETITION
-                                        </span>
+                                        <span className="bg-gradient-to-r from-amber-50 to-amber-100 text-amber-600 text-[9px] px-2.5 py-1 rounded-full border border-amber-200 font-bold flex items-center gap-1.5 shadow-sm uppercase tracking-wider">🏆 COMPETITION ACCOUNT</span>
                                       )}
                                       <p className="text-gray-600 text-[10px] uppercase font-medium">
                                         {account.accountName ? `${account.accountTypeId?.name || "STANDARD"}` : account.accountTypeId?.name || "STANDARD"}

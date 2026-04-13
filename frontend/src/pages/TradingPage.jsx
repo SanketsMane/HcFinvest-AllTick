@@ -5203,13 +5203,13 @@ const TradingPage = () => {
                   : 'bg-gray-50 border-gray-200 text-gray-900 hover:bg-gray-100'
               }`}
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2 overflow-hidden min-w-0">
                 {account?.isCompetition && (
-                  <span className="bg-amber-100 text-amber-600 text-[9px] px-1.5 py-0.5 rounded border border-amber-200 font-bold leading-none">
-                    🏆 COMPETITION
+                  <span className="flex-shrink-0 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-600 text-[8px] sm:text-[9px] px-2 py-0.5 rounded-full border border-amber-200 font-bold tracking-tight">
+                    🏆 COMP
                   </span>
                 )}
-                <span className="text-xs sm:text-sm font-semibold">{account?.accountId || '--'}</span>
+                <span className="text-xs sm:text-sm font-semibold truncate leading-none">{account?.accountId || '--'}</span>
               </div>
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full leading-none ${getModeBadgeClass(currentAccountMode)}`}>
                 {currentAccountMode}
@@ -5260,9 +5260,7 @@ const TradingPage = () => {
                             <div className="text-left">
                               <div className="flex items-center gap-1.5 mb-1">
                                 {acc.isCompetition && (
-                                  <span className="bg-amber-100 text-amber-600 text-[9px] px-1 rounded border border-amber-200 font-bold">
-                                    🏆 COMP
-                                  </span>
+                                  <span className="flex-shrink-0 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-600 text-[8px] px-2 py-0.5 rounded-full border border-amber-200 font-bold leading-none uppercase tracking-tighter">🏆 COMP</span>
                                 )}
                                 <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
                               </div>
@@ -5300,9 +5298,7 @@ const TradingPage = () => {
                             <div className="text-left">
                               <div className="flex items-center gap-1.5 mb-1">
                                 {acc.isCompetition && (
-                                  <span className="bg-amber-100 text-amber-600 text-[9px] px-1 rounded border border-amber-200 font-bold">
-                                    🏆 COMP
-                                  </span>
+                                  <span className="flex-shrink-0 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-600 text-[8px] px-2 py-0.5 rounded-full border border-amber-200 font-bold leading-none uppercase tracking-tighter">🏆 COMP</span>
                                 )}
                                 <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
                               </div>

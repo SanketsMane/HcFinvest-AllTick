@@ -210,7 +210,7 @@ export default function Account() {
                 </button>
 
                 {showAccountDropdown && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border rounded-lg shadow-lg z-50">
+                  <div className="absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-xl z-50 overflow-hidden">
                     {/* ✅ If no accounts */}
                     {sortedAccounts.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-gray-600 text-center">
@@ -247,13 +247,13 @@ export default function Account() {
                           }`}
                         >
                           {/* Account Type */}
-                          <div className="font-medium flex items-center gap-1">
+                          <div className="font-medium flex items-center gap-2">
                             {acc.isCompetition && (
-                              <span className="bg-amber-100 text-amber-600 text-[10px] px-1.5 py-0.5 rounded border border-amber-200 font-bold">
-                                🏆 COMPETITION
+                              <span className="flex-shrink-0 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-600 text-[9px] px-2 py-0.5 rounded-full border border-amber-200 font-bold tracking-wider">
+                                🏆 COMP
                               </span>
                             )}
-                            {acc.accountTypeId?.name || "Account"}
+                            <span className="truncate">{acc.accountTypeId?.name || "Account"}</span>
                           </div>
 
                           {/* Account Number */}
