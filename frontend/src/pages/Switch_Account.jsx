@@ -1109,12 +1109,14 @@ const Switch_Account = () => {
                                 </div>
                                 <div>
                                   <h3
-                                    className={`font-semibold ${isMobile ? "text-sm" : ""} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                    className={`font-semibold line-clamp-1 ${isMobile ? "text-sm" : ""} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                    title={account.accountName || account.accountId}
                                   >
-                                    {account.accountId}
+                                    {account.accountName || account.accountId}
                                   </h3>
                                   <p className="text-gray-600 text-xs uppercase">
-                                    {account.accountTypeId?.name || "STANDARD"}
+                                    {account.accountName ? `${account.accountTypeId?.name || "STANDARD"} • ${account.accountId}` : account.accountTypeId?.name || "STANDARD"}
+                                    {account.isCompetition && " 🏆 COMP"}
                                   </p>
                                 </div>
                               </div>

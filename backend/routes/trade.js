@@ -2,6 +2,7 @@ import express from 'express'
 import Trade from '../models/Trade.js'
 import TradingAccount from '../models/TradingAccount.js'
 import ChallengeAccount from '../models/ChallengeAccount.js'
+import Competition from '../models/Compitition.js'
 import Transaction from '../models/Transaction.js'
 import tradeEngine from '../services/tradeEngine.js'
 import propTradingEngine from '../services/propTradingEngine.js'
@@ -134,6 +135,24 @@ router.post('/open', async (req, res) => {
       }
     } catch (err) {
       console.warn(`[Trade Route] Non-critical: Failed to sync with Redis price source for ${symbol}`);
+    }
+
+    // 🏆 COMPETITION BOUNDARY GUARD
+    const tradingAccountCheck = await TradingAccount.findById(tradingAccountId);
+    if (tradingAccountCheck && tradingAccountCheck.isCompetition && tradingAccountCheck.competitionId) {
+      const comp = await Competition.findById(tradingAccountCheck.competitionId);
+      if (!comp) {
+        return res.status(400).json({ success: false, message: 'Invalid competition account.' });
+      }
+      const now = Date.now();
+      const startDate = new Date(comp.startDate).getTime();
+      const endDate = new Date(comp.endDate).getTime();
+      if (comp.competitionStatus !== 'live' || now < startDate || now > endDate) {
+        return res.status(403).json({
+          success: false,
+          message: 'Trading is disabled. This competition is either not currently active, has already ended, or has not started yet.'
+        });
+      }
     }
 
     // Check if this is a challenge account first

@@ -1,4 +1,4 @@
-﻿// New_Compition.jsx
+// New_Compition.jsx
 import {
   Trophy,
   Users,
@@ -347,8 +347,7 @@ const [insufficientDialogOpen, setInsufficientDialogOpen] = useState(false);
   
     };
 
- const confirmJoinCompetition = async () => {
-
+  const confirmJoinCompetition = async () => {
     try {
       setLoading(true);
       const user = JSON.parse(localStorage.getItem("user"));
@@ -368,136 +367,53 @@ const [insufficientDialogOpen, setInsufficientDialogOpen] = useState(false);
         return;
       }
 
-      const entryFee = selectedComp.entryFee;
-      const initialDeposit = selectedComp?.initialDeposit ?? 10000;
-
-      // ðŸ’° Wallet Check
-      const walletRes = await axios.get(`${API_URL}/wallet/${clientId}`);
-      const balance = walletRes.data?.wallet?.balance;
-
-      if (balance < entryFee) {
-        setInsufficientDialogOpen(true);
-        setOpenRules(false);
-        return;
-      }
-      // âœ… STEP 1: JOIN COMPETITION
-      await deductEntryFee({ userId: clientId, amount: entryFee });
-      // âœ… STEP 2: DEDUCT ENTRY FEE
-      await joinCompetition(selectedCompetition);
-      // âœ… STEP 3: CREATE DEMO ACCOUNT
-      await createParticipant({ competitionId: selectedCompetition, user, initialDeposit });
-      // âœ… STEP 4: CREATE DEMO ACCOUNT
-      const demoRes = await handleCreateCompetitionDemo();
-      // console.log("Demo Account Created:", demoRes);
-      // ðŸ”¥ STORE DATA FOR DIALOG
-
-
-      setEnrollmentData({
-        name: user.firstName,
-        email: user.email,
-        accountNumber: demoRes?.data?.accountId,
-        // username: demoRes?.data?.email,
-        username: user.email,
-        password: user.password || "******",
-        startDate: selectedComp.startDate
+      // ✅ ATOMIC JOIN: Deduct fee, open demo, enroll via single secure backend call
+      const res = await axios.post(`${API_URL}/competitions/join-competition`, {
+        competitionId: selectedCompetition,
+        userId: clientId,
       });
 
-      //Sanket v2.0 - Competition confirmation email is now triggered from backend join flow to avoid duplicates/spam
-      setSuccessDialogOpen(true);
-      setOpenRules(false);
+      if (res.data?.success) {
+        setJoinedCompetitions((prev) => [...prev, selectedCompetition]);
+        setCompetitions((prev) =>
+          prev.map((comp) =>
+            comp._id === selectedCompetition
+              ? {
+                  ...comp,
+                  participants: comp.participants
+                    ? [...comp.participants, clientId]
+                    : [clientId],
+                }
+              : comp
+          )
+        );
+
+        setEnrollmentData({
+          name: user.firstName,
+          email: user.email,
+          accountNumber: res.data.account?.accountName || res.data.account?.accountId || "Competition Account",
+          username: user.email,
+          password: user.password || "******",
+          startDate: selectedComp.startDate,
+        });
+
+        setSuccessDialogOpen(true);
+        setOpenRules(false);
+      }
 
     } catch (error) {
       console.error(error);
-
-      if (error.response?.data?.message === "User already joined this competition") {
-        alert("You already joined this competition");
+      const msg = error.response?.data?.message || "Something went wrong";
+      
+      if (msg.includes("Insufficient") || msg.toLowerCase().includes("balance")) {
+        setInsufficientDialogOpen(true);
+        setOpenRules(false);
       } else {
-        alert(error.response?.data?.message || "Something went wrong");
+        alert(msg);
       }
 
     } finally {
       setLoading(false);
-    }
-  };
-
-    const createParticipant = async ({ competitionId, user, initialDeposit }) => {
-      // console.log("All Data for User"+ user.data);
-    const clientId = user?._id;
-
-    return await axios.post(`${API_URL}/competitions/createParticipant`, {
-      competitionId,
-      userId: clientId,
-      participantName: user?.firstName || "Trader",
-      tradingAccountNumber: "DEMO_" + Date.now(),
-      initialDeposit
-    });
-  };
-
-    const deductEntryFee = async ({ userId, amount }) => {
-      return await axios.post(`${API_URL}/wallet/deduct-entry-fee`, {
-        userId,
-        amount
-      });
-    };
-      
-  const handleCreateCompetitionDemo = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-  
-      if (!user._id) {
-        alert("Please login first");
-        return;
-      }
-  
-      const existingRes = await fetch(
-        `${API_URL}/trading-accounts/user/${user._id}`
-      );
-      const existingData = await existingRes.json();
-  
-      const alreadyExists = existingData.accounts?.find(
-        (acc) => acc.accountName === "Competition Account"
-      );
-  
-      if (alreadyExists) {
-        alert("Competition account already exists!");
-        navigate(`/trade/${alreadyExists._id}`);
-        return;
-      }
-  
-      const res = await fetch(`${API_URL}/account-types`);
-      const data = await res.json();
-  
-      const demoType = data.accountTypes?.find((t) => t.isDemo);
-  
-      if (!demoType) {
-        alert("No demo account type available");
-        return;
-      }
-  
-      const createRes = await fetch(`${API_URL}/trading-accounts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user._id,
-          accountTypeId: demoType._id,
-          pin: "0000",
-          accountName: "Competition Account",
-        }),
-      });
-  
-      const createData = await createRes.json();
-      if (createRes.ok) {
-        // console.log("Created Competition Account:", createData.account);
-        return createData; // âœ… IMPORTANT
-      } else {
-        throw new Error(createData.message || "Failed to create account");
-      }
-  
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Error creating competition account");
     }
   };
 

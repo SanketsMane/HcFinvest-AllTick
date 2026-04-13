@@ -17,6 +17,19 @@ const tradingAccountSchema = new mongoose.Schema({
     unique: true,
     required: true
   },
+  accountName: {
+    type: String,
+    default: ''
+  },
+  isCompetition: {
+    type: Boolean,
+    default: false
+  },
+  competitionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Competition',
+    default: null
+  },
   pin: {
     type: String,
     required: true
