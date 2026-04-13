@@ -5258,7 +5258,14 @@ const TradingPage = () => {
                             } ${switchingAccountId === acc._id ? 'opacity-60' : ''}`}
                           >
                             <div className="text-left">
-                              <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                {acc.isCompetition && (
+                                  <span className="bg-amber-100 text-amber-600 text-[9px] px-1 rounded border border-amber-200 font-bold">
+                                    🏆 COMP
+                                  </span>
+                                )}
+                                <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
+                              </div>
                               <div className={`text-[11px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Bal ${Number(acc.balance || 0).toFixed(2)} • Lev {acc.leverage || '1:100'} • {acc.status || 'ACTIVE'}</div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -5291,7 +5298,14 @@ const TradingPage = () => {
                             } ${switchingAccountId === acc._id ? 'opacity-60' : ''}`}
                           >
                             <div className="text-left">
-                              <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                {acc.isCompetition && (
+                                  <span className="bg-amber-100 text-amber-600 text-[9px] px-1 rounded border border-amber-200 font-bold">
+                                    🏆 COMP
+                                  </span>
+                                )}
+                                <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{acc.accountId}</div>
+                              </div>
                               <div className={`text-[11px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Bal ${Number(acc.balance || 0).toFixed(2)} • Lev {acc.leverage || '1:100'} • {acc.status || 'ACTIVE'}</div>
                             </div>
                             <div className="flex items-center gap-2">
