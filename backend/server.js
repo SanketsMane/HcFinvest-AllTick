@@ -48,6 +48,7 @@ import competitionEmailRoutes from "./routes/emailRoutes.js";
 import chartRoutes from "./routes/chart.js";
 import "./utils/competitionStatusCron.js";
 import announcementRoute from "./routes/announcements_Router.js"; 
+import notificationRoutes from "./routes/notifications.js";
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -513,6 +514,7 @@ app.use("/api/competition", competitionLeaderboard);
 app.use("/api/competition-email", competitionEmailRoutes);
 app.use("/api/chart", chartRoutes);
 app.use('/api/announcement', announcementRoute);
+app.use('/api/notifications', notificationRoutes);
 
 // Historical API route
 // app.use("/api/history", historyRoute);

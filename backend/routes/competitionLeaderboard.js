@@ -2,6 +2,7 @@ import express from "express";
 import axios from "axios"; // ✅ FIX: use axios instead of fetch
 import Trade from "../models/Trade.js";
 import TradingAccount from "../models/TradingAccount.js";
+import CompetitionParticipant from "../models/competitionParticipantSchema.js";
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.get("/leaderboard/:competitionId", async (req, res) => {
     const { competitionId } = req.params;
 
     // ✅ 1. Get participants
-    const participants = await competitionParticipantSchema
+    const participants = await CompetitionParticipant
       .find({ competitionId })
       .populate("userId", "firstName email");
 
@@ -157,7 +158,7 @@ router.get("/total-winnings/:clientId", async (req, res) => {
     }
 
     // ✅ Get all competition participations of user
-    const participants = await competitionParticipantSchema.find({
+    const participants = await CompetitionParticipant.find({
       userId: clientId,
     });
 

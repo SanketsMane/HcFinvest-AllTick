@@ -3,11 +3,11 @@
  * Handles market open/close state based on UTC time
  */
 
-export const isMarketOpen = (symbol) => {
+export const isMarketOpen = (symbol, time = null) => {
   if (!symbol) return false;
   
   const normalizedSymbol = String(symbol).toUpperCase().replace(/[^A-Z]/g, '');
-  const now = new Date();
+  const now = time ? new Date(time) : new Date();
   const utcDay = now.getUTCDay(); // 0 = Sunday, 6 = Saturday
   const utcHour = now.getUTCHours();
   

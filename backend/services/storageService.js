@@ -9,6 +9,7 @@ import alltickApiService from './alltickApiService.js';
 import Candle from '../models/Candle.js'; // //sanket - Generic model handles all symbols
 import leaderLock from './leaderLock.js'; // Distributed leader lock for multi-instance safety
 import redisClient from './redisClient.js';
+import { isMarketOpen } from '../utils/marketHours.js';
 
 // //sanket - All symbols use the generic Candle model for simplicity and consistency
 // The Candle model has proper indexes for fast queries across all symbols
@@ -248,6 +249,14 @@ class StorageService extends EventEmitter {
     for (let i = 1; i < candles.length; i++) {
       const diff = candles[i].time - candles[i - 1].time;
       if (diff > maxGapMs) {
+        // 🏆 ELITE PRODUCTION FIX: Market Awareness
+        // If the gap center point is during market-closed hours (Forex/Metals weekend),
+        // we ignore it to prevent useless API calls and Redis overhead.
+        const gapCenter = new Date(candles[i - 1].time.getTime() + diff / 2);
+        if (!isMarketOpen(symbol, gapCenter)) {
+          continue; 
+        }
+
         gaps.push({
           gapStart: candles[i - 1].time,
           gapEnd: candles[i].time,

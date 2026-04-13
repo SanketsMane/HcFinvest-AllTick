@@ -137,7 +137,7 @@ router.get('/master/my-profile/:userId', async (req, res) => {
       .populate('tradingAccountId', 'accountId balance')
 
     if (!master) {
-      return res.status(404).json({ message: 'Master profile not found' })
+      return res.status(200).json({ master: null })
     }
 
     res.json({ master })
