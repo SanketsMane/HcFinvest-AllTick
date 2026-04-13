@@ -97,25 +97,7 @@ const getChartExecutionPrice = (bid, ask, symbol, adminSpreads, side = 'MID') =>
 //Sanket v2.0 - bars that fall outside declared session hours. Both '2200-2200:12345' and '2200-2100:12345'
 //Sanket v2.0 - caused chart freezes at session boundaries. AllTick handles real market hours.
 //Sanket v2.0 - Flat candles during market close are handled by stopping interpolation when no ticks arrive.
-const SYMBOL_REGISTRY_FE = {
-  'EURUSD': { pricescale: 100000, session: '24x7' },
-  'GBPUSD': { pricescale: 100000, session: '24x7' },
-  'USDJPY': { pricescale: 100,    session: '24x7' },
-  'USDCHF': { pricescale: 100000, session: '24x7' },
-  'AUDUSD': { pricescale: 100000, session: '24x7' },
-  'NZDUSD': { pricescale: 100000, session: '24x7' },
-  'USDCAD': { pricescale: 100000, session: '24x7' },
-  'XAUUSD': { pricescale: 100,    session: '24x7' },
-  'XAGUSD': { pricescale: 1000,   session: '24x7' },
-  'BTCUSD': { pricescale: 100,    session: '24x7' },
-  'ETHUSD': { pricescale: 100,    session: '24x7' },
-  'BNBUSD': { pricescale: 100,    session: '24x7' },
-  'SOLUSD': { pricescale: 100,    session: '24x7' },
-  'US30':   { pricescale: 10,     session: '24x7' },
-  'US500':  { pricescale: 100,    session: '24x7' },
-  'US100':  { pricescale: 10,     session: '24x7' },
-  'UK100':  { pricescale: 10,     session: '24x7' },
-};
+//Sanket v2.0 - dynamic pricescale calculation handles all fallback configurations universally
 
 const ALL_SYMBOLS = [
   // Forex
@@ -224,12 +206,23 @@ const Datafeed = {
   //Sanket v2.0 - Added try/catch + onResolveErrorCallback so chart doesn't hang on bad symbols
   resolveSymbol: async (symbolName, onSymbolResolvedCallback, onResolveErrorCallback) => {
     try {
-      // v7.77 Strict Normalization using Registry
+      // v7.77 Strict Normalization using Dynamic Scaling
       const cleanName = normalizeRealtimeSymbol(symbolName);
-      const meta = SYMBOL_REGISTRY_FE[cleanName] || {};
       
-      const pricescale = meta.pricescale || 100000;
-      const session = meta.session || '24x7';
+      // Dynamic scaling engine identical to the backend
+      let pricescale = 100000;
+      if (cleanName.includes("JPY") || cleanName.includes("XAU") || cleanName.includes("BTC") || cleanName.includes("ETH") || cleanName.includes("SOL") || cleanName.includes("BNB") || cleanName.includes("LTC")) {
+        pricescale = 100;
+      } else if (cleanName.includes("XAG") || cleanName.includes("NGAS") || cleanName.includes("COPPER")) {
+        pricescale = 1000;
+      } else if (cleanName.includes("US30") || cleanName.includes("US100") || cleanName.includes("UK100") || cleanName.includes("SPA") || cleanName.includes("GER") || cleanName.includes("FRA")) {
+        pricescale = 10;
+      } else if (cleanName.includes("XRP") || cleanName.includes("ADA")) {
+        pricescale = 10000;
+      }
+
+      // AllTick ensures flatlines are handled by data absence, keep session natively open 24x7 to avoid TradingView freeze
+      const session = '24x7';
       
       const symbolItem = ALL_SYMBOLS.find(s => s.symbol === cleanName);
       

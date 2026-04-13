@@ -793,17 +793,24 @@ class AllTickApiService {
   }
 
   getSymbolInfo(symbol) {
-    const s = symbol.toUpperCase();
-    let digits = 5;
-    let pricescale = 100000;
+    const s = canonicalNormalize(symbol);
+    const meta = SYMBOL_REGISTRY[s] || {};
+    
+    // 1. Pull exact pricescale from Master Config
+    let pricescale = meta.pricescale;
 
-    if (s.includes("JPY") || s.includes("XAU") || s.includes("BTC") || s.includes("ETH") || s.includes("USDT")) {
-      digits = 2;
-      pricescale = 100;
-    } else if (s.includes("XAG")) {
-      digits = 3;
-      pricescale = 1000;
+    // 2. Fallback logic if symbol isn't mapped
+    if (!pricescale) {
+      if (s.includes("JPY") || s.includes("XAU") || s.includes("BTC") || s.includes("ETH") || s.includes("SOL") || s.includes("BNB") || s.includes("LTC")) pricescale = 100;
+      else if (s.includes("XAG") || s.includes("NGAS") || s.includes("COPPER")) pricescale = 1000;
+      else if (s.includes("US30") || s.includes("US100") || s.includes("UK100") || s.includes("SPA") || s.includes("GER") || s.includes("FRA")) pricescale = 10;
+      else if (s.includes("XRP") || s.includes("ADA")) pricescale = 10000;
+      else pricescale = 100000; // Default Forex fiat
     }
+
+    // 3. Compute decimals required for the UI / TradingView
+    let digits = Math.round(Math.log10(pricescale));
+    if (!Number.isFinite(digits) || digits < 0) digits = 5;
 
     return {
       symbol: symbol,
