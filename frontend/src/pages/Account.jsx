@@ -247,7 +247,12 @@ export default function Account() {
                           }`}
                         >
                           {/* Account Type */}
-                          <div className="font-medium">
+                          <div className="font-medium flex items-center gap-1">
+                            {acc.isCompetition && (
+                              <span className="bg-amber-100 text-amber-600 text-[10px] px-1.5 py-0.5 rounded border border-amber-200 font-bold">
+                                🏆 COMPETITION
+                              </span>
+                            )}
                             {acc.accountTypeId?.name || "Account"}
                           </div>
 

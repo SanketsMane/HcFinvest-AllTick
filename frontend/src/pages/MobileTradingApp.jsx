@@ -759,7 +759,14 @@ const MobileTradingApp = () => {
               </div>
               <div>
                 <p className="text-white font-medium text-sm">{selectedAccount.accountId}</p>
-                <p className="text-gray-400 text-xs">{selectedAccount.accountTypeId?.name || 'Standard'}</p>
+                <div className="flex items-center gap-1">
+                  {selectedAccount.isCompetition && (
+                    <span className="bg-amber-500/20 text-amber-500 text-[9px] px-1 py-0.5 rounded border border-amber-500/30 font-bold">
+                      🏆 COMPETITION
+                    </span>
+                  )}
+                  <p className="text-gray-400 text-xs">{selectedAccount.accountTypeId?.name || 'Standard'}</p>
+                </div>
               </div>
             </div>
             <ChevronRight size={18} className={`text-gray-400 transition-transform ${showAccountSelector ? 'rotate-90' : ''}`} />
@@ -780,7 +787,14 @@ const MobileTradingApp = () => {
                   >
                     <div className="text-left">
                       <span className="text-white text-sm block">{acc.accountId}</span>
-                      <span className="text-gray-500 text-xs">{acc.accountTypeId?.name || 'Standard'}</span>
+                      <div className="flex items-center gap-1">
+                        {acc.isCompetition && (
+                          <span className="bg-amber-500/20 text-amber-500 text-[9px] px-1 py-0.5 rounded border border-amber-500/30 font-bold">
+                            🏆 COMP
+                          </span>
+                        )}
+                        <span className="text-gray-500 text-xs">{acc.accountTypeId?.name || 'Standard'}</span>
+                      </div>
                     </div>
                     {selectedAccount._id === acc._id && <Check size={14} className="text-accent-green" />}
                   </button>

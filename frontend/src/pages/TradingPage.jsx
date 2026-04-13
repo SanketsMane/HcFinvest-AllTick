@@ -5203,7 +5203,14 @@ const TradingPage = () => {
                   : 'bg-gray-50 border-gray-200 text-gray-900 hover:bg-gray-100'
               }`}
             >
-              <span className="text-xs sm:text-sm font-semibold">{account?.accountId || '--'}</span>
+              <div className="flex items-center gap-1">
+                {account?.isCompetition && (
+                  <span className="bg-amber-100 text-amber-600 text-[9px] px-1.5 py-0.5 rounded border border-amber-200 font-bold leading-none">
+                    🏆 COMPETITION
+                  </span>
+                )}
+                <span className="text-xs sm:text-sm font-semibold">{account?.accountId || '--'}</span>
+              </div>
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full leading-none ${getModeBadgeClass(currentAccountMode)}`}>
                 {currentAccountMode}
               </span>

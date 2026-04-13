@@ -1108,16 +1108,24 @@ const Switch_Account = () => {
                                   />
                                 </div>
                                 <div>
-                                  <h3
-                                    className={`font-semibold line-clamp-1 ${isMobile ? "text-sm" : ""} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
-                                    title={account.accountName || account.accountId}
-                                  >
-                                    {account.accountName || account.accountId}
-                                  </h3>
-                                  <p className="text-gray-600 text-xs uppercase">
-                                    {account.accountName ? `${account.accountTypeId?.name || "STANDARD"} • ${account.accountId}` : account.accountTypeId?.name || "STANDARD"}
-                                    {account.isCompetition && " 🏆 COMP"}
-                                  </p>
+                                  <div className="flex flex-col">
+                                    <h3
+                                      className={`font-semibold line-clamp-1 ${isMobile ? "text-sm" : ""} ${isDarkMode ? "text-gray-900" : "text-gray-900"}`}
+                                      title={account.accountName || account.accountId}
+                                    >
+                                      {account.accountName || account.accountId}
+                                    </h3>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {account.isCompetition && (
+                                        <span className="bg-amber-100 text-amber-600 text-[9px] px-1.5 py-0.5 rounded border border-amber-200 font-bold flex items-center gap-1">
+                                          🏆 COMPETITION
+                                        </span>
+                                      )}
+                                      <p className="text-gray-600 text-[10px] uppercase font-medium">
+                                        {account.accountName ? `${account.accountTypeId?.name || "STANDARD"}` : account.accountTypeId?.name || "STANDARD"}
+                                      </p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                               <div className="relative">
