@@ -252,7 +252,7 @@ class StorageService extends EventEmitter {
         // 🏆 ELITE PRODUCTION FIX: Market Awareness
         // If the gap center point is during market-closed hours (Forex/Metals weekend),
         // we ignore it to prevent useless API calls and Redis overhead.
-        const gapCenter = new Date(candles[i - 1].time.getTime() + diff / 2);
+        const gapCenter = new Date(Number(candles[i - 1].time) + diff / 2);
         if (!isMarketOpen(symbol, gapCenter)) {
           continue; 
         }
